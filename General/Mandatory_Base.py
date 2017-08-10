@@ -1,8 +1,10 @@
 from PySide2 import QtWidgets, QtCore
+
 from pymel import core as pmc
-from auri.auri_lib import grpbox
-from auri.scripts import rig_lib
+
 from auri.auri_lib import AuriScriptView, AuriScriptController, AuriScriptModel
+from auri.auri_lib import grpbox
+from auri.scripts.Maya_Scripts import rig_lib
 
 reload(rig_lib)
 
