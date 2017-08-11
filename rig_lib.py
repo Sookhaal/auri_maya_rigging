@@ -1,13 +1,16 @@
 from pymel import core as pmc
+
 pmc.loadPlugin("matrixNodes", qt=1)
 
 
 def square_arrow_curve(name):
-    crv = pmc.curve(d=1, p=[(-5, 0, -5), (-2, 0, -5), (-2, 0, -7), (-3, 0, -7), (0, 0, -9), (3, 0, -7), (2, 0, -7), (2, 0, -5),
-                 (5, 0, -5), (5, 0, -2), (7, 0, -2), (7, 0, -3), (9, 0, 0), (7, 0, 3), (7, 0, 2), (5, 0, 2),
-                 (5, 0, 5), (2, 0, 5), (2, 0, 7), (3, 0, 7), (0, 0, 9), (-3, 0, 7), (-2, 0, 7), (-2, 0, 5),
-                 (-5, 0, 5), (-5, 0, 2), (-7, 0, 2), (-7, 0, 3), (-9, 0, 0), (-7, 0, -3), (-7, 0, -2), (-5, 0, -2),
-                 (-5, 0, -5)], n=name)
+    crv = pmc.curve(d=1, p=[(-5, 0, -5), (-2, 0, -5), (-2, 0, -7), (-3, 0, -7), (0, 0, -9), (3, 0, -7), (2, 0, -7),
+                            (2, 0, -5),
+                            (5, 0, -5), (5, 0, -2), (7, 0, -2), (7, 0, -3), (9, 0, 0), (7, 0, 3), (7, 0, 2), (5, 0, 2),
+                            (5, 0, 5), (2, 0, 5), (2, 0, 7), (3, 0, 7), (0, 0, 9), (-3, 0, 7), (-2, 0, 7), (-2, 0, 5),
+                            (-5, 0, 5), (-5, 0, 2), (-7, 0, 2), (-7, 0, 3), (-9, 0, 0), (-7, 0, -3), (-7, 0, -2),
+                            (-5, 0, -2),
+                            (-5, 0, -5)], n=name)
     return crv
 
 
@@ -58,3 +61,23 @@ def exists_check(objects):
     else:
         print("Wrong argument given to exists_check fonction")
 
+
+def list_children(group):
+    return [obj.nodeName() for obj in pmc.listRelatives(group, children=1)]
+
+
+def cbbox_set_selected(selected, cbbox):
+    if selected is not None and cbbox.findText(selected) != -1:
+        cbbox.setCurrentText(selected)
+    else:
+        cbbox.setCurrentIndex(0)
+        selected = cbbox.currentText()
+    return selected
+
+
+def create_curve_guide(d, number_of_points, name, hauteur_curve=10):
+        crv = pmc.curve(d=1, p=[(0, 0, 0), (0, hauteur_curve, 0)], k=[0, 1])
+        crv_rebuilded = pmc.rebuildCurve(crv, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0, s=(number_of_points-1),
+                                         d=d, ch=0, replaceOriginal=1)[0]
+        crv_rebuilded.rename(name)
+        return crv_rebuilded
