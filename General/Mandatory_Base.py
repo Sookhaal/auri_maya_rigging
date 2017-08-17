@@ -55,8 +55,14 @@ class Controller(AuriScriptController):
         if not pmc.objExists("temporary_output"):
             pmc.group(em=1, n="temporary_output")
         temp_output_grp = pmc.ls("temporary_output")[0]
-        module_grp = pmc.group(em=1, n="{0}".format(self.model.module_name), p=temp_output_grp)
-        temp_output = pmc.group(em=1, n="local_ctrl_OUTPUT", p=module_grp)
+
+        if not pmc.objExists("temporary_output|{0}".format(self.model.module_name)):
+            pmc.group(em=1, n="{0}".format(self.model.module_name), p=temp_output_grp)
+        module_grp = pmc.ls("{0}".format(self.model.module_name))[0]
+
+        if not pmc.objExists("temporary_output|{0}|local_ctrl_OUTPUT".format(self.model.module_name)):
+            pmc.group(em=1, n="local_ctrl_OUTPUT", p=module_grp)
+        temp_output = pmc.ls("local_ctrl_OUTPUT")
         pmc.select(d=1)
 
 
@@ -100,7 +106,7 @@ class Controller(AuriScriptController):
         rig_lib.change_shape_color(global_ctrl, 3)
         rig_lib.change_shape_color(local_ctrl, 17)
 
-        global_scale_mult_node = pmc.createNode("multDoubleLinear", n="{0}_global_scale_MDL".format(self.model.module_name))
+        global_scale_mult_node = pmc.createNode("multDoubleLinear", n="{0}_global_mult_local_scale_MDL".format(self.model.module_name))
 
         global_ctrl.scaleY >> global_ctrl.scaleX
         global_ctrl.scaleY >> global_ctrl.scaleZ
@@ -108,6 +114,8 @@ class Controller(AuriScriptController):
         local_ctrl.scaleY >> local_ctrl.scaleZ
         global_ctrl.scaleY >> global_scale_mult_node.input1
         local_ctrl.scaleY >> global_scale_mult_node.input2
+        pmc.aliasAttr("global_scale", global_ctrl.scaleY)
+        pmc.aliasAttr("local_scale", local_ctrl.scaleY)
 
         pmc.select(d=1)
 

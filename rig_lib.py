@@ -15,7 +15,9 @@ def square_arrow_curve(name):
 
 
 def matrix_constraint(driver, driven, srt="srt"):
-    """ Constraint one node to another using their worldMatrix attributes """
+    """ Constraint one node to another using their worldMatrix attributes
+        if doesn't work, check if plug-in "matrixNodes" is loaded
+    """
 
     # define/create nodes
     mmlt = pmc.createNode("multMatrix", name=driven + "_multMatrix")
@@ -81,3 +83,30 @@ def create_curve_guide(d, number_of_points, name, hauteur_curve=10):
                                          d=d, ch=0, replaceOriginal=1)[0]
         crv_rebuilded.rename(name)
         return crv_rebuilded
+
+
+def create_jnts_from_cv_list_and_return_jnts_list(vertex_list, guide, module_name):
+    pmc.select(d=1)
+    created_jnts_list = []
+    for i, vertex in enumerate(vertex_list):
+        if i == 0:
+            jnt = pmc.joint(p=(pmc.xform(vertex, q=1, ws=1, translation=1)),
+                            o=(pmc.xform(guide, q=1, ws=1, rotation=1)),
+                            n="{0}_{1}_JNT".format(module_name, i), rad=0.5)
+        else:
+            jnt = pmc.joint(p=(pmc.xform(vertex, q=1, ws=1, translation=1)),
+                            n="{0}_{1}_JNT".format(module_name, i), rad=0.5)
+        created_jnts_list.append(jnt)
+    created_jnts_list[-1].rename("{0}_end_JNT".format(module_name))
+    return created_jnts_list
+
+
+def change_jnt_chain_suffix(jnts_chain, new_suffix):
+    for jnt in jnts_chain:
+        if jnt != jnts_chain[-1]:
+            jnt_name = jnt.name().rsplit("|")[-1]
+            split_name = jnt_name.rsplit("_")
+            split_name.pop(-1)
+            new_suffix_list = [new_suffix]
+            new_name = "_".join(split_name + new_suffix_list)
+            jnt.rename(new_name)
