@@ -121,6 +121,7 @@ class Controller(AuriScriptController):
         self.parts_grp = None
         self.created_jnts = []
         self.ik_spline = None
+        self.created_locs = []
         self.created_ctrls = []
         AuriScriptController.__init__(self)
 
@@ -148,7 +149,8 @@ class Controller(AuriScriptController):
     def prebuild(self):
         self.guide_name = "{0}_GUIDE".format(self.model.module_name)
         if self.guide_check():
-            self.guide = pmc.ls("{0}".format(self.guide_name))[0]
+            self.guide = pmc.rebuildCurve(self.guide_name, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0, s=(self.model.how_many_ctrls - 1),
+                             d=3, ch=0, replaceOriginal=1)[0]
             return
         self.guide = rig_lib.create_curve_guide(d=3, number_of_points=self.model.how_many_ctrls, name=self.guide_name)
         if not pmc.objExists("guide_GRP"):
@@ -178,16 +180,17 @@ class Controller(AuriScriptController):
             self.model.selected_output = text
 
     def execute(self):
-        self.guide_name = "{0}_GUIDE".format(self.model.module_name)
-        if not self.guide_check():
-            print("No guide for module {0}".format(self.model.module_name))
-            return
+        self.created_ctrls = []
+        self.created_locs = []
+        self.prebuild()
 
         self.delete_existing_objects()
         self.connect_to_parent()
         self.create_jnts()
         self.create_ikspline()
         self.create_fk()
+        self.connect_stretch()
+
 
     def guide_check(self):
         if not pmc.objExists("guide_GRP"):
@@ -257,47 +260,87 @@ class Controller(AuriScriptController):
 
     def create_fk(self):
         ik_spline_cv_list = []
-        for i, cv in enumerate(self.ik_spline.cv):
+        for i, cv in enumerate(self.guide.cv):
             ik_spline_cv_list.append(cv)
         ik_spline_cv_for_ctrls = ik_spline_cv_list
         del ik_spline_cv_for_ctrls[1]
         del ik_spline_cv_for_ctrls[-2]
-        for i, cv in enumerate(ik_spline_cv_for_ctrls):
-            cv_loc = self.create_locators(i, cv)
-            self.create_ctrls(i, cv_loc)
-        self.constrain_ikspline_tan_to_ctrls(ik_spline_cv_list)
 
-    def create_locators(self, i, cv):
+        ik_spline_controlpoints_list = []
+        for i, cv in enumerate(self.ik_spline.controlPoints):
+            ik_spline_controlpoints_list.append(cv)
+        ik_spline_controlpoints_for_ctrls = ik_spline_controlpoints_list[:]
+        del ik_spline_controlpoints_for_ctrls[1]
+        del ik_spline_controlpoints_for_ctrls[-2]
+
+        for i, cv in enumerate(ik_spline_cv_for_ctrls):
+            cv_loc = self.create_locators(i, cv, ik_spline_controlpoints_for_ctrls)
+            self.create_ctrls(i, cv_loc)
+            self.created_locs.append(cv_loc)
+        self.constrain_ikspline_tan_to_ctrls(ik_spline_controlpoints_list)
+        self.ik_spline.setAttr("translate", (0, 0, 0))
+        self.ik_spline.setAttr("rotate", (0, 0, 0))
+
+    def create_locators(self, i, cv, ik_spline_controlpoints_for_ctrls):
         cv_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_{1}_pos".format(self.model.module_name, (i + 1)))
         cv_loc.setAttr("translate", pmc.xform(cv, q=1, ws=1, translation=1))
         cv_loc_shape = cv_loc.getShape()
-        ik_spline_shape = self.ik_spline.getShape()
-        cv_loc_shape.worldPosition >> ik_spline_shape.controlPoints[i] # probleme de comptage pour les point de la curves auquel les loc se connectent
+        cv_loc_shape.worldPosition >> ik_spline_controlpoints_for_ctrls[i]
         return cv_loc
 
     def create_ctrls(self, i, cv_loc):
         ctrl = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=3, d=3, s=8,
                           n="{0}_{1}_CTRL".format(self.model.module_name, (i + 1)), ch=0)[0]
+        ctrl_ofs = pmc.group(ctrl, n="{0}_{1}_ctrl_OFS".format(self.model.module_name, (i + 1)))
+        value = 1.0 / (self.model.how_many_ctrls - 1) * i
+        ctrl_ofs.setAttr("translate", self.guide.getPointAtParam(value, space="world"))
         if i == 0:
-            ctrl_ofs = pmc.group(ctrl, n="{0}_{1}_ctrl_OFS".format(self.model.module_name, (i + 1)),
-                                 p=self.ctrl_input_grp)
+            pmc.parent(ctrl_ofs, self.ctrl_input_grp, r=0)
         else:
-            ctrl_ofs = pmc.group(ctrl, n="{0}_{1}_ctrl_OFS".format(self.model.module_name, (i + 1)),
-                                 p="{0}_{1}_CTRL".format(self.model.module_name, i))
-        ctrl_ofs.setAttr("translate", pmc.xform(cv_loc, q=1, ws=1, translation=1))
+            pmc.parent(ctrl_ofs, "{0}_{1}_CTRL".format(self.model.module_name, i), r=0)
         pmc.parent(cv_loc, ctrl, r=0)
         self.created_ctrls.append(ctrl)
 
-    def constrain_ikspline_tan_to_ctrls(self, ik_spline_cv_list):
+    def constrain_ikspline_tan_to_ctrls(self, ik_spline_controlpoints_list):
         first_tan_cv_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_first_tan_pos".format(self.model.module_name))
         last_tan_cv_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_last_tan_pos".format(self.model.module_name))
         first_tan_cv_loc.setAttr("translate", pmc.xform(self.ik_spline.cv[1], q=1, ws=1, translation=1))
         last_tan_cv_loc.setAttr("translate", pmc.xform(self.ik_spline.cv[-2], q=1, ws=1, translation=1))
         first_tan_cv_loc_shape = first_tan_cv_loc.getShape()
         last_tan_cv_loc_shape = last_tan_cv_loc.getShape()
-        ik_spline_shape = self.ik_spline.getShape()
-        first_tan_cv_loc_shape.worldPosition >> ik_spline_shape.controlPoints[1]
-        last_tan_cv_loc_shape.worldPosition >> ik_spline_shape.controlPoints[len(ik_spline_cv_list) - 2]
+        first_tan_cv_loc_shape.worldPosition >> self.ik_spline.controlPoints[1]
+        last_tan_cv_loc_shape.worldPosition >> self.ik_spline.controlPoints[len(ik_spline_controlpoints_list) - 2]
+
+        # TODO: a voir si on garde tel quel ou si on change de methode pour gerer les tangentes de la curve ik_spline
+        pmc.parent(first_tan_cv_loc, self.created_locs[0], r=0)
+        pmc.parent(last_tan_cv_loc, self.created_locs[-1], r=0)
+
+    def connect_stretch(self):
+        crv_info = pmc.createNode("curveInfo", n="{0}_CURVEINFO".format(self.model.module_name))
+        global_stretch = pmc.createNode("multDoubleLinear", n="{0}_global_stretch_MDL".format(self.model.module_name))
+        neck_stretch_div = pmc.createNode("multiplyDivide", n="{0}_stretch_MDIV".format(self.model.module_name))
+        neck_stretch_mult = pmc.createNode("multDoubleLinear", n="{0}stretch_MDL".format(self.model.module_name))
+        self.jnt_input_grp.addAttr("baseArcLength", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        self.jnt_input_grp.addAttr("baseTranslateX", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        crv_shape = self.ik_spline.getShape()
+        global_scale = pmc.ls(regex=".*_global_mult_local_scale_MDL$")[0]
+
+        crv_shape.worldSpace[0] >> crv_info.inputCurve
+        base_arc_length = crv_info.getAttr("arcLength")
+        self.jnt_input_grp.setAttr("baseArcLength", base_arc_length)
+        base_translate_x = self.created_jnts[1].getAttr("translateX")
+        self.jnt_input_grp.setAttr("baseTranslateX", base_translate_x)
+        global_scale.output >> global_stretch.input1
+        self.jnt_input_grp.baseArcLength >> global_stretch.input2
+        crv_info.arcLength >> neck_stretch_div.input1X
+        global_stretch.output >> neck_stretch_div.input2X
+        neck_stretch_div.setAttr("operation", 2)
+        neck_stretch_div.outputX >> neck_stretch_mult.input1
+        self.jnt_input_grp.baseTranslateX >> neck_stretch_mult.input2
+
+        for jnt in self.created_jnts:
+            if not jnt == self.created_jnts[0]:
+                neck_stretch_mult.output >> jnt.translateX
 
 
 class Model(AuriScriptModel):

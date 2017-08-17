@@ -78,7 +78,8 @@ def cbbox_set_selected(selected, cbbox):
 
 
 def create_curve_guide(d, number_of_points, name, hauteur_curve=10):
-        crv = pmc.curve(d=1, p=[(0, 0, 0), (0, hauteur_curve, 0)], k=[0, 1])
+        crv = pmc.curve(d=1, p=[(0, 0, 0), (hauteur_curve, 0, 0)], k=[0, 1])
+        crv.setAttr("rotate", (-90, 0, 90))
         crv_rebuilded = pmc.rebuildCurve(crv, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0, s=(number_of_points-1),
                                          d=d, ch=0, replaceOriginal=1)[0]
         crv_rebuilded.rename(name)
