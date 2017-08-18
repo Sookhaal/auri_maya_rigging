@@ -16,7 +16,7 @@ class View(AuriScriptView):
         self.prebuild_btn = QtWidgets.QPushButton("Prebuild")
         self.how_many_jnts = QtWidgets.QSpinBox()
         self.how_many_ctrls = QtWidgets.QSpinBox()
-        self.IK_creation_switch = QtWidgets.QCheckBox()
+        self.ik_creation_switch = QtWidgets.QCheckBox()
         self.stretch_creation_switch = QtWidgets.QCheckBox()
         super(View, self).__init__(*args, **kwargs)
 
@@ -27,7 +27,7 @@ class View(AuriScriptView):
         self.model = Model()
 
     def refresh_view(self):
-        self.IK_creation_switch.setChecked(self.model.IK_creation_switch)
+        self.ik_creation_switch.setChecked(self.model.ik_creation_switch)
         self.stretch_creation_switch.setChecked(self.model.stretch_creation_switch)
         self.how_many_ctrls.setValue(self.model.how_many_ctrls)
         self.how_many_jnts.setValue(self.model.how_many_jnts)
@@ -45,7 +45,7 @@ class View(AuriScriptView):
         self.how_many_ctrls.setMinimum(2)
         self.how_many_ctrls.valueChanged.connect(self.ctrl.on_how_many_ctrls_changed)
 
-        self.IK_creation_switch.stateChanged.connect(self.ctrl.on_IK_creation_switch_changed)
+        self.ik_creation_switch.stateChanged.connect(self.ctrl.on_ik_creation_switch_changed)
         self.stretch_creation_switch.stateChanged.connect(self.ctrl.on_stretch_creation_switch_changed)
 
         self.refresh_btn.clicked.connect(self.ctrl.look_for_parent)
@@ -81,7 +81,7 @@ class View(AuriScriptView):
         ik_layout = QtWidgets.QHBoxLayout()
         ik_text = QtWidgets.QLabel("IK ctrls :")
         ik_layout.addWidget(ik_text)
-        ik_layout.addWidget(self.IK_creation_switch)
+        ik_layout.addWidget(self.ik_creation_switch)
         stretch_layout = QtWidgets.QHBoxLayout()
         stretch_text = QtWidgets.QLabel("stretch/squash :")
         stretch_layout.addWidget(stretch_text)
@@ -122,7 +122,8 @@ class Controller(AuriScriptController):
         self.created_jnts = []
         self.ik_spline = None
         self.created_locs = []
-        self.created_ctrls = []
+        self.created_fk_ctrls = []
+        self.created_ik_ctrls = []
         AuriScriptController.__init__(self)
 
     def look_for_parent(self):
@@ -164,8 +165,8 @@ class Controller(AuriScriptController):
     def on_how_many_ctrls_changed(self, value):
         self.model.how_many_ctrls = value
 
-    def on_IK_creation_switch_changed(self, state):
-        self.model.IK_creation_switch = is_checked(state)
+    def on_ik_creation_switch_changed(self, state):
+        self.model.ik_creation_switch = is_checked(state)
 
     def on_stretch_creation_switch_changed(self, state):
         self.model.stretch_creation_switch = is_checked(state)
@@ -180,8 +181,9 @@ class Controller(AuriScriptController):
             self.model.selected_output = text
 
     def execute(self):
-        self.created_ctrls = []
         self.created_locs = []
+        self.created_fk_ctrls = []
+        self.created_ik_ctrls = []
         self.prebuild()
 
         self.delete_existing_objects()
@@ -189,8 +191,13 @@ class Controller(AuriScriptController):
         self.create_jnts()
         self.create_ikspline()
         self.create_fk()
-        self.connect_stretch()
-
+        self.activate_twist()
+        if self.model.stretch_creation_switch == 1:
+            self.connect_stretch()
+        if self.model.ik_creation_switch == 1:
+            self.create_ik()
+        self.clean_rig()
+        pmc.select(d=1)
 
     def guide_check(self):
         if not pmc.objExists("guide_GRP"):
@@ -204,6 +211,8 @@ class Controller(AuriScriptController):
             pmc.delete("{0}_jnt_INPUT".format(self.model.module_name))
         if rig_lib.exists_check("{0}_ctrl_INPUT".format(self.model.module_name)):
             pmc.delete("{0}_ctrl_INPUT".format(self.model.module_name))
+        if rig_lib.exists_check("{0}_parts_GRP".format(self.model.module_name)):
+            pmc.delete("{0}_parts_GRP".format(self.model.module_name))
 
     def connect_to_parent(self):
         check_list = ["CTRL_GRP", "JNT_GRP", "PARTS_GRP"]
@@ -290,16 +299,16 @@ class Controller(AuriScriptController):
 
     def create_ctrls(self, i, cv_loc):
         ctrl = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=3, d=3, s=8,
-                          n="{0}_{1}_CTRL".format(self.model.module_name, (i + 1)), ch=0)[0]
-        ctrl_ofs = pmc.group(ctrl, n="{0}_{1}_ctrl_OFS".format(self.model.module_name, (i + 1)))
+                          n="{0}_{1}_fk_CTRL".format(self.model.module_name, (i + 1)), ch=0)[0]
+        ctrl_ofs = pmc.group(ctrl, n="{0}_{1}_fk_ctrl_OFS".format(self.model.module_name, (i + 1)))
         value = 1.0 / (self.model.how_many_ctrls - 1) * i
         ctrl_ofs.setAttr("translate", self.guide.getPointAtParam(value, space="world"))
         if i == 0:
             pmc.parent(ctrl_ofs, self.ctrl_input_grp, r=0)
         else:
-            pmc.parent(ctrl_ofs, "{0}_{1}_CTRL".format(self.model.module_name, i), r=0)
+            pmc.parent(ctrl_ofs, "{0}_{1}_fk_CTRL".format(self.model.module_name, i), r=0)
         pmc.parent(cv_loc, ctrl, r=0)
-        self.created_ctrls.append(ctrl)
+        self.created_fk_ctrls.append(ctrl)
 
     def constrain_ikspline_tan_to_ctrls(self, ik_spline_controlpoints_list):
         first_tan_cv_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_first_tan_pos".format(self.model.module_name))
@@ -314,6 +323,9 @@ class Controller(AuriScriptController):
         # TODO: a voir si on garde tel quel ou si on change de methode pour gerer les tangentes de la curve ik_spline
         pmc.parent(first_tan_cv_loc, self.created_locs[0], r=0)
         pmc.parent(last_tan_cv_loc, self.created_locs[-1], r=0)
+
+        first_tan_cv_loc_shape.setAttr("visibility", 0)
+        last_tan_cv_loc_shape.setAttr("visibility", 0)
 
     def connect_stretch(self):
         crv_info = pmc.createNode("curveInfo", n="{0}_CURVEINFO".format(self.model.module_name))
@@ -342,6 +354,85 @@ class Controller(AuriScriptController):
             if not jnt == self.created_jnts[0]:
                 neck_stretch_mult.output >> jnt.translateX
 
+    def create_ik(self):
+        start_ctrl = rig_lib.box_curve("{0}_start_ik_CTRL".format(self.model.module_name))
+        end_ctrl = rig_lib.box_curve("{0}_end_ik_CTRL".format(self.model.module_name))
+
+        start_ofs = pmc.group(start_ctrl, n="{0}_start_ik_ctrl_OFS".format(self.model.module_name))
+        end_ofs = pmc.group(end_ctrl, n="{0}_end_ik_ctrl_OFS".format(self.model.module_name))
+
+        start_ofs.setAttr("translate", pmc.xform(self.created_fk_ctrls[0], q=1, ws=1, translation=1))
+        start_ofs.setAttr("rotate", pmc.xform(self.created_fk_ctrls[0], q=1, ws=1, rotation=1))
+        end_ofs.setAttr("translate", pmc.xform(self.created_fk_ctrls[-1], q=1, ws=1, translation=1))
+        end_ofs.setAttr("rotate", pmc.xform(self.created_fk_ctrls[-1], q=1, ws=1, rotation=1))
+
+        pmc.parent(start_ofs, self.ctrl_input_grp, r=0)
+        pmc.parent(end_ofs, self.created_fk_ctrls[-2], r=0)
+        pmc.parent(self.created_fk_ctrls[-1].getParent(), end_ctrl, r=0)
+
+        pmc.parent(self.created_locs[0], start_ctrl, r=0)
+
+        self.created_fk_ctrls[-1].setAttr("visibility", 0)
+
+        self.created_ik_ctrls.append(start_ctrl)
+        self.created_ik_ctrls.append(end_ctrl)
+
+    def activate_twist(self):
+        ik_handle = pmc.ls("{0}_ik_HDL".format(self.model.module_name))[0]
+        ik_handle.setAttr("dTwistControlEnable", 1)
+        ik_handle.setAttr("dWorldUpType", 4)
+        ik_handle.setAttr("dForwardAxis", 0)
+        ik_handle.setAttr("dWorldUpAxis", 0)
+        ik_handle.setAttr("dWorldUpVectorX", 0)
+        ik_handle.setAttr("dWorldUpVectorY", 0)
+        ik_handle.setAttr("dWorldUpVectorZ", -1)
+        ik_handle.setAttr("dWorldUpVectorEndX", 0)
+        ik_handle.setAttr("dWorldUpVectorEndY", 0)
+        ik_handle.setAttr("dWorldUpVectorEndZ", -1)
+        self.created_locs[0].worldMatrix[0] >> ik_handle.dWorldUpMatrix
+        self.created_locs[-1].worldMatrix[0] >> ik_handle.dWorldUpMatrixEnd
+
+    def clean_rig(self):
+        self.jnt_input_grp.setAttr("visibility", 0)
+        self.parts_grp.setAttr("visibility", 0)
+        self.guide.setAttr("visibility", 0)
+        for loc in self.created_locs:
+            loc_shape = loc.getShape()
+            loc_shape.setAttr("visibility", 0)
+        for ctrl in self.created_fk_ctrls:
+            rig_lib.change_shape_color(ctrl, 14)
+            ctrl.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+            ctrl.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+            ctrl.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+            ctrl.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+            ctrl.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+            ctrl.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs = ctrl.getParent()
+            ctrl_ofs.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+        for ctrl in self.created_ik_ctrls:
+            rig_lib.change_shape_color(ctrl, 17)
+            ctrl.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+            ctrl.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+            ctrl.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs = ctrl.getParent()
+            ctrl_ofs.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+
 
 class Model(AuriScriptModel):
     def __init__(self):
@@ -350,5 +441,5 @@ class Model(AuriScriptModel):
         self.selected_output = None
         self.how_many_jnts = 10
         self.how_many_ctrls = 4
-        self.IK_creation_switch = True
+        self.ik_creation_switch = True
         self.stretch_creation_switch = True

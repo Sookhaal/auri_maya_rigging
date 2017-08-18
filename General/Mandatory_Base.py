@@ -117,6 +117,35 @@ class Controller(AuriScriptController):
         pmc.aliasAttr("global_scale", global_ctrl.scaleY)
         pmc.aliasAttr("local_scale", local_ctrl.scaleY)
 
+        global_ctrl.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+        global_ctrl.setAttr("scaleY", keyable=False, channelBox=True)
+        global_ctrl.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+        local_ctrl.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+        local_ctrl.setAttr("scaleY", keyable=False, channelBox=True)
+        local_ctrl.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+
+        global_ctrl_ofs = global_ctrl.getParent()
+        global_ctrl_ofs.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+        global_ctrl_ofs.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+        global_ctrl_ofs.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+        global_ctrl_ofs.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+        global_ctrl_ofs.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+        global_ctrl_ofs.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+        global_ctrl_ofs.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+        global_ctrl_ofs.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+        global_ctrl_ofs.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+
+        local_ctrl_ofs = local_ctrl.getParent()
+        local_ctrl_ofs.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+        local_ctrl_ofs.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+        local_ctrl_ofs.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+        local_ctrl_ofs.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+        local_ctrl_ofs.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+        local_ctrl_ofs.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+        local_ctrl_ofs.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+        local_ctrl_ofs.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+        local_ctrl_ofs.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+
         pmc.select(d=1)
 
 

@@ -14,6 +14,13 @@ def square_arrow_curve(name):
     return crv
 
 
+def box_curve(name):
+    crv = pmc.curve(d=1, p=[(-3, 1, 3), (-3, 1, -3), (-3, -1, -3), (-3, -1, 3), (-3, 1, 3), (3, 1, 3), (3, -1, 3),
+                            (-3, -1, 3), (-3, -1, -3), (3, -1, -3), (3, 1, -3), (-3, 1, -3), (-3, -1, -3), (3, -1, -3),
+                            (3, -1, 3), (3, 1, 3), (3, 1, -3)], n=name)
+    return crv
+
+
 def matrix_constraint(driver, driven, srt="srt"):
     """ Constraint one node to another using their worldMatrix attributes
         if doesn't work, check if plug-in "matrixNodes" is loaded
@@ -37,15 +44,15 @@ def matrix_constraint(driver, driven, srt="srt"):
     return mmlt, mdcp
 
 
-def change_shape_color(selected, color):
+def change_shape_color(selection, color):
     """ 2=dark_grey, 3=light_grey, 6=blue, 13=red 14=green 17=yellow """
-    if isinstance(selected, list):
-        for obj in selected:
+    if isinstance(selection, list):
+        for obj in selection:
             shape = obj.getShape()
             pmc.setAttr(shape + ".overrideEnabled", 1)
             pmc.setAttr(shape + ".overrideColor", color)
     else:
-        shape = selected.getShape()
+        shape = selection.getShape()
         pmc.setAttr(shape + ".overrideEnabled", 1)
         pmc.setAttr(shape + ".overrideColor", color)
 
