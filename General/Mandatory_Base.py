@@ -62,7 +62,6 @@ class Controller(AuriScriptController):
 
         if not pmc.objExists("temporary_output|{0}|local_ctrl_OUTPUT".format(self.model.module_name)):
             pmc.group(em=1, n="local_ctrl_OUTPUT", p=module_grp)
-        temp_output = pmc.ls("local_ctrl_OUTPUT")
         pmc.select(d=1)
 
 

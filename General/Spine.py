@@ -148,6 +148,19 @@ class Controller(AuriScriptController):
         self.has_updated_outputs = True
 
     def prebuild(self):
+        if not pmc.objExists("temporary_output"):
+            pmc.group(em=1, n="temporary_output")
+        temp_output_grp = pmc.ls("temporary_output")[0]
+
+        if not pmc.objExists("temporary_output|{0}".format(self.model.module_name)):
+            pmc.group(em=1, n="{0}".format(self.model.module_name), p=temp_output_grp)
+        module_grp = pmc.ls("{0}".format(self.model.module_name))[0]
+
+        if not pmc.objExists("temporary_output|{0}|start_OUTPUT".format(self.model.module_name)):
+            pmc.group(em=1, n="start_OUTPUT", p=module_grp)
+        if not pmc.objExists("temporary_output|{0}|end_OUTPUT".format(self.model.module_name)):
+            pmc.group(em=1, n="end_OUTPUT", p=module_grp)
+
         self.guide_name = "{0}_GUIDE".format(self.model.module_name)
         if self.guide_check():
             self.guide = pmc.rebuildCurve(self.guide_name, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0, s=(self.model.how_many_ctrls - 1),
@@ -157,7 +170,9 @@ class Controller(AuriScriptController):
         if not pmc.objExists("guide_GRP"):
             pmc.group(em=1, n="guide_GRP")
         pmc.parent(self.guide, "guide_GRP")
+        self.guide.setAttr("visibility", 1)
         self.view.refresh_view()
+        pmc.select(d=1)
 
     def on_how_many_jnts_changed(self, value):
         self.model.how_many_jnts = value
@@ -197,6 +212,7 @@ class Controller(AuriScriptController):
         if self.model.ik_creation_switch == 1:
             self.create_ik()
         self.clean_rig()
+        self.created_output()
         pmc.select(d=1)
 
     def guide_check(self):
@@ -224,7 +240,7 @@ class Controller(AuriScriptController):
         self.ctrl_input_grp = pmc.group(em=1, n="{0}_ctrl_INPUT".format(self.model.module_name))
         self.parts_grp = pmc.group(em=1, n="{0}_parts_GRP".format(self.model.module_name))
 
-        if self.model.selected_module != "No_parent":
+        if self.model.selected_module != "No_parent" and self.model.selected_module != "{0}".format(self.model.module_name):
             parent_name = "{0}_{1}".format(self.model.selected_module, self.model.selected_output)
             parent_node = pmc.ls(parent_name)[0]
             rig_lib.matrix_constraint(parent_node, self.ctrl_input_grp, srt="trs")
@@ -432,6 +448,14 @@ class Controller(AuriScriptController):
             ctrl_ofs.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
             ctrl_ofs.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
             ctrl_ofs.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+
+    def created_output(self):
+        start_output = pmc.spaceLocator(p=(0, 0, 0), n="{0}_start_OUTPUT".format(self.model.module_name))
+        pmc.parent(start_output, self.created_locs[0], r=1)
+        start_output.visibility.set(0)
+        end_output = pmc.spaceLocator(p=(0, 0, 0), n="{0}_end_OUTPUT".format(self.model.module_name))
+        pmc.parent(end_output, self.created_locs[-1], r=1)
+        end_output.visibility.set(0)
 
 
 class Model(AuriScriptModel):
