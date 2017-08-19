@@ -147,6 +147,27 @@ class Controller(AuriScriptController):
         self.model.selected_output = rig_lib.cbbox_set_selected(self.model.selected_output, self.view.outputs_cbbox)
         self.has_updated_outputs = True
 
+    def on_how_many_jnts_changed(self, value):
+        self.model.how_many_jnts = value
+
+    def on_how_many_ctrls_changed(self, value):
+        self.model.how_many_ctrls = value
+
+    def on_ik_creation_switch_changed(self, state):
+        self.model.ik_creation_switch = is_checked(state)
+
+    def on_stretch_creation_switch_changed(self, state):
+        self.model.stretch_creation_switch = is_checked(state)
+
+    def on_modules_cbbox_changed(self, text):
+        if self.has_updated_modules:
+            self.model.selected_module = text
+            self.look_for_parent()
+
+    def on_outputs_cbbox_changed(self, text):
+        if self.has_updated_outputs:
+            self.model.selected_output = text
+
     def prebuild(self):
         if not pmc.objExists("temporary_output"):
             pmc.group(em=1, n="temporary_output")
@@ -174,26 +195,12 @@ class Controller(AuriScriptController):
         self.view.refresh_view()
         pmc.select(d=1)
 
-    def on_how_many_jnts_changed(self, value):
-        self.model.how_many_jnts = value
-
-    def on_how_many_ctrls_changed(self, value):
-        self.model.how_many_ctrls = value
-
-    def on_ik_creation_switch_changed(self, state):
-        self.model.ik_creation_switch = is_checked(state)
-
-    def on_stretch_creation_switch_changed(self, state):
-        self.model.stretch_creation_switch = is_checked(state)
-
-    def on_modules_cbbox_changed(self, text):
-        if self.has_updated_modules:
-            self.model.selected_module = text
-            self.look_for_parent()
-
-    def on_outputs_cbbox_changed(self, text):
-        if self.has_updated_outputs:
-            self.model.selected_output = text
+    def guide_check(self):
+        if not pmc.objExists("guide_GRP"):
+            return False
+        if not pmc.objExists("guide_GRP|{0}".format(self.guide_name)):
+            return False
+        return True
 
     def execute(self):
         self.created_locs = []
@@ -214,13 +221,6 @@ class Controller(AuriScriptController):
         self.clean_rig()
         self.created_output()
         pmc.select(d=1)
-
-    def guide_check(self):
-        if not pmc.objExists("guide_GRP"):
-            return False
-        if not pmc.objExists("guide_GRP|{0}".format(self.guide_name)):
-            return False
-        return True
 
     def delete_existing_objects(self):
         if rig_lib.exists_check("{0}_jnt_INPUT".format(self.model.module_name)):
@@ -265,7 +265,7 @@ class Controller(AuriScriptController):
         vertex_list = guide_rebuilded.cv[:]
         self.created_jnts = rig_lib.create_jnts_from_cv_list_and_return_jnts_list(vertex_list, guide_rebuilded,
                                                                                   self.model.module_name)
-        pmc.parent(self.created_jnts[0], self.jnt_input_grp, r=1)
+        pmc.parent(self.created_jnts[0], self.jnt_input_grp, r=0)
 
         rig_lib.change_jnt_chain_suffix(self.created_jnts, new_suffix="SKN")
 
@@ -324,6 +324,7 @@ class Controller(AuriScriptController):
         else:
             pmc.parent(ctrl_ofs, "{0}_{1}_fk_CTRL".format(self.model.module_name, i), r=0)
         pmc.parent(cv_loc, ctrl, r=0)
+        ctrl.setAttr("rotateOrder", 1)
         self.created_fk_ctrls.append(ctrl)
 
     def constrain_ikspline_tan_to_ctrls(self, ik_spline_controlpoints_list):
@@ -387,6 +388,9 @@ class Controller(AuriScriptController):
         pmc.parent(self.created_fk_ctrls[-1].getParent(), end_ctrl, r=0)
 
         pmc.parent(self.created_locs[0], start_ctrl, r=0)
+
+        start_ctrl.setAttr("rotateOrder", 3)
+        end_ctrl.setAttr("rotateOrder", 1)
 
         self.created_fk_ctrls[-1].setAttr("visibility", 0)
 
