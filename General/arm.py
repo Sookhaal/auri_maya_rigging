@@ -38,6 +38,7 @@ class View(AuriScriptView):
         self.outputs_cbbox.currentTextChanged.connect(self.ctrl.on_outputs_cbbox_changed)
 
         self.ik_creation_switch.stateChanged.connect(self.ctrl.on_ik_creation_switch_changed)
+        self.ik_creation_switch.setEnabled(False)
         self.stretch_creation_switch.stateChanged.connect(self.ctrl.on_stretch_creation_switch_changed)
 
         self.side_cbbox.insertItems(0, ["Left", "Right"])
@@ -107,9 +108,12 @@ class Controller(AuriScriptController):
         self.jnt_input_grp = None
         self.ctrl_input_grp = None
         self.parts_grp = None
-        self.created_jnts = []
+        self.created_skn_jnts = []
+        self.created_fk_jnts = []
+        self.created_ik_jnts = []
         self.created_fk_ctrls = []
         self.created_ik_ctrls = []
+        self.option_ctrl = None
         AuriScriptController.__init__(self)
 
     def look_for_parent(self):
@@ -194,7 +198,6 @@ class Controller(AuriScriptController):
         return True
 
     def execute(self):
-        self.created_fk_ctrls = []
         self.created_ik_ctrls = []
         self.prebuild()
 
@@ -202,6 +205,11 @@ class Controller(AuriScriptController):
         self.connect_to_parent()
 
         self.create_skn_jnts()
+        self.create_options_ctrl()
+        self.create_and_connect_fk_ik_jnts()
+        self.create_fk()
+        if self.model.ik_creation_switch:
+            self.create_ik()
 
     def delete_existing_objects(self):
         if rig_lib.exists_check("{0}_jnt_INPUT".format(self.model.module_name)):
@@ -241,7 +249,6 @@ class Controller(AuriScriptController):
             pmc.parent(self.ctrl_input_grp, "CTRL_GRP", r=1)
 
     def create_skn_jnts(self):
-        print self.guides
         duplicates_guides = []
         for guide in self.guides:
             duplicate = guide.duplicate(n="{0}_duplicate".format(guide))[0]
@@ -266,9 +273,9 @@ class Controller(AuriScriptController):
         shoulder_jnt.setAttr("rotate", pmc.xform(duplicates_guides[0], q=1, rotation=1))
         if self.model.side == "Right":
             shoulder_jnt.setAttr("jointOrientX", -180)
-            shoulder_jnt.setAttr("rotate", (pmc.xform(shoulder_jnt, q=1, rotation=1)[0]+180,
-                                            pmc.xform(shoulder_jnt, q=1, rotation=1)[1]*-1,
-                                            pmc.xform(shoulder_jnt, q=1, rotation=1)[2]*-1))
+            shoulder_jnt.setAttr("rotate", (pmc.xform(shoulder_jnt, q=1, rotation=1)[0] + 180,
+                                            pmc.xform(shoulder_jnt, q=1, rotation=1)[1] * -1,
+                                            pmc.xform(shoulder_jnt, q=1, rotation=1)[2] * -1))
         elbow_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1)),
                               n="{0}_{1}_elbow_SKN".format(self.model.side, self.model.module_name))
         elbow_jnt.setAttr("rotate", pmc.xform(duplicates_guides[1], q=1, rotation=1))
@@ -276,8 +283,138 @@ class Controller(AuriScriptController):
                               n="{0}_{1}_wrist_SKN".format(self.model.side, self.model.module_name))
 
         pmc.parent(shoulder_jnt, self.jnt_input_grp, r=0)
+        self.created_skn_jnts = [shoulder_jnt, elbow_jnt, wrist_jnt]
 
         pmc.delete(duplicates_guides[:])
+
+    def create_options_ctrl(self):
+        self.option_ctrl = rig_lib.little_cube("{0}_{1}_option_CTRL".format(self.model.side, self.model.module_name))
+        option_ofs = pmc.group(self.option_ctrl, n="{0}_{1}_option_ctrl_OFS".format(self.model.side,
+                                                                                    self.model.module_name), r=1)
+        pmc.parent(option_ofs, self.ctrl_input_grp)
+        rig_lib.matrix_constraint(self.created_skn_jnts[-1], option_ofs, srt="trs")
+        ctrl_shape = self.option_ctrl.getShape()
+        pmc.move(ctrl_shape, [0, 0, -2 * self.side_coef], relative=1, objectSpace=1, worldSpaceDistance=1)
+        self.option_ctrl.addAttr("fkIk", attributeType="float", defaultValue=0, hidden=0, keyable=1, hasMaxValue=1,
+                                 hasMinValue=1, maxValue=1, minValue=0)
+
+    def create_and_connect_fk_ik_jnts(self):
+        shoulder_fk_jnt = \
+        self.created_skn_jnts[0].duplicate(n="{0}_{1}_shoulder_fk_JNT".format(self.model.side, self.model.module_name))[
+            0]
+        elbow_fk_jnt = \
+        pmc.ls("{0}_{1}_shoulder_fk_JNT|{0}_{1}_elbow_SKN".format(self.model.side, self.model.module_name))[0]
+        wrist_fk_jnt = pmc.ls("{0}_{1}_shoulder_fk_JNT|{0}_{1}_elbow_SKN|{0}_{1}_wrist_SKN".format(self.model.side,
+                                                                                                   self.model.module_name))[
+            0]
+        elbow_fk_jnt.rename("{0}_{1}_elbow_fk_JNT".format(self.model.side, self.model.module_name))
+        wrist_fk_jnt.rename("{0}_{1}_wrist_fk_JNT".format(self.model.side, self.model.module_name))
+        self.created_fk_jnts = [shoulder_fk_jnt, elbow_fk_jnt, wrist_fk_jnt]
+
+        shoulder_ik_jnt = \
+        self.created_skn_jnts[0].duplicate(n="{0}_{1}_shoulder_ik_JNT".format(self.model.side, self.model.module_name))[
+            0]
+        elbow_ik_jnt = \
+        pmc.ls("{0}_{1}_shoulder_ik_JNT|{0}_{1}_elbow_SKN".format(self.model.side, self.model.module_name))[0]
+        wrist_ik_jnt = pmc.ls("{0}_{1}_shoulder_ik_JNT|{0}_{1}_elbow_SKN|{0}_{1}_wrist_SKN".format(self.model.side,
+                                                                                                   self.model.module_name))[
+            0]
+        elbow_ik_jnt.rename("{0}_{1}_elbow_ik_JNT".format(self.model.side, self.model.module_name))
+        wrist_ik_jnt.rename("{0}_{1}_wrist_ik_JNT".format(self.model.side, self.model.module_name))
+        self.created_ik_jnts = [shoulder_ik_jnt, elbow_ik_jnt, wrist_ik_jnt]
+
+        for i, skn_jnt in enumerate(self.created_skn_jnts):
+            pair_blend = pmc.createNode("pairBlend", n="{0}_ik_fk_switch_PAIRBLEND".format(skn_jnt))
+            blend_color = pmc.createNode("blendColors", n="{0}_ik_fk_switch_BLENDCOLORS".format(skn_jnt))
+
+            self.created_fk_jnts[i].translate >> pair_blend.inTranslate1
+            self.created_fk_jnts[i].rotate >> pair_blend.inRotate1
+            self.created_fk_jnts[i].scale >> blend_color.color2
+            self.created_ik_jnts[i].translate >> pair_blend.inTranslate2
+            self.created_ik_jnts[i].rotate >> pair_blend.inRotate2
+            self.created_ik_jnts[i].scale >> blend_color.color1
+            pair_blend.outTranslate >> skn_jnt.translate
+            pair_blend.outRotate >> skn_jnt.rotate
+            blend_color.output >> skn_jnt.scale
+            self.option_ctrl.fkIk >> pair_blend.weight
+            self.option_ctrl.fkIk >> blend_color.blender
+
+    def create_fk(self):
+        shoulder_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
+                                   n="{0}_{1}_shoulder_fk_CTRL".format(self.model.side, self.model.module_name), ch=0)[
+            0]
+        shoulder_ofs = pmc.group(shoulder_ctrl,
+                                 n="{0}_{1}_shoulder_fk_ctrl_OFS".format(self.model.side, self.model.module_name))
+        shoulder_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1))
+        shoulder_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[0], q=1, ws=1, rotation=1))
+        shoulder_ctrl.setAttr("rotateOrder", 0)
+        pmc.parent(shoulder_ofs, self.ctrl_input_grp, r=0)
+
+        elbow_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
+                                n="{0}_{1}_elbow_fk_CTRL".format(self.model.side, self.model.module_name), ch=0)[0]
+        elbow_ofs = pmc.group(elbow_ctrl,
+                              n="{0}_{1}_elbow_fk_ctrl_OFS".format(self.model.side, self.model.module_name))
+        elbow_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1))
+        elbow_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[1], q=1, rotation=1))
+        elbow_ctrl.setAttr("rotateOrder", 0)
+        pmc.parent(elbow_ofs, shoulder_ctrl, r=0)
+        elbow_ofs.setAttr("rotate", (0, 0, 0))
+
+        wrist_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
+                                n="{0}_{1}_wrist_fk_CTRL".format(self.model.side, self.model.module_name), ch=0)[0]
+        wrist_ofs = pmc.group(wrist_ctrl,
+                              n="{0}_{1}_wrist_fk_ctrl_OFS".format(self.model.side, self.model.module_name))
+        wrist_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[2], q=1, ws=1, translation=1))
+        wrist_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[2], q=1, rotation=1))
+        wrist_ctrl.setAttr("rotateOrder", 0)
+        pmc.parent(wrist_ofs, elbow_ctrl, r=0)
+        wrist_ofs.setAttr("rotate", (0, 0, 0))
+
+        self.created_fk_ctrls = [shoulder_ctrl, elbow_ctrl, wrist_ctrl]
+
+        for i, ctrl in enumerate(self.created_fk_ctrls):
+            ctrl.rotate >> self.created_fk_jnts[i].rotate
+
+    def create_ik(self):
+        ik_handle = pmc.ikHandle(n=("{0}_{1}_ik_HDL".format(self.model.side, self.model.module_name)),
+                                 startJoint=self.created_ik_jnts[0], endEffector=self.created_ik_jnts[-1],
+                                 solver="ikRPsolver")[0]
+        ik_effector = pmc.listRelatives(self.created_ik_jnts[-2], children=1)[1]
+        ik_effector.rename("{0}_{1}_ik_EFF".format(self.model.side, self.model.module_name))
+
+        ik_ctrl = rig_lib.medium_cube("{0}_{1}_wrist_ik_CTRL".format(self.model.side, self.model.module_name))
+        ik_ctrl_ofs = pmc.group(ik_ctrl, n="{0}_{1}_wrist_ik_ctrl_OFS".format(self.model.side, self.model.module_name))
+
+        fk_ctrl_01_value = pmc.xform(self.created_fk_ctrls[0], q=1, rotation=1)
+        fk_ctrl_02_value = pmc.xform(self.created_fk_ctrls[1], q=1, rotation=1)
+        fk_ctrl_03_value = pmc.xform(self.created_fk_ctrls[2], q=1, rotation=1)
+        self.created_fk_ctrls[0].setAttr("rotate", (0, 0, 0))
+        self.created_fk_ctrls[1].setAttr("rotate", (0, 0, 0))
+        self.created_fk_ctrls[2].setAttr("rotate", (0, 0, 0))
+
+        ik_ctrl_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[2], q=1, ws=1, translation=1))
+        pmc.parent(ik_handle, ik_ctrl_ofs, r=0)
+        ik_ctrl.setAttr("translate", pmc.xform(ik_handle, q=1, translation=1))
+        pmc.parent(ik_handle, ik_ctrl, r=0)
+        pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
+
+        pole_vector = rig_lib.jnt_shape_curve("{0}_{1}_poleVector_CTRL".format(self.model.side, self.model.module_name))
+        pv_ofs = pmc.group(pole_vector, n="{0}_{1}_poleVector_ctrl_OFS".format(self.model.side, self.model.module_name))
+        pv_ofs.setAttr("translate", (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0],
+                                     pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[1],
+                                     pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[2] -
+                                     pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0]))
+        pmc.poleVectorConstraint(pole_vector, ik_handle)
+        pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
+
+        self.created_ik_jnts[1].setAttr("preferredAngleY", -90)
+
+        self.created_fk_ctrls[0].setAttr("rotate", fk_ctrl_01_value)
+        self.created_fk_ctrls[1].setAttr("rotate", fk_ctrl_02_value)
+        self.created_fk_ctrls[2].setAttr("rotate", fk_ctrl_03_value)
+
+        pmc.xform(pole_vector, ws=1, translation=(pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)))
+        pmc.xform(ik_ctrl, ws=1, translation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, translation=1)))
 
 
 class Model(AuriScriptModel):
