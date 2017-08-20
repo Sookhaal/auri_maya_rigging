@@ -28,6 +28,7 @@ class View(AuriScriptView):
     def refresh_view(self):
         self.ik_creation_switch.setChecked(self.model.ik_creation_switch)
         self.stretch_creation_switch.setChecked(self.model.stretch_creation_switch)
+        self.side_cbbox.setCurrentText(self.model.side)
         self.ctrl.look_for_parent()
 
     def setup_ui(self):
@@ -104,7 +105,7 @@ class Controller(AuriScriptController):
         self.guides = []
         self.guides_names = []
         self.side = {}
-        self.side_coef = 1
+        self.side_coef = 0
         self.jnt_input_grp = None
         self.ctrl_input_grp = None
         self.parts_grp = None
@@ -159,17 +160,20 @@ class Controller(AuriScriptController):
         self.guides_names = ["{0}_{1}_shoulder_GUIDE".format(self.model.side, self.model.module_name),
                              "{0}_{1}_elbow_GUIDE".format(self.model.side, self.model.module_name),
                              "{0}_{1}_wrist_GUIDE".format(self.model.side, self.model.module_name)]
+
+        self.side = {"Left": 1, "Right": -1}
+        self.side_coef = self.side.get(self.model.side)
+
         if self.guide_check():
             self.guides = pmc.ls("{0}_{1}_shoulder_GUIDE".format(self.model.side, self.model.module_name),
                                  "{0}_{1}_elbow_GUIDE".format(self.model.side, self.model.module_name),
                                  "{0}_{1}_wrist_GUIDE".format(self.model.side, self.model.module_name))
             return
+
         shoulder_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[0])
         elbow_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[1])
         wrist_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[2])
 
-        self.side = {"Left": 1, "Right": -1}
-        self.side_coef = self.side.get(self.model.side)
         shoulder_guide.setAttr("translate", (3 * self.side_coef, 10, 0))
         elbow_guide.setAttr("translate", (5 * self.side_coef, 8, 0))
         wrist_guide.setAttr("translate", (7 * self.side_coef, 6, 0))
@@ -346,7 +350,9 @@ class Controller(AuriScriptController):
         shoulder_ofs = pmc.group(shoulder_ctrl,
                                  n="{0}_{1}_shoulder_fk_ctrl_OFS".format(self.model.side, self.model.module_name))
         shoulder_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1))
-        shoulder_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[0], q=1, ws=1, rotation=1))
+        if self.model.side == "Right":
+            shoulder_ofs.setAttr("rotateX", -180)
+        shoulder_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[0], q=1, rotation=1))
         shoulder_ctrl.setAttr("rotateOrder", 0)
         pmc.parent(shoulder_ofs, self.ctrl_input_grp, r=0)
 
@@ -402,8 +408,8 @@ class Controller(AuriScriptController):
         pv_ofs = pmc.group(pole_vector, n="{0}_{1}_poleVector_ctrl_OFS".format(self.model.side, self.model.module_name))
         pv_ofs.setAttr("translate", (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0],
                                      pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[1],
-                                     pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[2] -
-                                     pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0]))
+                                     pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[2] - (
+                                   (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0]) * self.side_coef)))
         pmc.poleVectorConstraint(pole_vector, ik_handle)
         pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
 
@@ -414,7 +420,9 @@ class Controller(AuriScriptController):
         self.created_fk_ctrls[2].setAttr("rotate", fk_ctrl_03_value)
 
         pmc.xform(pole_vector, ws=1, translation=(pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)))
-        pmc.xform(ik_ctrl, ws=1, translation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, translation=1)))
+
+        pmc.evalDeferred("import pymel.core as pmc")
+        pmc.evalDeferred("pmc.xform(\"{0}\", ws=1, translation=(pmc.xform(\"{1}\", q=1, ws=1, translation=1)))".format(ik_ctrl, self.created_fk_jnts[-1]))
 
 
 class Model(AuriScriptModel):
