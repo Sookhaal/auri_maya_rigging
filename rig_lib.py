@@ -107,7 +107,7 @@ def matrix_constraint(driver, driven, srt="srt"):
 
 
 def change_shape_color(selection, color):
-    """ 2=dark_grey, 3=light_grey, 6=blue, 13=red 14=green 17=yellow """
+    """ 2=dark_grey, 3=light_grey, 6=blue, 9=rose, 13=red, 14=green, 17=yellow """
     if isinstance(selection, list):
         for obj in selection:
             shape = obj.getShape()
