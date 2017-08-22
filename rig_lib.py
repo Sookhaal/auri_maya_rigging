@@ -15,6 +15,9 @@ class RigController(AuriScriptController):
         self.has_updated_modules = False
         self.has_updated_outputs = False
         self.current_module = None
+        self.jnt_input_grp = None
+        self.ctrl_input_grp = None
+        self.parts_grp = None
         AuriScriptController.__init__(self)
 
     def look_for_parent(self):
@@ -117,6 +120,35 @@ class RigController(AuriScriptController):
             pmc.delete("{0}_ctrl_INPUT".format(self.model.module_name))
         if exists_check("{0}_parts_INPUT".format(self.model.module_name)):
             pmc.delete("{0}_parts_INPUT".format(self.model.module_name))
+
+    def connect_to_parent(self):
+        check_list = ["CTRL_GRP", "JNT_GRP", "PARTS_GRP"]
+        if not exists_check(check_list):
+            print("No necessary groups created for module {0}".format(self.model.module_name))
+            return
+
+        self.jnt_input_grp = pmc.group(em=1, n="{0}_jnt_INPUT".format(self.model.module_name))
+        self.ctrl_input_grp = pmc.group(em=1, n="{0}_ctrl_INPUT".format(self.model.module_name))
+        self.parts_grp = pmc.group(em=1, n="{0}_parts_INPUT".format(self.model.module_name))
+
+        if self.model.selected_module != "No_parent" and self.model.selected_module != "{0}".format(
+                self.model.module_name):
+            parent_name = "{0}_{1}".format(self.model.selected_module, self.model.selected_output)
+            parent_node = pmc.ls(parent_name)[0]
+            matrix_constraint(parent_node, self.ctrl_input_grp, srt="trs")
+            matrix_constraint(parent_node, self.jnt_input_grp, srt="trs")
+        else:
+            print("No parent for module {0}".format(self.model.module_name))
+
+        pmc.parent(self.jnt_input_grp, "JNT_GRP", r=1)
+        pmc.parent(self.parts_grp, "PARTS_GRP", r=1)
+
+        local_ctrl_list = pmc.ls(regex=".*_local_CTRL$")
+        if len(local_ctrl_list) > 0:
+            local_ctrl = local_ctrl_list[0]
+            pmc.parent(self.ctrl_input_grp, local_ctrl, r=1)
+        else:
+            pmc.parent(self.ctrl_input_grp, "CTRL_GRP", r=1)
 
 
 def square_arrow_curve(name):

@@ -110,9 +110,6 @@ class Controller(RigController):
         self.guides_grp = None
         self.guide = None
         self.guide_name = "None"
-        self.jnt_input_grp = None
-        self.ctrl_input_grp = None
-        self.parts_grp = None
         self.created_jnts = []
         self.ik_spline = None
         self.created_locs = []
@@ -154,34 +151,6 @@ class Controller(RigController):
         self.clean_rig()
         self.created_output()
         pmc.select(d=1)
-
-    def connect_to_parent(self):
-        check_list = ["CTRL_GRP", "JNT_GRP", "PARTS_GRP"]
-        if not rig_lib.exists_check(check_list):
-            print("No necessary groups created for module {0}".format(self.model.module_name))
-            return
-
-        self.jnt_input_grp = pmc.group(em=1, n="{0}_jnt_INPUT".format(self.model.module_name))
-        self.ctrl_input_grp = pmc.group(em=1, n="{0}_ctrl_INPUT".format(self.model.module_name))
-        self.parts_grp = pmc.group(em=1, n="{0}_parts_GRP".format(self.model.module_name))
-
-        if self.model.selected_module != "No_parent" and self.model.selected_module != "{0}".format(self.model.module_name):
-            parent_name = "{0}_{1}".format(self.model.selected_module, self.model.selected_output)
-            parent_node = pmc.ls(parent_name)[0]
-            rig_lib.matrix_constraint(parent_node, self.ctrl_input_grp, srt="trs")
-            rig_lib.matrix_constraint(parent_node, self.jnt_input_grp, srt="trs")
-        else:
-            print("No parent for module {0}".format(self.model.module_name))
-
-        pmc.parent(self.jnt_input_grp, "JNT_GRP", r=1)
-        pmc.parent(self.parts_grp, "PARTS_GRP", r=1)
-
-        local_ctrl_list = pmc.ls(regex=".*_local_CTRL$")
-        if len(local_ctrl_list) > 0:
-            local_ctrl = local_ctrl_list[0]
-            pmc.parent(self.ctrl_input_grp, local_ctrl, r=1)
-        else:
-            pmc.parent(self.ctrl_input_grp, "CTRL_GRP", r=1)
 
     def create_jnts(self):
         guide_rebuilded = pmc.rebuildCurve(self.guide, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
