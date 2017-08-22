@@ -149,7 +149,7 @@ class Controller(RigController):
         if self.model.ik_creation_switch == 1:
             self.create_ik()
         self.clean_rig()
-        self.created_output()
+        self.create_output()
         pmc.select(d=1)
 
     def create_jnts(self):
@@ -294,13 +294,9 @@ class Controller(RigController):
         for ctrl in self.created_ik_ctrls:
             rig_lib.clean_ctrl(ctrl, 17, trs="s")
 
-    def created_output(self):
-        start_output = pmc.spaceLocator(p=(0, 0, 0), n="{0}_start_OUTPUT".format(self.model.module_name))
-        pmc.parent(start_output, self.created_locs[0], r=1)
-        start_output.visibility.set(0)
-        end_output = pmc.spaceLocator(p=(0, 0, 0), n="{0}_end_OUTPUT".format(self.model.module_name))
-        pmc.parent(end_output, self.created_locs[-1], r=1)
-        end_output.visibility.set(0)
+    def create_output(self):
+        rig_lib.create_output(name="{0}_start_OUTPUT".format(self.model.module_name), parent=self.created_locs[0])
+        rig_lib.create_output(name="{0}_end_OUTPUT".format(self.model.module_name), parent=self.created_locs[-1])
 
 
 class Model(AuriScriptModel):

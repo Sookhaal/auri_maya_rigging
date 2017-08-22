@@ -158,7 +158,7 @@ class Controller(RigController):
                                     self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
                                     self.created_fk_jnts[-1])
         self.clean_rig()
-        self.created_output()
+        self.create_output()
         pmc.select(d=1)
 
     def create_skn_jnts(self):
@@ -353,10 +353,8 @@ class Controller(RigController):
         rig_lib.clean_ctrl(self.created_ik_ctrls[0], color_value, trs="", visibility_dependence=self.option_ctrl.fkIk)
         rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
 
-    def created_output(self):
-        end_output = pmc.spaceLocator(p=(0, 0, 0), n="{0}_wrist_OUTPUT".format(self.model.module_name))
-        pmc.parent(end_output, self.created_skn_jnts[-1], r=1)
-        end_output.visibility.set(0)
+    def create_output(self):
+        rig_lib.create_output(name="{0}_wrist_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
 
 
 class Model(AuriScriptModel):

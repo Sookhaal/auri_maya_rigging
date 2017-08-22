@@ -93,12 +93,8 @@ class Controller(RigController):
         local_ctrl = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=5, d=3, s=8, n="{0}_local_CTRL".format(self.model.module_name), ch=0)[0]
         local_ofs = pmc.group(local_ctrl, n="{0}_local_ctrl_OFS".format(self.model.module_name))
         pmc.parent(local_ofs, local_input, r=1)
-        local_output = pmc.spaceLocator(p=(0, 0, 0), n="{0}_local_ctrl_OUTPUT".format(self.model.module_name))
-        pmc.parent(local_output, local_ctrl, r=1)
-        local_output.visibility.set(0)
 
-        rig_lib.change_shape_color(global_ctrl, 3)
-        rig_lib.change_shape_color(local_ctrl, 17)
+        rig_lib.create_output(name="{0}_local_ctrl_OUTPUT".format(self.model.module_name), parent=local_ctrl)
 
         global_scale_mult_node = pmc.createNode("multDoubleLinear", n="{0}_global_mult_local_scale_MDL".format(self.model.module_name))
 
@@ -118,27 +114,8 @@ class Controller(RigController):
         local_ctrl.setAttr("scaleY", keyable=False, channelBox=True)
         local_ctrl.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
 
-        global_ctrl_ofs = global_ctrl.getParent()
-        global_ctrl_ofs.setAttr("translateX", lock=True, keyable=False, channelBox=False)
-        global_ctrl_ofs.setAttr("translateY", lock=True, keyable=False, channelBox=False)
-        global_ctrl_ofs.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
-        global_ctrl_ofs.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
-        global_ctrl_ofs.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
-        global_ctrl_ofs.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
-        global_ctrl_ofs.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
-        global_ctrl_ofs.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
-        global_ctrl_ofs.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
-
-        local_ctrl_ofs = local_ctrl.getParent()
-        local_ctrl_ofs.setAttr("translateX", lock=True, keyable=False, channelBox=False)
-        local_ctrl_ofs.setAttr("translateY", lock=True, keyable=False, channelBox=False)
-        local_ctrl_ofs.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
-        local_ctrl_ofs.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
-        local_ctrl_ofs.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
-        local_ctrl_ofs.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
-        local_ctrl_ofs.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
-        local_ctrl_ofs.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
-        local_ctrl_ofs.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+        rig_lib.clean_ctrl(global_ctrl, 3, trs="")
+        rig_lib.clean_ctrl(local_ctrl, 17, trs="")
 
         pmc.select(d=1)
 
