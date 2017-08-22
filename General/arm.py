@@ -4,9 +4,9 @@ from pymel import core as pmc
 
 from auri.auri_lib import AuriScriptView, AuriScriptController, AuriScriptModel, is_checked, grpbox
 from auri.scripts.Maya_Scripts import rig_lib
+from auri.scripts.Maya_Scripts.rig_lib import RigController
 
 reload(rig_lib)
-
 
 class View(AuriScriptView):
     def __init__(self, *args, **kwargs):
@@ -87,7 +87,7 @@ class View(AuriScriptView):
         self.setLayout(main_layout)
 
 
-class Controller(AuriScriptController):
+class Controller(RigController):
     def __init__(self, model, view):
         """
 
@@ -95,13 +95,6 @@ class Controller(AuriScriptController):
             model (Model):
             view (View):
         """
-        self.model = model
-        self.view = view
-        self.modules_with_output = QtGui.QStringListModel()
-        self.outputs_model = QtGui.QStringListModel()
-        self.has_updated_modules = False
-        self.has_updated_outputs = False
-        self.current_module = None
         self.guides_grp = None
         self.guides = []
         self.guides_names = []
@@ -116,46 +109,7 @@ class Controller(AuriScriptController):
         self.created_fk_ctrls = []
         self.created_ik_ctrls = []
         self.option_ctrl = None
-        AuriScriptController.__init__(self)
-
-    def look_for_parent(self):
-        if not pmc.objExists("temporary_output"):
-            return
-        temp_output = pmc.ls("temporary_output")[0]
-
-        self.has_updated_modules = False
-        list_children = rig_lib.list_children(temp_output)
-        list_children.append("No_parent")
-        self.modules_with_output.setStringList(list_children)
-        self.model.selected_module = rig_lib.cbbox_set_selected(self.model.selected_module, self.view.modules_cbbox)
-        self.has_updated_modules = True
-
-        if self.model.selected_module == "No_parent":
-            self.outputs_model.removeRows(0, self.outputs_model.rowCount())
-            return
-        self.current_module = pmc.ls(self.model.selected_module)[0]
-        self.has_updated_outputs = False
-        self.outputs_model.setStringList(rig_lib.list_children(self.current_module))
-        self.model.selected_output = rig_lib.cbbox_set_selected(self.model.selected_output, self.view.outputs_cbbox)
-        self.has_updated_outputs = True
-
-    def on_ik_creation_switch_changed(self, state):
-        self.model.ik_creation_switch = is_checked(state)
-
-    def on_stretch_creation_switch_changed(self, state):
-        self.model.stretch_creation_switch = is_checked(state)
-
-    def on_side_cbbox_changed(self, text):
-        self.model.side = text
-
-    def on_modules_cbbox_changed(self, text):
-        if self.has_updated_modules:
-            self.model.selected_module = text
-            self.look_for_parent()
-
-    def on_outputs_cbbox_changed(self, text):
-        if self.has_updated_outputs:
-            self.model.selected_output = text
+        RigController.__init__(self,  model, view)
 
     def prebuild(self):
         if not pmc.objExists("temporary_output"):

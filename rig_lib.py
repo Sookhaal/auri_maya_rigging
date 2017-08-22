@@ -1,6 +1,66 @@
+from PySide2 import QtGui
+
 from pymel import core as pmc
+from auri.auri_lib import AuriScriptView, AuriScriptController, AuriScriptModel, is_checked, grpbox
 
 pmc.loadPlugin("matrixNodes", qt=1)
+
+
+class RigController(AuriScriptController):
+    def __init__(self, model, view):
+        self.model = model
+        self.view = view
+        self.modules_with_output = QtGui.QStringListModel()
+        self.outputs_model = QtGui.QStringListModel()
+        self.has_updated_modules = False
+        self.has_updated_outputs = False
+        self.current_module = None
+        AuriScriptController.__init__(self)
+
+    def look_for_parent(self):
+        if not pmc.objExists("temporary_output"):
+            return
+        temp_output = pmc.ls("temporary_output")[0]
+
+        self.has_updated_modules = False
+        children_list = list_children(temp_output)
+        children_list.append("No_parent")
+        self.modules_with_output.setStringList(children_list)
+        self.model.selected_module = cbbox_set_selected(self.model.selected_module, self.view.modules_cbbox)
+        self.has_updated_modules = True
+
+        if self.model.selected_module == "No_parent":
+            self.outputs_model.removeRows(0, self.outputs_model.rowCount())
+            return
+        self.current_module = pmc.ls(self.model.selected_module)[0]
+        self.has_updated_outputs = False
+        self.outputs_model.setStringList(list_children(self.current_module))
+        self.model.selected_output = cbbox_set_selected(self.model.selected_output, self.view.outputs_cbbox)
+        self.has_updated_outputs = True
+
+    def on_ik_creation_switch_changed(self, state):
+        self.model.ik_creation_switch = is_checked(state)
+
+    def on_stretch_creation_switch_changed(self, state):
+        self.model.stretch_creation_switch = is_checked(state)
+
+    def on_how_many_jnts_changed(self, value):
+        self.model.how_many_jnts = value
+
+    def on_how_many_ctrls_changed(self, value):
+        self.model.how_many_ctrls = value
+
+    def on_side_cbbox_changed(self, text):
+        self.model.side = text
+
+    def on_modules_cbbox_changed(self, text):
+        if self.has_updated_modules:
+            self.model.selected_module = text
+            self.look_for_parent()
+
+    def on_outputs_cbbox_changed(self, text):
+        if self.has_updated_outputs:
+            self.model.selected_output = text
 
 
 def square_arrow_curve(name):
@@ -180,3 +240,5 @@ def change_jnt_chain_suffix(jnts_chain, new_suffix):
             new_suffix_list = [new_suffix]
             new_name = "_".join(split_name + new_suffix_list)
             jnt.rename(new_name)
+
+
