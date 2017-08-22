@@ -283,42 +283,16 @@ class Controller(RigController):
         self.jnt_input_grp.setAttr("visibility", 0)
         self.parts_grp.setAttr("visibility", 0)
         self.guides_grp.setAttr("visibility", 0)
+
         for loc in self.created_locs:
             loc_shape = loc.getShape()
             loc_shape.setAttr("visibility", 0)
+
         for ctrl in self.created_fk_ctrls:
-            rig_lib.change_shape_color(ctrl, 14)
-            ctrl.setAttr("translateX", lock=True, keyable=False, channelBox=False)
-            ctrl.setAttr("translateY", lock=True, keyable=False, channelBox=False)
-            ctrl.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
-            ctrl.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
-            ctrl.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
-            ctrl.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs = ctrl.getParent()
-            ctrl_ofs.setAttr("translateX", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("translateY", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+            rig_lib.clean_ctrl(ctrl, 14, trs="ts")
+
         for ctrl in self.created_ik_ctrls:
-            rig_lib.change_shape_color(ctrl, 17)
-            ctrl.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
-            ctrl.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
-            ctrl.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs = ctrl.getParent()
-            ctrl_ofs.setAttr("translateX", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("translateY", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+            rig_lib.clean_ctrl(ctrl, 17, trs="s")
 
     def created_output(self):
         start_output = pmc.spaceLocator(p=(0, 0, 0), n="{0}_start_OUTPUT".format(self.model.module_name))

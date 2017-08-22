@@ -246,6 +246,27 @@ class RigController(AuriScriptController):
             created_ik_ctrls[0], ik_ctrl_object_to_snap_to))
 
 
+def clean_ctrl(ctrl, color_value, trs="trs", visibility_dependence=None):
+        change_shape_color(ctrl, color_value)
+
+        for attr in [x + y for x in trs.lower() for y in "xyz"]:
+            ctrl.setAttr(attr, lock=True, keyable=False, channelBox=False)
+
+        ctrl_ofs = ctrl.getParent()
+        ctrl_ofs.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+        ctrl_ofs.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+        ctrl_ofs.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+        ctrl_ofs.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+        ctrl_ofs.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+        ctrl_ofs.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+        ctrl_ofs.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+        ctrl_ofs.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+        ctrl_ofs.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+
+        if visibility_dependence is not None:
+            pmc.connectAttr(visibility_dependence, ctrl.visibility)
+
+
 def square_arrow_curve(name):
     crv = pmc.curve(d=1, p=[(-5, 0, -5), (-2, 0, -5), (-2, 0, -7), (-3, 0, -7), (0, 0, -9), (3, 0, -7), (2, 0, -7),
                             (2, 0, -5),

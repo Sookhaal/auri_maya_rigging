@@ -337,7 +337,7 @@ class Controller(RigController):
         else:
             color_value = 13
 
-        rig_lib.change_shape_color(self.option_ctrl, 9)
+        rig_lib.clean_ctrl(self.option_ctrl, 9, trs="trs")
 
         invert_value = pmc.createNode("plusMinusAverage", n="{0}_fk_visibility_MDL".format(self.model.module_name))
         invert_value.setAttr("input1D[0]", 1)
@@ -345,47 +345,13 @@ class Controller(RigController):
         self.option_ctrl.fkIk >> invert_value.input1D[1]
 
         for ctrl in self.created_fk_ctrls:
-            rig_lib.change_shape_color(ctrl, color_value)
-            ctrl.setAttr("translateX", lock=True, keyable=False, channelBox=False)
-            ctrl.setAttr("translateY", lock=True, keyable=False, channelBox=False)
-            ctrl.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
-            if ctrl != self.created_fk_ctrls[-1]:
-                ctrl.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
-                ctrl.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
-                ctrl.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs = ctrl.getParent()
-            ctrl_ofs.setAttr("translateX", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("translateY", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+            if ctrl == self.created_fk_ctrls[-1]:
+                rig_lib.clean_ctrl(ctrl, color_value, trs="t", visibility_dependence=invert_value.output1D)
+            else:
+                rig_lib.clean_ctrl(ctrl, color_value, trs="ts", visibility_dependence=invert_value.output1D)
 
-            invert_value.output1D >> ctrl.visibility
-
-        self.created_ik_ctrls[1].setAttr("rotateX", lock=True, keyable=False, channelBox=False)
-        self.created_ik_ctrls[1].setAttr("rotateY", lock=True, keyable=False, channelBox=False)
-        self.created_ik_ctrls[1].setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
-        self.created_ik_ctrls[1].setAttr("scaleX", lock=True, keyable=False, channelBox=False)
-        self.created_ik_ctrls[1].setAttr("scaleY", lock=True, keyable=False, channelBox=False)
-        self.created_ik_ctrls[1].setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
-        for ctrl in self.created_ik_ctrls:
-            rig_lib.change_shape_color(ctrl, color_value)
-            ctrl_ofs = ctrl.getParent()
-            ctrl_ofs.setAttr("translateX", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("translateY", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
-            ctrl_ofs.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
-
-            self.option_ctrl.fkIk >> ctrl.visibility
+        rig_lib.clean_ctrl(self.created_ik_ctrls[0], color_value, trs="", visibility_dependence=self.option_ctrl.fkIk)
+        rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
 
     def created_output(self):
         end_output = pmc.spaceLocator(p=(0, 0, 0), n="{0}_wrist_OUTPUT".format(self.model.module_name))
