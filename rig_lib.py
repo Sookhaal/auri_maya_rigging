@@ -177,6 +177,74 @@ class RigController(AuriScriptController):
             if not jnt == created_jnts[0]:
                 neck_stretch_mult.output >> jnt.translateX
 
+    def connect_fk_stretch(self, created_fk_jnts, created_fk_ctrls):
+        for i, jnt in enumerate(created_fk_jnts):
+            if i != 0:
+                jnt.addAttr("baseTranslateX", attributeType="float",
+                            defaultValue=pmc.xform(jnt, q=1, translation=1)[0], hidden=0, keyable=0)
+                jnt.setAttr("baseTranslateX", lock=1, channelBox=0)
+                created_fk_ctrls[i-1].addAttr("stretch", attributeType="float", defaultValue=1, hidden=0, keyable=1,
+                                              hasMinValue=1, minValue=0)
+                arm_mult = pmc.createNode("multDoubleLinear", n="{0}_fk_stretch_{1}_MDL".format(self.model.module_name,
+                                                                                                i))
+                created_fk_ctrls[i-1].stretch >> arm_mult.input1
+                jnt.baseTranslateX >> arm_mult.input2
+                arm_mult.output >> jnt.translateX
+                arm_mult.output >> created_fk_ctrls[i].getParent().translateX
+
+    def connect_ik_stretch(self, created_ik_jnts, created_ik_ctrls, side_coef, start_parent, end_parent, ik_ctrl_object_to_snap_to):
+        jnt_stretch_mult_list = []
+        for i, jnt in enumerate(created_ik_jnts):
+            if i != 0:
+                jnt.addAttr("baseTranslateX", attributeType="float",
+                            defaultValue=(pmc.xform(jnt, q=1, translation=1)[0]*side_coef), hidden=0, keyable=0)
+                jnt.setAttr("baseTranslateX", lock=1, channelBox=0)
+                jnt_stretch_mult = pmc.createNode("multDoubleLinear",
+                                                  n="{0}_ik_stretch_mult_{1}_MDL".format(self.model.module_name, i))
+                jnt_stretch_mult_list.append(jnt_stretch_mult)
+
+        created_ik_ctrls[0].setAttr("translate", (0, 0, 0))
+        start_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_start_LOC".format(self.model.module_name))
+        end_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_end_LOC".format(self.model.module_name))
+        pmc.parent(start_loc, start_parent, r=1)
+        pmc.parent(end_loc, end_parent, r=1)
+        start_loc_shape = start_loc.getShape()
+        end_loc_shape = end_loc.getShape()
+        length_measure = pmc.createNode("distanceDimShape", n="{0}_ik_length_measure_DDMShape".format(self.model.module_name))
+        measure_transform = length_measure.getParent()
+        measure_transform.rename("{0}_ik_length_measure_DDM".format(self.model.module_name))
+        pmc.parent(measure_transform, self.parts_grp, r=0)
+        arm_global_scale = pmc.createNode("multiplyDivide", n="{0}_ik_global_scale_MDV".format(self.model.module_name))
+        arm_stretch_value = pmc.createNode("multiplyDivide", n="{0}_ik_stretch_value_MDV".format(self.model.module_name))
+        stretch_condition = pmc.createNode("condition", n="{0}_ik_stretch_CONDITION".format(self.model.module_name))
+        global_scale = pmc.ls(regex=".*_global_mult_local_scale_MDL$")[0]
+
+        start_loc_shape.worldPosition[0] >> length_measure.startPoint
+        end_loc_shape.worldPosition[0] >> length_measure.endPoint
+        arm_global_scale.setAttr("operation", 2)
+        length_measure.distance >> arm_global_scale.input1X
+        global_scale.output >> arm_global_scale.input2X
+        arm_stretch_value.setAttr("operation", 2)
+        arm_stretch_value.setAttr("input2X", length_measure.getAttr("distance"))
+        arm_global_scale.outputX >> arm_stretch_value.input1X
+        stretch_condition.setAttr("operation", 4)
+        stretch_condition.setAttr("secondTerm", length_measure.getAttr("distance"))
+        stretch_condition.setAttr("colorIfTrueR", 1)
+        arm_global_scale.outputX >> stretch_condition.firstTerm
+        arm_stretch_value.outputX >> stretch_condition.colorIfFalseR
+        for i, jnt in enumerate(created_ik_jnts):
+            if i != 0:
+                stretch_condition.outColorR >> jnt_stretch_mult_list[i-1].input1
+                jnt.baseTranslateX >> jnt_stretch_mult_list[i-1].input2
+                jnt_stretch_mult_list[i - 1].output >> jnt.translateX
+
+        start_loc_shape.setAttr("visibility", 0)
+        end_loc_shape.setAttr("visibility", 0)
+
+        pmc.evalDeferred("import pymel.core as pmc")
+        pmc.evalDeferred("pmc.xform(\"{0}\", ws=1, translation=(pmc.xform(\"{1}\", q=1, ws=1, translation=1)))".format(
+            created_ik_ctrls[0], ik_ctrl_object_to_snap_to))
+
 
 def square_arrow_curve(name):
     crv = pmc.curve(d=1, p=[(-5, 0, -5), (-2, 0, -5), (-2, 0, -7), (-3, 0, -7), (0, 0, -9), (3, 0, -7), (2, 0, -7),

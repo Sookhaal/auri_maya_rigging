@@ -153,8 +153,10 @@ class Controller(RigController):
         if self.model.ik_creation_switch:
             self.create_ik()
         if self.model.stretch_creation_switch == 1:
-            self.connect_fk_stretch()
-            self.connect_ik_stretch()
+            self.connect_fk_stretch(self.created_fk_jnts, self.created_fk_ctrls)
+            self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
+                                    self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
+                                    self.created_fk_jnts[-1])
         self.clean_rig()
         self.created_output()
         pmc.select(d=1)
@@ -324,86 +326,6 @@ class Controller(RigController):
 
         pmc.evalDeferred("import pymel.core as pmc")
         pmc.evalDeferred("pmc.xform(\"{0}\", ws=1, translation=(pmc.xform(\"{1}\", q=1, ws=1, translation=1)))".format(ik_ctrl, self.created_fk_jnts[-1]))
-
-    def connect_fk_stretch(self):
-        self.created_fk_jnts[1].addAttr("baseTranslateX", attributeType="float",
-                                        defaultValue=pmc.xform(self.created_fk_jnts[1], q=1, translation=1)[0],
-                                        hidden=0, keyable=0)
-        self.created_fk_jnts[1].setAttr("baseTranslateX", lock=1, channelBox=0)
-        self.created_fk_jnts[2].addAttr("baseTranslateX", attributeType="float",
-                                        defaultValue=pmc.xform(self.created_fk_jnts[2], q=1, translation=1)[0],
-                                        hidden=0, keyable=0)
-        self.created_fk_jnts[2].setAttr("baseTranslateX", lock=1, channelBox=0)
-        self.created_fk_ctrls[0].addAttr("stretch", attributeType="float", defaultValue=1, hidden=0, keyable=1,
-                                         hasMinValue=1, minValue=0)
-        self.created_fk_ctrls[1].addAttr("stretch", attributeType="float", defaultValue=1, hidden=0, keyable=1,
-                                         hasMinValue=1, minValue=0)
-        arm_mult = pmc.createNode("multDoubleLinear", n="{0}_upperarm_fk_stretch_MDL".format(self.model.module_name))
-        forearm_mult = pmc.createNode("multDoubleLinear", n="{0}_forearm_fk_stretch_MDL".format(self.model.module_name))
-
-        self.created_fk_ctrls[0].stretch >> arm_mult.input1
-        self.created_fk_jnts[1].baseTranslateX >> arm_mult.input2
-        arm_mult.output >> self.created_fk_jnts[1].translateX
-        arm_mult.output >> self.created_fk_ctrls[1].getParent().translateX
-        self.created_fk_ctrls[1].stretch >> forearm_mult.input1
-        self.created_fk_jnts[2].baseTranslateX >> forearm_mult.input2
-        forearm_mult.output >> self.created_fk_jnts[2].translateX
-        forearm_mult.output >> self.created_fk_ctrls[2].getParent().translateX
-
-    def connect_ik_stretch(self):
-        self.created_ik_jnts[1].addAttr("baseTranslateX", attributeType="float",
-                                        defaultValue=(pmc.xform(self.created_ik_jnts[1], q=1, translation=1)[0]*self.side_coef),
-                                        hidden=0, keyable=0)
-        self.created_ik_jnts[1].setAttr("baseTranslateX", lock=1, channelBox=0)
-        self.created_ik_jnts[2].addAttr("baseTranslateX", attributeType="float",
-                                        defaultValue=(pmc.xform(self.created_ik_jnts[2], q=1, translation=1)[0]*self.side_coef),
-                                        hidden=0, keyable=0)
-        self.created_ik_jnts[2].setAttr("baseTranslateX", lock=1, channelBox=0)
-
-        self.created_ik_ctrls[0].setAttr("translate", (0, 0, 0))
-        start_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_start_LOC".format(self.model.module_name))
-        end_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_end_LOC".format(self.model.module_name))
-        pmc.parent(start_loc, self.created_fk_ctrls[0].getParent(), r=1)
-        pmc.parent(end_loc, self.created_ik_ctrls[0], r=1)
-        start_loc_shape = start_loc.getShape()
-        end_loc_shape = end_loc.getShape()
-        length_measure = pmc.createNode("distanceDimShape", n="{0}_ik_length_measure_DDMShape".format(self.model.module_name))
-        measure_transform = length_measure.getParent()
-        measure_transform.rename("{0}_ik_length_measure_DDM".format(self.model.module_name))
-        pmc.parent(measure_transform, self.parts_grp, r=0)
-        arm_global_scale = pmc.createNode("multiplyDivide", n="{0}_ik_global_scale_MDV".format(self.model.module_name))
-        arm_stretch_value = pmc.createNode("multiplyDivide", n="{0}_ik_stretch_value_MDV".format(self.model.module_name))
-        stretch_condition = pmc.createNode("condition", n="{0}_ik_stretch_CONDITION".format(self.model.module_name))
-        arm_stretch_mult = pmc.createNode("multDoubleLinear", n="{0}_upperarm_ik_stretch_mult_MDL".format(self.model.module_name))
-        forearm_stretch_mult = pmc.createNode("multDoubleLinear", n="{0}_forearm_ik_stretch_mult_MDL".format(self.model.module_name))
-        global_scale = pmc.ls(regex=".*_global_mult_local_scale_MDL$")[0]
-
-        start_loc_shape.worldPosition[0] >> length_measure.startPoint
-        end_loc_shape.worldPosition[0] >> length_measure.endPoint
-        arm_global_scale.setAttr("operation", 2)
-        length_measure.distance >> arm_global_scale.input1X
-        global_scale.output >> arm_global_scale.input2X
-        arm_stretch_value.setAttr("operation", 2)
-        arm_stretch_value.setAttr("input2X", length_measure.getAttr("distance"))
-        arm_global_scale.outputX >> arm_stretch_value.input1X
-        stretch_condition.setAttr("operation", 4)
-        stretch_condition.setAttr("secondTerm", length_measure.getAttr("distance"))
-        stretch_condition.setAttr("colorIfTrueR", 1)
-        arm_global_scale.outputX >> stretch_condition.firstTerm
-        arm_stretch_value.outputX >> stretch_condition.colorIfFalseR
-        stretch_condition.outColorR >> arm_stretch_mult.input1
-        self.created_ik_jnts[1].baseTranslateX >> arm_stretch_mult.input2
-        arm_stretch_mult.output >> self.created_ik_jnts[1].translateX
-        stretch_condition.outColorR >> forearm_stretch_mult.input1
-        self.created_ik_jnts[2].baseTranslateX >> forearm_stretch_mult.input2
-        forearm_stretch_mult.output >> self.created_ik_jnts[2].translateX
-
-        start_loc_shape.setAttr("visibility", 0)
-        end_loc_shape.setAttr("visibility", 0)
-
-        pmc.evalDeferred("import pymel.core as pmc")
-        pmc.evalDeferred("pmc.xform(\"{0}\", ws=1, translation=(pmc.xform(\"{1}\", q=1, ws=1, translation=1)))".format(
-            self.created_ik_ctrls[0], self.created_fk_jnts[-1]))
 
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)
