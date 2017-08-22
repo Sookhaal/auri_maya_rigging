@@ -145,7 +145,7 @@ class Controller(RigController):
         self.create_fk()
         self.activate_twist()
         if self.model.stretch_creation_switch == 1:
-            self.connect_stretch()
+            self.connect_ik_spline_stretch(self.ik_spline, self.created_jnts)
         if self.model.ik_creation_switch == 1:
             self.create_ik()
         self.clean_rig()
@@ -237,33 +237,6 @@ class Controller(RigController):
 
         first_tan_cv_loc_shape.setAttr("visibility", 0)
         last_tan_cv_loc_shape.setAttr("visibility", 0)
-
-    def connect_stretch(self):
-        crv_info = pmc.createNode("curveInfo", n="{0}_CURVEINFO".format(self.model.module_name))
-        global_stretch = pmc.createNode("multDoubleLinear", n="{0}_global_stretch_MDL".format(self.model.module_name))
-        neck_stretch_div = pmc.createNode("multiplyDivide", n="{0}_stretch_MDIV".format(self.model.module_name))
-        neck_stretch_mult = pmc.createNode("multDoubleLinear", n="{0}stretch_MDL".format(self.model.module_name))
-        self.jnt_input_grp.addAttr("baseArcLength", attributeType="float", defaultValue=0, hidden=0, keyable=1)
-        self.jnt_input_grp.addAttr("baseTranslateX", attributeType="float", defaultValue=0, hidden=0, keyable=1)
-        crv_shape = self.ik_spline.getShape()
-        global_scale = pmc.ls(regex=".*_global_mult_local_scale_MDL$")[0]
-
-        crv_shape.worldSpace[0] >> crv_info.inputCurve
-        base_arc_length = crv_info.getAttr("arcLength")
-        self.jnt_input_grp.setAttr("baseArcLength", base_arc_length)
-        base_translate_x = self.created_jnts[1].getAttr("translateX")
-        self.jnt_input_grp.setAttr("baseTranslateX", base_translate_x)
-        global_scale.output >> global_stretch.input1
-        self.jnt_input_grp.baseArcLength >> global_stretch.input2
-        crv_info.arcLength >> neck_stretch_div.input1X
-        global_stretch.output >> neck_stretch_div.input2X
-        neck_stretch_div.setAttr("operation", 2)
-        neck_stretch_div.outputX >> neck_stretch_mult.input1
-        self.jnt_input_grp.baseTranslateX >> neck_stretch_mult.input2
-
-        for jnt in self.created_jnts:
-            if not jnt == self.created_jnts[0]:
-                neck_stretch_mult.output >> jnt.translateX
 
     def create_ik(self):
         start_ctrl = rig_lib.box_curve("{0}_start_ik_CTRL".format(self.model.module_name))
