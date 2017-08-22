@@ -112,16 +112,7 @@ class Controller(RigController):
         RigController.__init__(self,  model, view)
 
     def prebuild(self):
-        if not pmc.objExists("temporary_output"):
-            pmc.group(em=1, n="temporary_output")
-        temp_output_grp = pmc.ls("temporary_output")[0]
-
-        if not pmc.objExists("temporary_output|{0}".format(self.model.module_name)):
-            pmc.group(em=1, n="{0}".format(self.model.module_name), p=temp_output_grp)
-        module_grp = pmc.ls("{0}".format(self.model.module_name))[0]
-
-        if not pmc.objExists("temporary_output|{0}|wrist_OUTPUT".format(self.model.module_name)):
-            pmc.group(em=1, n="wrist_OUTPUT", p=module_grp)
+        self.create_temporary_outputs(["wrist_OUTPUT"])
 
         self.guides_names = ["{0}_shoulder_GUIDE".format(self.model.module_name),
                              "{0}_elbow_GUIDE".format(self.model.module_name),
@@ -130,7 +121,7 @@ class Controller(RigController):
         self.side = {"Left": 1, "Right": -1}
         self.side_coef = self.side.get(self.model.side)
 
-        if self.guide_check():
+        if self.guide_check(self.guides_names):
             self.guides = pmc.ls("{0}_shoulder_GUIDE".format(self.model.module_name),
                                  "{0}_elbow_GUIDE".format(self.model.module_name),
                                  "{0}_wrist_GUIDE".format(self.model.module_name))
@@ -146,27 +137,10 @@ class Controller(RigController):
         wrist_guide.setAttr("translate", (7 * self.side_coef, 6, 0))
 
         self.guides = [shoulder_guide, elbow_guide, wrist_guide]
-        if not pmc.objExists("{0}_guides".format(self.model.module_name)):
-            pmc.group(em=1, n="{0}_guides".format(self.model.module_name))
-        self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
-        for guide in self.guides:
-            pmc.parent(guide, self.guides_grp, r=0)
-        if not pmc.objExists("guide_GRP"):
-            pmc.group(em=1, n="guide_GRP")
-        pmc.parent(self.guides_grp, "guide_GRP")
+        self.guides_grp = self.group_guides(self.guides)
         self.guides_grp.setAttr("visibility", 1)
         self.view.refresh_view()
         pmc.select(d=1)
-
-    def guide_check(self):
-        if not pmc.objExists("guide_GRP"):
-            return False
-        if not pmc.objExists("guide_GRP|{0}_guides".format(self.model.module_name)):
-            return False
-        for guide in self.guides_names:
-            if not pmc.objExists("guide_GRP|{0}_guides|{1}".format(self.model.module_name, guide)):
-                return False
-        return True
 
     def execute(self):
         self.created_ik_ctrls = []
@@ -187,14 +161,6 @@ class Controller(RigController):
         self.clean_rig()
         self.created_output()
         pmc.select(d=1)
-
-    def delete_existing_objects(self):
-        if rig_lib.exists_check("{0}_jnt_INPUT".format(self.model.module_name)):
-            pmc.delete("{0}_jnt_INPUT".format(self.model.module_name))
-        if rig_lib.exists_check("{0}_ctrl_INPUT".format(self.model.module_name)):
-            pmc.delete("{0}_ctrl_INPUT".format(self.model.module_name))
-        if rig_lib.exists_check("{0}_parts_INPUT".format(self.model.module_name)):
-            pmc.delete("{0}_parts_INPUT".format(self.model.module_name))
 
     def connect_to_parent(self):
         check_list = ["CTRL_GRP", "JNT_GRP", "PARTS_GRP"]

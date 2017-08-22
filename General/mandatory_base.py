@@ -2,9 +2,9 @@ from PySide2 import QtWidgets, QtCore
 
 from pymel import core as pmc
 
-from auri.auri_lib import AuriScriptView, AuriScriptController, AuriScriptModel
-from auri.auri_lib import grpbox
+from auri.auri_lib import AuriScriptView, AuriScriptController, AuriScriptModel, grpbox
 from auri.scripts.Maya_Scripts import rig_lib
+from auri.scripts.Maya_Scripts.rig_lib import RigController
 
 reload(rig_lib)
 
@@ -16,7 +16,7 @@ class View(AuriScriptView):
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
-        self.ctrl = Controller(self.model)
+        self.ctrl = Controller(self.model, self)
 
     def set_model(self):
         self.model = Model()
@@ -43,27 +43,22 @@ class View(AuriScriptView):
         self.setLayout(main_layout)
 
 
-class Controller(AuriScriptController):
-    def __init__(self, model):
-        self.model = model
-        AuriScriptController.__init__(self)
+class Controller(RigController):
+    def __init__(self, model, view):
+        """
+
+        Args:
+            model (Model):
+            view (View):
+        """
+        RigController.__init__(self,  model, view)
 
     def on_character_name_changed(self, text):
         self.model.character_name = text
 
     def prebuild(self):
-        if not pmc.objExists("temporary_output"):
-            pmc.group(em=1, n="temporary_output")
-        temp_output_grp = pmc.ls("temporary_output")[0]
-
-        if not pmc.objExists("temporary_output|{0}".format(self.model.module_name)):
-            pmc.group(em=1, n="{0}".format(self.model.module_name), p=temp_output_grp)
-        module_grp = pmc.ls("{0}".format(self.model.module_name))[0]
-
-        if not pmc.objExists("temporary_output|{0}|local_ctrl_OUTPUT".format(self.model.module_name)):
-            pmc.group(em=1, n="local_ctrl_OUTPUT", p=module_grp)
+        self.create_temporary_outputs(["local_ctrl_OUTPUT"])
         pmc.select(d=1)
-
 
     def execute(self):
         check_list = ["{0}_RIG".format(self.model.character_name), "GEO_GRP", "CTRL_GRP", "JNT_GRP", "MESH_GRP", "PARTS_GRP",

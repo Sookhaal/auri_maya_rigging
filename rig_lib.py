@@ -62,6 +62,62 @@ class RigController(AuriScriptController):
         if self.has_updated_outputs:
             self.model.selected_output = text
 
+    def create_temporary_outputs(self, outputs_names):
+        if not pmc.objExists("temporary_output"):
+            pmc.group(em=1, n="temporary_output")
+        temp_output_grp = pmc.ls("temporary_output")[0]
+
+        if not pmc.objExists("temporary_output|{0}".format(self.model.module_name)):
+            pmc.group(em=1, n="{0}".format(self.model.module_name), p=temp_output_grp)
+        module_grp = pmc.ls("{0}".format(self.model.module_name))[0]
+
+        for output in outputs_names:
+            if not pmc.objExists("temporary_output|{0}|{1}".format(self.model.module_name, output)):
+                pmc.group(em=1, n="{0}".format(output), p=module_grp)
+
+    def guide_check(self, guides_names):
+        if not pmc.objExists("guide_GRP"):
+            return False
+        if not pmc.objExists("guide_GRP|{0}_guides".format(self.model.module_name)):
+            return False
+        if isinstance(guides_names, (str, unicode)):
+            if not pmc.objExists("guide_GRP|{0}_guides|{1}".format(self.model.module_name, guides_names)):
+                return False
+        elif type(guides_names) == list:
+            for guide in guides_names:
+                if not pmc.objExists("guide_GRP|{0}_guides|{1}".format(self.model.module_name, guide)):
+                    return False
+        else:
+            print("Wrong argument given to guide_check fonction")
+        return True
+
+    def group_guides(self, guides):
+        if not pmc.objExists("{0}_guides".format(self.model.module_name)):
+            pmc.group(em=1, n="{0}_guides".format(self.model.module_name))
+        else:
+            pmc.delete("{0}_guides".format(self.model.module_name))
+            pmc.group(em=1, n="{0}_guides".format(self.model.module_name))
+        guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
+
+        if type(guides) == list:
+            for guide in guides:
+                pmc.parent(guide, guides_grp, r=0)
+        else:
+            pmc.parent(guides, guides_grp, r=0)
+
+        if not pmc.objExists("guide_GRP"):
+            pmc.group(em=1, n="guide_GRP")
+        pmc.parent(guides_grp, "guide_GRP")
+        return guides_grp
+
+    def delete_existing_objects(self):
+        if exists_check("{0}_jnt_INPUT".format(self.model.module_name)):
+            pmc.delete("{0}_jnt_INPUT".format(self.model.module_name))
+        if exists_check("{0}_ctrl_INPUT".format(self.model.module_name)):
+            pmc.delete("{0}_ctrl_INPUT".format(self.model.module_name))
+        if exists_check("{0}_parts_INPUT".format(self.model.module_name)):
+            pmc.delete("{0}_parts_INPUT".format(self.model.module_name))
+
 
 def square_arrow_curve(name):
     crv = pmc.curve(d=1, p=[(-5, 0, -5), (-2, 0, -5), (-2, 0, -7), (-3, 0, -7), (0, 0, -9), (3, 0, -7), (2, 0, -7),
