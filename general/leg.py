@@ -8,6 +8,7 @@ from auri.scripts.Maya_Scripts.rig_lib import RigController
 
 reload(rig_lib)
 
+
 class View(AuriScriptView):
     def __init__(self, *args, **kwargs):
         self.modules_cbbox = QtWidgets.QComboBox()
@@ -106,34 +107,34 @@ class Controller(RigController):
         self.created_fk_ctrls = []
         self.created_ik_ctrls = []
         self.option_ctrl = None
-        RigController.__init__(self,  model, view)
+        RigController.__init__(self, model, view)
 
     def prebuild(self):
-        self.create_temporary_outputs(["wrist_OUTPUT"])
+        self.create_temporary_outputs(["ankle_OUTPUT"])
 
-        self.guides_names = ["{0}_shoulder_GUIDE".format(self.model.module_name),
-                             "{0}_elbow_GUIDE".format(self.model.module_name),
-                             "{0}_wrist_GUIDE".format(self.model.module_name)]
+        self.guides_names = ["{0}_hip_GUIDE".format(self.model.module_name),
+                             "{0}_knee_GUIDE".format(self.model.module_name),
+                             "{0}_ankle_GUIDE".format(self.model.module_name)]
 
         self.side = {"Left": 1, "Right": -1}
         self.side_coef = self.side.get(self.model.side)
 
         if self.guide_check(self.guides_names):
-            self.guides = pmc.ls("{0}_shoulder_GUIDE".format(self.model.module_name),
-                                 "{0}_elbow_GUIDE".format(self.model.module_name),
-                                 "{0}_wrist_GUIDE".format(self.model.module_name))
+            self.guides = pmc.ls("{0}_hip_GUIDE".format(self.model.module_name),
+                                 "{0}_knee_GUIDE".format(self.model.module_name),
+                                 "{0}_ankle_GUIDE".format(self.model.module_name))
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
             return
 
-        shoulder_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[0])
-        elbow_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[1])
-        wrist_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[2])
+        hip_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[0])
+        knee_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[1])
+        ankle_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[2])
 
-        shoulder_guide.setAttr("translate", (3 * self.side_coef, 10, 0))
-        elbow_guide.setAttr("translate", (5 * self.side_coef, 8, 0))
-        wrist_guide.setAttr("translate", (7 * self.side_coef, 6, 0))
+        hip_guide.setAttr("translate", (2 * self.side_coef, 7, 0))
+        knee_guide.setAttr("translate", (2 * self.side_coef, 4, 0.0001))
+        ankle_guide.setAttr("translate", (2 * self.side_coef, 1, 0))
 
-        self.guides = [shoulder_guide, elbow_guide, wrist_guide]
+        self.guides = [hip_guide, knee_guide, ankle_guide]
         self.guides_grp = self.group_guides(self.guides)
         self.guides_grp.setAttr("visibility", 1)
         self.view.refresh_view()
@@ -146,6 +147,7 @@ class Controller(RigController):
         self.connect_to_parent()
 
         self.create_skn_jnts()
+        return
         self.create_options_ctrl()
         self.create_and_connect_fk_ik_jnts()
         self.create_fk()
@@ -164,40 +166,50 @@ class Controller(RigController):
         duplicates_guides = []
         for guide in self.guides:
             duplicate = guide.duplicate(n="{0}_duplicate".format(guide))[0]
+            duplicate.setAttr("rotateOrder", 2)
             duplicates_guides.append(duplicate)
 
-        shoulder_const = pmc.aimConstraint(duplicates_guides[1], duplicates_guides[0], maintainOffset=0,
-                                           aimVector=(1.0 * self.side_coef, 0.0, 0.0),
-                                           upVector=(0.0, 1.0 * self.side_coef, 0.0),
-                                           worldUpType="scene")
-        elbow_cons = pmc.aimConstraint(duplicates_guides[2], duplicates_guides[1], maintainOffset=0,
-                                       aimVector=(1.0 * self.side_coef, 0.0, 0.0),
-                                       upVector=(0.0, 1.0 * self.side_coef, 0.0),
-                                       worldUpType="scene")
-        pmc.delete(shoulder_const)
-        pmc.delete(elbow_cons)
+        leg_plane = pmc.polyCreateFacet(p=[pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1),
+                               pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1),
+                               pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)
+                               ], n="{0}_temporary_leg_plane".format(self.model.module_name), ch=1)[0]
+        leg_plane_face = pmc.ls(leg_plane)[0].f[0]
+
+        hip_const = pmc.normalConstraint(leg_plane_face, duplicates_guides[0], aimVector=(0.0, 0.0, 1.0),
+                                         upVector=(1.0 * self.side_coef, 0.0, 0.0), worldUpType="object",
+                                         worldUpObject=duplicates_guides[1])
+        knee_cons = pmc.normalConstraint(leg_plane_face, duplicates_guides[1], aimVector=(0.0, 0.0, 1.0),
+                                         upVector=(1.0 * self.side_coef, 0.0, 0.0), worldUpType="object",
+                                         worldUpObject=duplicates_guides[2])
+        pmc.delete(hip_const)
+        pmc.delete(knee_cons)
         pmc.parent(duplicates_guides[1], duplicates_guides[0])
         pmc.parent(duplicates_guides[2], duplicates_guides[1])
         pmc.select(d=1)
+        return
 
-        shoulder_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1)),
-                                 n="{0}_shoulder_SKN".format(self.model.module_name))
-        shoulder_jnt.setAttr("rotate", pmc.xform(duplicates_guides[0], q=1, rotation=1))
-        if self.model.side == "Right":
-            shoulder_jnt.setAttr("jointOrientX", -180)
-            shoulder_jnt.setAttr("rotate", (pmc.xform(shoulder_jnt, q=1, rotation=1)[0] + 180,
-                                            pmc.xform(shoulder_jnt, q=1, rotation=1)[1] * -1,
-                                            pmc.xform(shoulder_jnt, q=1, rotation=1)[2] * -1))
-        elbow_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1)),
-                              n="{0}_elbow_SKN".format(self.model.module_name))
-        elbow_jnt.setAttr("rotate", pmc.xform(duplicates_guides[1], q=1, rotation=1))
-        wrist_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)),
-                              n="{0}_wrist_SKN".format(self.model.module_name))
+        hip_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1)),
+                            n="{0}_hip_SKN".format(self.model.module_name))
+        hip_jnt.setAttr("rotate", pmc.xform(duplicates_guides[0], q=1, rotation=1))
+        # if self.model.side == "Right":
+        #     hip_jnt.setAttr("jointOrientX", -180)
+        #     # hip_jnt.setAttr("jointOrientZ", 90)
+        #     hip_jnt.setAttr("rotate", (pmc.xform(hip_jnt, q=1, rotation=1)[0],
+        #                                pmc.xform(hip_jnt, q=1, rotation=1)[1] * -1,
+        #                                pmc.xform(hip_jnt, q=1, rotation=1)[2] * -1))
+        # else:
+            # hip_jnt.setAttr("jointOrientX", 90)
+            # hip_jnt.setAttr("jointOrientZ", -90)
+        knee_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1)),
+                             n="{0}_knee_SKN".format(self.model.module_name))
+        knee_jnt.setAttr("rotate", pmc.xform(duplicates_guides[1], q=1, rotation=1))
+        ankle_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)),
+                              n="{0}_ankle_SKN".format(self.model.module_name))
 
-        pmc.parent(shoulder_jnt, self.jnt_input_grp, r=0)
-        self.created_skn_jnts = [shoulder_jnt, elbow_jnt, wrist_jnt]
+        pmc.parent(hip_jnt, self.jnt_input_grp, r=0)
+        self.created_skn_jnts = [hip_jnt, knee_jnt, ankle_jnt]
 
-        pmc.delete(duplicates_guides[:])
+        # pmc.delete(duplicates_guides[:])
 
     def create_options_ctrl(self):
         self.option_ctrl = rig_lib.little_cube("{0}_option_CTRL".format(self.model.module_name))
@@ -210,20 +222,20 @@ class Controller(RigController):
                                  hasMinValue=1, maxValue=1, minValue=0)
 
     def create_and_connect_fk_ik_jnts(self):
-        shoulder_fk_jnt = \
-        self.created_skn_jnts[0].duplicate(n="{0}_shoulder_fk_JNT".format(self.model.module_name))[0]
-        elbow_fk_jnt = pmc.ls("{0}_shoulder_fk_JNT|{0}_elbow_SKN".format(self.model.module_name))[0]
-        wrist_fk_jnt = pmc.ls("{0}_shoulder_fk_JNT|{0}_elbow_SKN|{0}_wrist_SKN".format(self.model.module_name))[0]
-        elbow_fk_jnt.rename("{0}_elbow_fk_JNT".format(self.model.module_name))
-        wrist_fk_jnt.rename("{0}_wrist_fk_JNT".format(self.model.module_name))
-        self.created_fk_jnts = [shoulder_fk_jnt, elbow_fk_jnt, wrist_fk_jnt]
+        hip_fk_jnt = \
+            self.created_skn_jnts[0].duplicate(n="{0}_hip_fk_JNT".format(self.model.module_name))[0]
+        knee_fk_jnt = pmc.ls("{0}_hip_fk_JNT|{0}_knee_SKN".format(self.model.module_name))[0]
+        ankle_fk_jnt = pmc.ls("{0}_hip_fk_JNT|{0}_knee_SKN|{0}_ankle_SKN".format(self.model.module_name))[0]
+        knee_fk_jnt.rename("{0}_knee_fk_JNT".format(self.model.module_name))
+        ankle_fk_jnt.rename("{0}_ankle_fk_JNT".format(self.model.module_name))
+        self.created_fk_jnts = [hip_fk_jnt, knee_fk_jnt, ankle_fk_jnt]
 
-        shoulder_ik_jnt = self.created_skn_jnts[0].duplicate(n="{0}_shoulder_ik_JNT".format(self.model.module_name))[0]
-        elbow_ik_jnt = pmc.ls("{0}_shoulder_ik_JNT|{0}_elbow_SKN".format(self.model.module_name))[0]
-        wrist_ik_jnt = pmc.ls("{0}_shoulder_ik_JNT|{0}_elbow_SKN|{0}_wrist_SKN".format(self.model.module_name))[0]
-        elbow_ik_jnt.rename("{0}_elbow_ik_JNT".format(self.model.module_name))
-        wrist_ik_jnt.rename("{0}_wrist_ik_JNT".format(self.model.module_name))
-        self.created_ik_jnts = [shoulder_ik_jnt, elbow_ik_jnt, wrist_ik_jnt]
+        hip_ik_jnt = self.created_skn_jnts[0].duplicate(n="{0}_hip_ik_JNT".format(self.model.module_name))[0]
+        knee_ik_jnt = pmc.ls("{0}_hip_ik_JNT|{0}_knee_SKN".format(self.model.module_name))[0]
+        ankle_ik_jnt = pmc.ls("{0}_hip_ik_JNT|{0}_knee_SKN|{0}_ankle_SKN".format(self.model.module_name))[0]
+        knee_ik_jnt.rename("{0}_knee_ik_JNT".format(self.model.module_name))
+        ankle_ik_jnt.rename("{0}_ankle_ik_JNT".format(self.model.module_name))
+        self.created_ik_jnts = [hip_ik_jnt, knee_ik_jnt, ankle_ik_jnt]
 
         for i, skn_jnt in enumerate(self.created_skn_jnts):
             pair_blend = pmc.createNode("pairBlend", n="{0}_ik_fk_switch_PAIRBLEND".format(skn_jnt))
@@ -242,37 +254,41 @@ class Controller(RigController):
             self.option_ctrl.fkIk >> blend_color.blender
 
     def create_fk(self):
-        shoulder_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
-                                   n="{0}_shoulder_fk_CTRL".format(self.model.module_name), ch=0)[0]
-        shoulder_ofs = pmc.group(shoulder_ctrl, n="{0}_shoulder_fk_ctrl_OFS".format(self.model.module_name))
-        shoulder_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1))
+        hip_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
+                              n="{0}_hip_fk_CTRL".format(self.model.module_name), ch=0)[0]
+        hip_ofs = pmc.group(hip_ctrl, n="{0}_hip_fk_ctrl_OFS".format(self.model.module_name))
+        hip_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1))
         if self.model.side == "Right":
-            shoulder_ofs.setAttr("rotateX", -180)
-        shoulder_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[0], q=1, rotation=1))
-        shoulder_ctrl.setAttr("rotateOrder", 0)
-        pmc.parent(shoulder_ofs, self.ctrl_input_grp, r=0)
+            hip_ofs.setAttr("rotateX", -90)
+            hip_ofs.setAttr("rotateZ", 90)
+        else:
+            hip_ofs.setAttr("rotateX", 90)
+            hip_ofs.setAttr("rotateZ", -90)
+        hip_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[0], q=1, rotation=1))
+        hip_ctrl.setAttr("rotateOrder", 0)
+        pmc.parent(hip_ofs, self.ctrl_input_grp, r=0)
 
-        elbow_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
-                                n="{0}_elbow_fk_CTRL".format(self.model.module_name), ch=0)[0]
-        elbow_ofs = pmc.group(elbow_ctrl,
-                              n="{0}_elbow_fk_ctrl_OFS".format(self.model.module_name))
-        elbow_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1))
-        elbow_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[1], q=1, rotation=1))
-        elbow_ctrl.setAttr("rotateOrder", 0)
-        pmc.parent(elbow_ofs, shoulder_ctrl, r=0)
-        elbow_ofs.setAttr("rotate", (0, 0, 0))
+        knee_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
+                               n="{0}_knee_fk_CTRL".format(self.model.module_name), ch=0)[0]
+        knee_ofs = pmc.group(knee_ctrl,
+                             n="{0}_knee_fk_ctrl_OFS".format(self.model.module_name))
+        knee_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1))
+        knee_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[1], q=1, rotation=1))
+        knee_ctrl.setAttr("rotateOrder", 0)
+        pmc.parent(knee_ofs, hip_ctrl, r=0)
+        knee_ofs.setAttr("rotate", (0, 0, 0))
 
-        wrist_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
-                                n="{0}_wrist_fk_CTRL".format(self.model.module_name), ch=0)[0]
-        wrist_ofs = pmc.group(wrist_ctrl,
-                              n="{0}_wrist_fk_ctrl_OFS".format(self.model.module_name))
-        wrist_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[2], q=1, ws=1, translation=1))
-        wrist_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[2], q=1, rotation=1))
-        wrist_ctrl.setAttr("rotateOrder", 0)
-        pmc.parent(wrist_ofs, elbow_ctrl, r=0)
-        wrist_ofs.setAttr("rotate", (0, 0, 0))
+        ankle_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
+                                n="{0}_ankle_fk_CTRL".format(self.model.module_name), ch=0)[0]
+        ankle_ofs = pmc.group(ankle_ctrl,
+                              n="{0}_ankle_fk_ctrl_OFS".format(self.model.module_name))
+        ankle_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[2], q=1, ws=1, translation=1))
+        ankle_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[2], q=1, rotation=1))
+        ankle_ctrl.setAttr("rotateOrder", 0)
+        pmc.parent(ankle_ofs, knee_ctrl, r=0)
+        ankle_ofs.setAttr("rotate", (0, 0, 0))
 
-        self.created_fk_ctrls = [shoulder_ctrl, elbow_ctrl, wrist_ctrl]
+        self.created_fk_ctrls = [hip_ctrl, knee_ctrl, ankle_ctrl]
 
         for i, ctrl in enumerate(self.created_fk_ctrls):
             ctrl.rotate >> self.created_fk_jnts[i].rotate
@@ -284,8 +300,8 @@ class Controller(RigController):
         ik_effector = pmc.listRelatives(self.created_ik_jnts[-2], children=1)[1]
         ik_effector.rename("{0}_ik_EFF".format(self.model.module_name))
 
-        ik_ctrl = rig_lib.medium_cube("{0}_wrist_ik_CTRL".format(self.model.module_name))
-        ik_ctrl_ofs = pmc.group(ik_ctrl, n="{0}_wrist_ik_ctrl_OFS".format(self.model.module_name))
+        ik_ctrl = rig_lib.medium_cube("{0}_ankle_ik_CTRL".format(self.model.module_name))
+        ik_ctrl_ofs = pmc.group(ik_ctrl, n="{0}_ankle_ik_ctrl_OFS".format(self.model.module_name))
 
         fk_ctrl_01_value = pmc.xform(self.created_fk_ctrls[0], q=1, rotation=1)
         fk_ctrl_02_value = pmc.xform(self.created_fk_ctrls[1], q=1, rotation=1)
@@ -306,8 +322,9 @@ class Controller(RigController):
         pv_ofs = pmc.group(pole_vector, n="{0}_poleVector_ctrl_OFS".format(self.model.module_name))
         pv_ofs.setAttr("translate", (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0],
                                      pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[1],
-                                     pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[2] - (
-                                   (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0]) * self.side_coef)))
+                                     pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[2] + (
+                                         (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[
+                                              0]) * self.side_coef)))
         pmc.poleVectorConstraint(pole_vector, ik_handle)
         pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
 
@@ -324,7 +341,10 @@ class Controller(RigController):
         ik_handle.setAttr("visibility", 0)
 
         pmc.evalDeferred("import pymel.core as pmc")
-        pmc.evalDeferred("pmc.xform(\"{0}\", ws=1, translation=(pmc.xform(\"{1}\", q=1, ws=1, translation=1)))".format(ik_ctrl, self.created_fk_jnts[-1]))
+        pmc.evalDeferred(
+            "pmc.xform(\"{0}\", ws=1, translation=(pmc.xform(\"{1}\", q=1, ws=1, translation=1)))".format(ik_ctrl,
+                                                                                                          self.created_fk_jnts[
+                                                                                                              -1]))
 
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)
@@ -353,7 +373,7 @@ class Controller(RigController):
         rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
 
     def create_output(self):
-        rig_lib.create_output(name="{0}_wrist_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
+        rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
 
 
 class Model(AuriScriptModel):
