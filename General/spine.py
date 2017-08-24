@@ -128,6 +128,7 @@ class Controller(RigController):
             return
         self.guide = rig_lib.create_curve_guide(d=3, number_of_points=self.model.how_many_ctrls, name=self.guide_name)
         self.guides_grp = self.group_guides(self.guide)
+        self.guide.setAttr("translate", (0, 8, 0))
         self.guides_grp.setAttr("visibility", 1)
         self.view.refresh_view()
         pmc.select(d=1)

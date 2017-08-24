@@ -129,9 +129,9 @@ class Controller(RigController):
         elbow_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[1])
         wrist_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[2])
 
-        shoulder_guide.setAttr("translate", (3 * self.side_coef, 10, 0))
-        elbow_guide.setAttr("translate", (5 * self.side_coef, 8, 0))
-        wrist_guide.setAttr("translate", (7 * self.side_coef, 6, 0))
+        shoulder_guide.setAttr("translate", (3 * self.side_coef, 18, 0))
+        elbow_guide.setAttr("translate", (5 * self.side_coef, 16, 0))
+        wrist_guide.setAttr("translate", (7 * self.side_coef, 14, 0))
 
         self.guides = [shoulder_guide, elbow_guide, wrist_guide]
         self.guides_grp = self.group_guides(self.guides)

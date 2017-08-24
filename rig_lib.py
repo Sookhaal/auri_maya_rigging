@@ -262,6 +262,13 @@ def box_curve(name):
     return crv
 
 
+def large_box_curve(name):
+    crv = pmc.curve(d=1, p=[(-4, 1.5, 4), (-4, 1.5, -4), (-4, -1.5, -4), (-4, -1.5, 4), (-4, 1.5, 4), (4, 1.5, 4),
+                            (4, -1.5, 4), (-4, -1.5, 4), (-4, -1.5, -4), (4, -1.5, -4), (4, 1.5, -4), (-4, 1.5, -4),
+                            (-4, -1.5, -4), (4, -1.5, -4), (4, -1.5, 4), (4, 1.5, 4), (4, 1.5, -4)], n=name)
+    return crv
+
+
 def little_cube(name):
     crv = pmc.curve(d=1, p=[(-0.25, 0.25, 0.25), (-0.25, 0.25, -0.25), (-0.25, -0.25, -0.25), (-0.25, -0.25, 0.25),
                             (-0.25, 0.25, 0.25),
@@ -348,7 +355,7 @@ def matrix_constraint(driver, driven, srt="srt"):
 
 
 def change_shape_color(selection, color):
-    """ 2=dark_grey, 3=light_grey, 6=blue, 9=rose, 13=red, 14=green, 17=yellow """
+    """ 2=dark_grey, 3=light_grey, 6=blue, 9=purple, 13=red, 14=green, 17=yellow, 20=pink """
     if isinstance(selection, list):
         for obj in selection:
             shape = obj.getShape()

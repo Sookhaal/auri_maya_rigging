@@ -61,6 +61,7 @@ class Controller(RigController):
         pmc.select(d=1)
 
     def execute(self):
+        self.prebuild()
         check_list = ["{0}_RIG".format(self.model.character_name), "GEO_GRP", "CTRL_GRP", "JNT_GRP", "MESH_GRP", "PARTS_GRP",
                       "{0}_global_CTRL".format(self.model.module_name), "{0}_global_OUTPUT".format(self.model.module_name),
                       "{0}_local_INPUT".format(self.model.module_name), "{0}_local_ctrl_OFS".format(self.model.module_name),
