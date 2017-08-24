@@ -307,7 +307,7 @@ class Controller(RigController):
         pv_ofs.setAttr("translate", (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0],
                                      pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[1],
                                      pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[2] - (
-                                   (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0]) * self.side_coef)))
+                                   (pmc.xform(self.created_fk_jnts[1], q=1, translation=1)[0]) * self.side_coef)))
         pmc.poleVectorConstraint(pole_vector, ik_handle)
         pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
 

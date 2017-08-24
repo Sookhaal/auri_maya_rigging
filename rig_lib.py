@@ -241,9 +241,7 @@ class RigController(AuriScriptController):
         start_loc_shape.setAttr("visibility", 0)
         end_loc_shape.setAttr("visibility", 0)
 
-        pmc.evalDeferred("import pymel.core as pmc")
-        pmc.evalDeferred("pmc.xform(\"{0}\", ws=1, translation=(pmc.xform(\"{1}\", q=1, ws=1, translation=1)))".format(
-            created_ik_ctrls[0], ik_ctrl_object_to_snap_to))
+        pmc.xform(created_ik_ctrls[0], ws=1, translation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, translation=1)))
 
 
 def square_arrow_curve(name):
@@ -450,3 +448,25 @@ def create_output(name, parent):
     output = pmc.spaceLocator(p=(0, 0, 0), n=name)
     pmc.parent(output, parent, r=1)
     output.visibility.set(0)
+
+
+def raz_fk_ctrl_rotate(ctrl, jnt):
+    raz = pmc.group(em=1, n="{0}_RAZ".format(ctrl))
+    pmc.parent(raz, ctrl.getParent(), r=1)
+    raz.setAttr("translate", ctrl.getAttr("translate"))
+    raz.setAttr("rotate", ctrl.getAttr("rotate"))
+    pmc.parent(ctrl, raz, r=1)
+    ctrl.setAttr("rotate", (0, 0, 0))
+    jnt_offset = pmc.createNode("plusMinusAverage", n="{0}_raz_jnt_offset_PMA".format(ctrl))
+    jnt_offset.setAttr("operation", 1)
+    ctrl.rotate >> jnt_offset.input3D[0]
+    raz.rotate >> jnt_offset.input3D[1]
+    jnt_offset.output3D >> jnt.rotate
+
+
+def raz_ik_ctrl_translate(ctrl):
+    raz = pmc.group(em=1, n="{0}_RAZ".format(ctrl))
+    pmc.parent(raz, ctrl.getParent(), r=1)
+    raz.setAttr("translate", ctrl.getAttr("translate"))
+    pmc.parent(ctrl, raz, r=1)
+    ctrl.setAttr("translate", (0, 0, 0))

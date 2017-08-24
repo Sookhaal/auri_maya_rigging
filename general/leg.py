@@ -18,6 +18,7 @@ class View(AuriScriptView):
         self.side_cbbox = QtWidgets.QComboBox()
         self.ik_creation_switch = QtWidgets.QCheckBox()
         self.stretch_creation_switch = QtWidgets.QCheckBox()
+        self.raz_ctrls = QtWidgets.QCheckBox()
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -29,6 +30,7 @@ class View(AuriScriptView):
     def refresh_view(self):
         self.ik_creation_switch.setChecked(self.model.ik_creation_switch)
         self.stretch_creation_switch.setChecked(self.model.stretch_creation_switch)
+        self.raz_ctrls.setChecked(self.model.raz_ctrls)
         self.side_cbbox.setCurrentText(self.model.side)
         self.ctrl.look_for_parent()
 
@@ -42,6 +44,7 @@ class View(AuriScriptView):
         self.ik_creation_switch.stateChanged.connect(self.ctrl.on_ik_creation_switch_changed)
         self.ik_creation_switch.setEnabled(False)
         self.stretch_creation_switch.stateChanged.connect(self.ctrl.on_stretch_creation_switch_changed)
+        self.raz_ctrls.stateChanged.connect(self.ctrl.on_raz_ctrls_changed)
 
         self.side_cbbox.insertItems(0, ["Left", "Right"])
         self.side_cbbox.currentTextChanged.connect(self.ctrl.on_side_cbbox_changed)
@@ -75,9 +78,14 @@ class View(AuriScriptView):
         stretch_text = QtWidgets.QLabel("stretch/squash :")
         stretch_layout.addWidget(stretch_text)
         stretch_layout.addWidget(self.stretch_creation_switch)
+        raz_ctrls_layout = QtWidgets.QHBoxLayout()
+        raz_ctrls_text = QtWidgets.QLabel("\"Freez\" ctrls :")
+        raz_ctrls_layout.addWidget(raz_ctrls_text)
+        raz_ctrls_layout.addWidget(self.raz_ctrls)
 
         checkbox_layout.addLayout(ik_layout)
         checkbox_layout.addLayout(stretch_layout)
+        checkbox_layout.addLayout(raz_ctrls_layout)
 
         options_layout.addLayout(checkbox_layout)
 
@@ -108,6 +116,9 @@ class Controller(RigController):
         self.created_ik_ctrls = []
         self.option_ctrl = None
         RigController.__init__(self, model, view)
+
+    def on_raz_ctrls_changed(self, state):
+        self.model.raz_ctrls = is_checked(state)
 
     def prebuild(self):
         self.create_temporary_outputs(["ankle_OUTPUT"])
@@ -147,7 +158,6 @@ class Controller(RigController):
         self.connect_to_parent()
 
         self.create_skn_jnts()
-        return
         self.create_options_ctrl()
         self.create_and_connect_fk_ik_jnts()
         self.create_fk()
@@ -166,13 +176,12 @@ class Controller(RigController):
         duplicates_guides = []
         for guide in self.guides:
             duplicate = guide.duplicate(n="{0}_duplicate".format(guide))[0]
-            duplicate.setAttr("rotateOrder", 2)
             duplicates_guides.append(duplicate)
 
         leg_plane = pmc.polyCreateFacet(p=[pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1),
-                               pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1),
-                               pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)
-                               ], n="{0}_temporary_leg_plane".format(self.model.module_name), ch=1)[0]
+                                           pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1),
+                                           pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)],
+                                        n="{0}_temporary_leg_plane".format(self.model.module_name), ch=1)[0]
         leg_plane_face = pmc.ls(leg_plane)[0].f[0]
 
         hip_const = pmc.normalConstraint(leg_plane_face, duplicates_guides[0], aimVector=(0.0, 0.0, 1.0),
@@ -185,21 +194,20 @@ class Controller(RigController):
         pmc.delete(knee_cons)
         pmc.parent(duplicates_guides[1], duplicates_guides[0])
         pmc.parent(duplicates_guides[2], duplicates_guides[1])
+
+        temp_guide_orient = pmc.group(em=1, n="temp_guide_orient_grp")
+        temp_guide_orient.setAttr("translate", pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1))
+        temp_guide_orient.setAttr("rotate", -90 * self.side_coef, 0, -90 * self.side_coef)
+        pmc.parent(duplicates_guides[0], temp_guide_orient, r=0)
         pmc.select(d=1)
-        return
 
         hip_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1)),
                             n="{0}_hip_SKN".format(self.model.module_name))
         hip_jnt.setAttr("rotate", pmc.xform(duplicates_guides[0], q=1, rotation=1))
-        # if self.model.side == "Right":
-        #     hip_jnt.setAttr("jointOrientX", -180)
-        #     # hip_jnt.setAttr("jointOrientZ", 90)
-        #     hip_jnt.setAttr("rotate", (pmc.xform(hip_jnt, q=1, rotation=1)[0],
-        #                                pmc.xform(hip_jnt, q=1, rotation=1)[1] * -1,
-        #                                pmc.xform(hip_jnt, q=1, rotation=1)[2] * -1))
-        # else:
-            # hip_jnt.setAttr("jointOrientX", 90)
-            # hip_jnt.setAttr("jointOrientZ", -90)
+        hip_jnt.setAttr("jointOrientX", -90 * self.side_coef)
+        hip_jnt.setAttr("jointOrientY", 0)
+        hip_jnt.setAttr("jointOrientZ", -90 * self.side_coef)
+
         knee_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1)),
                              n="{0}_knee_SKN".format(self.model.module_name))
         knee_jnt.setAttr("rotate", pmc.xform(duplicates_guides[1], q=1, rotation=1))
@@ -209,7 +217,8 @@ class Controller(RigController):
         pmc.parent(hip_jnt, self.jnt_input_grp, r=0)
         self.created_skn_jnts = [hip_jnt, knee_jnt, ankle_jnt]
 
-        # pmc.delete(duplicates_guides[:])
+        pmc.delete(temp_guide_orient)
+        pmc.delete(leg_plane)
 
     def create_options_ctrl(self):
         self.option_ctrl = rig_lib.little_cube("{0}_option_CTRL".format(self.model.module_name))
@@ -217,7 +226,7 @@ class Controller(RigController):
         pmc.parent(option_ofs, self.ctrl_input_grp)
         rig_lib.matrix_constraint(self.created_skn_jnts[-1], option_ofs, srt="trs")
         ctrl_shape = self.option_ctrl.getShape()
-        pmc.move(ctrl_shape, [0, 0, -3 * self.side_coef], relative=1, objectSpace=1, worldSpaceDistance=1)
+        pmc.move(ctrl_shape, [0, 0, 3 * self.side_coef], relative=1, objectSpace=1, worldSpaceDistance=1)
         self.option_ctrl.addAttr("fkIk", attributeType="float", defaultValue=0, hidden=0, keyable=1, hasMaxValue=1,
                                  hasMinValue=1, maxValue=1, minValue=0)
 
@@ -258,12 +267,10 @@ class Controller(RigController):
                               n="{0}_hip_fk_CTRL".format(self.model.module_name), ch=0)[0]
         hip_ofs = pmc.group(hip_ctrl, n="{0}_hip_fk_ctrl_OFS".format(self.model.module_name))
         hip_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1))
-        if self.model.side == "Right":
-            hip_ofs.setAttr("rotateX", -90)
-            hip_ofs.setAttr("rotateZ", 90)
-        else:
-            hip_ofs.setAttr("rotateX", 90)
-            hip_ofs.setAttr("rotateZ", -90)
+        hip_ofs.setAttr("rotateX", -90 * self.side_coef)
+        hip_ofs.setAttr("rotateY", 0)
+        hip_ofs.setAttr("rotateZ", -90 * self.side_coef)
+
         hip_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[0], q=1, rotation=1))
         hip_ctrl.setAttr("rotateOrder", 0)
         pmc.parent(hip_ofs, self.ctrl_input_grp, r=0)
@@ -323,12 +330,12 @@ class Controller(RigController):
         pv_ofs.setAttr("translate", (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0],
                                      pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[1],
                                      pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[2] + (
-                                         (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[
+                                         (pmc.xform(self.created_fk_jnts[1], q=1, translation=1)[
                                               0]) * self.side_coef)))
         pmc.poleVectorConstraint(pole_vector, ik_handle)
         pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
 
-        self.created_ik_jnts[1].setAttr("preferredAngleY", -90)
+        self.created_ik_jnts[1].setAttr("preferredAngleZ", 90)
 
         self.created_ik_ctrls = [ik_ctrl, pole_vector]
 
@@ -340,11 +347,7 @@ class Controller(RigController):
 
         ik_handle.setAttr("visibility", 0)
 
-        pmc.evalDeferred("import pymel.core as pmc")
-        pmc.evalDeferred(
-            "pmc.xform(\"{0}\", ws=1, translation=(pmc.xform(\"{1}\", q=1, ws=1, translation=1)))".format(ik_ctrl,
-                                                                                                          self.created_fk_jnts[
-                                                                                                              -1]))
+        pmc.xform(ik_ctrl, ws=1, translation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, translation=1)))
 
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)
@@ -357,6 +360,12 @@ class Controller(RigController):
             color_value = 13
 
         rig_lib.clean_ctrl(self.option_ctrl, 9, trs="trs")
+
+        if self.model.raz_ctrls:
+            for i, ctrl in enumerate(self.created_fk_ctrls):
+                rig_lib.raz_fk_ctrl_rotate(ctrl, self.created_fk_jnts[i])
+
+            rig_lib.raz_ik_ctrl_translate(self.created_ik_ctrls[0])
 
         invert_value = pmc.createNode("plusMinusAverage", n="{0}_fk_visibility_MDL".format(self.model.module_name))
         invert_value.setAttr("input1D[0]", 1)
@@ -384,4 +393,5 @@ class Model(AuriScriptModel):
         self.side = "Left"
         self.ik_creation_switch = True
         self.stretch_creation_switch = True
+        self.raz_ctrls = True
         # self.bend_creation_switch = False
