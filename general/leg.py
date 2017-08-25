@@ -319,8 +319,6 @@ class Controller(RigController):
         self.created_fk_ctrls[2].setAttr("rotate", (0, 0, 0))
 
         ik_ctrl_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[2], q=1, ws=1, translation=1))
-        if self.model.side == "Right":
-            ik_ctrl_ofs.setAttr("rotateX", -180)
         pmc.parent(ik_handle, ik_ctrl_ofs, r=0)
         ik_ctrl.setAttr("translate", pmc.xform(ik_handle, q=1, translation=1))
         pmc.parent(ik_handle, ik_ctrl, r=0)
@@ -385,7 +383,6 @@ class Controller(RigController):
 
     def create_output(self):
         rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
-
 
 
 class Model(AuriScriptModel):

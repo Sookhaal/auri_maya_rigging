@@ -31,10 +31,8 @@ class View(AuriScriptView):
     def refresh_view(self):
         self.side_cbbox.setCurrentText(self.model.side)
         # self.how_many_toes.setValue(self.model.how_many_toes)
-        print "\n\n\n\n\n\n\n\n\n\n\nfoot"
         self.ctrl.look_for_parent()
         self.ctrl.look_for_out_objects()
-        print self.model.selected_object
 
     def setup_ui(self):
         self.modules_cbbox.setModel(self.ctrl.modules_with_output)
@@ -136,8 +134,7 @@ class Controller(RigController):
             self.look_for_out_objects()
 
     def on_objects_cbbox_changed(self, text):
-        if self.has_updated_outputs:
-            self.model.selected_object = text
+        self.model.selected_object = text
 
     def prebuild(self):
         self.guides_names = ["{0}_ankle_GUIDE".format(self.model.module_name), "{0}_ball_GUIDE".format(self.model.module_name),
@@ -153,9 +150,9 @@ class Controller(RigController):
             return
 
         ankle_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[0])
-        ball_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[2])
-        toe_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[3])
-        heel_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[1])
+        ball_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[1])
+        toe_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[2])
+        heel_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[3])
         infoot_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[4])
         outfoot_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[5])
 

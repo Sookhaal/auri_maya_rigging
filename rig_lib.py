@@ -13,7 +13,6 @@ class RigController(AuriScriptController):
         self.modules_with_output = QtGui.QStringListModel()
         self.outputs_model = QtGui.QStringListModel()
         self.has_updated_modules = False
-        self.has_updated_outputs = False
         # self.current_module = None
         self.jnt_input_grp = None
         self.ctrl_input_grp = None
@@ -50,10 +49,8 @@ class RigController(AuriScriptController):
             r_cbbox_stringlist.removeRows(0, r_cbbox_stringlist.rowCount())
             return
         current_module = pmc.ls("{0}|{1}".format(temp_output, l_cbbox_selection))[0]
-        self.has_updated_outputs = False
         r_cbbox_stringlist.setStringList(list_children(current_module))
         r_cbbox_selection = cbbox_set_selected(r_cbbox_selection, r_cbbox)
-        self.has_updated_outputs = True
 
     def on_ik_creation_switch_changed(self, state):
         self.model.ik_creation_switch = is_checked(state)
@@ -76,8 +73,7 @@ class RigController(AuriScriptController):
             self.look_for_parent()
 
     def on_outputs_cbbox_changed(self, text):
-        if self.has_updated_outputs:
-            self.model.selected_output = text
+        self.model.selected_output = text
 
     def create_temporary_outputs(self, outputs_names):
         if not pmc.objExists("temporary_output"):
@@ -161,6 +157,7 @@ class RigController(AuriScriptController):
         if self.model.selected_module != "No_parent" and self.model.selected_module != "{0}".format(
                 self.model.module_name):
             parent_name = "{0}_{1}".format(self.model.selected_module, self.model.selected_output)
+            print parent_name
             parent_node = pmc.ls(parent_name)[0]
             matrix_constraint(parent_node, self.ctrl_input_grp, srt="trs")
             matrix_constraint(parent_node, self.jnt_input_grp, srt="trs")
