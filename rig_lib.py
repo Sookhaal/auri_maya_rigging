@@ -14,31 +14,45 @@ class RigController(AuriScriptController):
         self.outputs_model = QtGui.QStringListModel()
         self.has_updated_modules = False
         self.has_updated_outputs = False
-        self.current_module = None
+        # self.current_module = None
         self.jnt_input_grp = None
         self.ctrl_input_grp = None
         self.parts_grp = None
         AuriScriptController.__init__(self)
 
-    def look_for_parent(self, grp="temporary_output"):
+    def look_for_parent(self, grp="temporary_output", l_cbbox_stringlist=None, l_cbbox_selection=None, l_cbbox=None,
+                        r_cbbox_stringlist=None, r_cbbox_selection=None, r_cbbox=None):
         if not pmc.objExists(grp):
             return
+        if l_cbbox is None:
+            l_cbbox = self.view.modules_cbbox
+        if l_cbbox_stringlist is None:
+            l_cbbox_stringlist = self.modules_with_output
+        if l_cbbox_selection is None:
+            l_cbbox_selection = self.model.selected_module
+        if r_cbbox is None:
+            r_cbbox = self.view.outputs_cbbox
+        if r_cbbox_stringlist is None:
+            r_cbbox_stringlist = self.outputs_model
+        if r_cbbox_selection is None:
+            r_cbbox_selection = self.model.selected_output
+
         temp_output = pmc.ls(grp)[0]
 
         self.has_updated_modules = False
         children_list = list_children(temp_output)
         children_list.append("No_parent")
-        self.modules_with_output.setStringList(children_list)
-        self.model.selected_module = cbbox_set_selected(self.model.selected_module, self.view.modules_cbbox)
+        l_cbbox_stringlist.setStringList(children_list)
+        l_cbbox_selection = cbbox_set_selected(l_cbbox_selection, l_cbbox)
         self.has_updated_modules = True
 
-        if self.model.selected_module == "No_parent":
-            self.outputs_model.removeRows(0, self.outputs_model.rowCount())
+        if l_cbbox_selection == "No_parent":
+            r_cbbox_stringlist.removeRows(0, r_cbbox_stringlist.rowCount())
             return
-        self.current_module = pmc.ls("{0}|{1}".format(temp_output, self.model.selected_module))[0]
+        current_module = pmc.ls("{0}|{1}".format(temp_output, l_cbbox_selection))[0]
         self.has_updated_outputs = False
-        self.outputs_model.setStringList(list_children(self.current_module))
-        self.model.selected_output = cbbox_set_selected(self.model.selected_output, self.view.outputs_cbbox)
+        r_cbbox_stringlist.setStringList(list_children(current_module))
+        r_cbbox_selection = cbbox_set_selected(r_cbbox_selection, r_cbbox)
         self.has_updated_outputs = True
 
     def on_ik_creation_switch_changed(self, state):
