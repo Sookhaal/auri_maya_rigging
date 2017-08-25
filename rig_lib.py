@@ -20,10 +20,10 @@ class RigController(AuriScriptController):
         self.parts_grp = None
         AuriScriptController.__init__(self)
 
-    def look_for_parent(self):
-        if not pmc.objExists("temporary_output"):
+    def look_for_parent(self, grp="temporary_output"):
+        if not pmc.objExists(grp):
             return
-        temp_output = pmc.ls("temporary_output")[0]
+        temp_output = pmc.ls(grp)[0]
 
         self.has_updated_modules = False
         children_list = list_children(temp_output)
@@ -35,7 +35,7 @@ class RigController(AuriScriptController):
         if self.model.selected_module == "No_parent":
             self.outputs_model.removeRows(0, self.outputs_model.rowCount())
             return
-        self.current_module = pmc.ls(self.model.selected_module)[0]
+        self.current_module = pmc.ls("{0}|{1}".format(temp_output, self.model.selected_module))[0]
         self.has_updated_outputs = False
         self.outputs_model.setStringList(list_children(self.current_module))
         self.model.selected_output = cbbox_set_selected(self.model.selected_output, self.view.outputs_cbbox)
@@ -77,6 +77,19 @@ class RigController(AuriScriptController):
         for output in outputs_names:
             if not pmc.objExists("temporary_output|{0}|{1}".format(self.model.module_name, output)):
                 pmc.group(em=1, n="{0}".format(output), p=module_grp)
+
+    def create_out_objects(self, outputs_objects_names):
+        if not pmc.objExists("temporary_out_objects"):
+            pmc.group(em=1, n="temporary_out_objects")
+        temp_output_grp = pmc.ls("temporary_out_objects")[0]
+
+        if not pmc.objExists("temporary_out_objects|{0}".format(self.model.module_name)):
+            pmc.group(em=1, n="{0}".format(self.model.module_name), p=temp_output_grp)
+        module_grp = pmc.ls("{0}".format(self.model.module_name))[0]
+
+        for obj in outputs_objects_names:
+            if not pmc.objExists("temporary_out_objects|{0}|{1}".format(self.model.module_name, obj)):
+                pmc.group(em=1, n="{0}".format(obj), p=module_grp)
 
     def guide_check(self, guides_names):
         if not pmc.objExists("guide_GRP"):

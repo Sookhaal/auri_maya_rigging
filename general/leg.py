@@ -122,6 +122,7 @@ class Controller(RigController):
 
     def prebuild(self):
         self.create_temporary_outputs(["ankle_OUTPUT"])
+        self.create_out_objects(["ik_HDL"])
 
         self.guides_names = ["{0}_hip_GUIDE".format(self.model.module_name),
                              "{0}_knee_GUIDE".format(self.model.module_name),
@@ -360,6 +361,7 @@ class Controller(RigController):
             color_value = 13
 
         rig_lib.clean_ctrl(self.option_ctrl, 9, trs="trs")
+        self.option_ctrl.setAttr("fkIk", 1)
 
         if self.model.raz_ctrls:
             for i, ctrl in enumerate(self.created_fk_ctrls):
@@ -383,6 +385,7 @@ class Controller(RigController):
 
     def create_output(self):
         rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
+
 
 
 class Model(AuriScriptModel):
