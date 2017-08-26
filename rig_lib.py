@@ -157,7 +157,6 @@ class RigController(AuriScriptController):
         if self.model.selected_module != "No_parent" and self.model.selected_module != "{0}".format(
                 self.model.module_name):
             parent_name = "{0}_{1}".format(self.model.selected_module, self.model.selected_output)
-            print parent_name
             parent_node = pmc.ls(parent_name)[0]
             matrix_constraint(parent_node, self.ctrl_input_grp, srt="trs")
             matrix_constraint(parent_node, self.jnt_input_grp, srt="trs")

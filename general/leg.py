@@ -114,6 +114,7 @@ class Controller(RigController):
         self.created_ik_jnts = []
         self.created_fk_ctrls = []
         self.created_ik_ctrls = []
+        self.created_ik_handle = None
         self.option_ctrl = None
         RigController.__init__(self, model, view)
 
@@ -302,7 +303,7 @@ class Controller(RigController):
             ctrl.rotate >> self.created_fk_jnts[i].rotate
 
     def create_ik(self):
-        ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)),
+        self.created_ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)),
                                  startJoint=self.created_ik_jnts[0], endEffector=self.created_ik_jnts[-1],
                                  solver="ikRPsolver")[0]
         ik_effector = pmc.listRelatives(self.created_ik_jnts[-2], children=1)[1]
@@ -319,9 +320,9 @@ class Controller(RigController):
         self.created_fk_ctrls[2].setAttr("rotate", (0, 0, 0))
 
         ik_ctrl_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[2], q=1, ws=1, translation=1))
-        pmc.parent(ik_handle, ik_ctrl_ofs, r=0)
-        ik_ctrl.setAttr("translate", pmc.xform(ik_handle, q=1, translation=1))
-        pmc.parent(ik_handle, ik_ctrl, r=0)
+        pmc.parent(self.created_ik_handle, ik_ctrl_ofs, r=0)
+        ik_ctrl.setAttr("translate", pmc.xform(self.created_ik_handle, q=1, translation=1))
+        pmc.parent(self.created_ik_handle, ik_ctrl, r=0)
         pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
 
         pole_vector = rig_lib.jnt_shape_curve("{0}_poleVector_CTRL".format(self.model.module_name))
@@ -331,7 +332,7 @@ class Controller(RigController):
                                      pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[2] + (
                                          (pmc.xform(self.created_fk_jnts[1], q=1, translation=1)[
                                               0]) * self.side_coef)))
-        pmc.poleVectorConstraint(pole_vector, ik_handle)
+        pmc.poleVectorConstraint(pole_vector, self.created_ik_handle)
         pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
 
         self.created_ik_jnts[1].setAttr("preferredAngleZ", 90)
@@ -344,7 +345,7 @@ class Controller(RigController):
 
         pmc.xform(pole_vector, ws=1, translation=(pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)))
 
-        ik_handle.setAttr("visibility", 0)
+        self.created_ik_handle.setAttr("visibility", 0)
 
         pmc.xform(ik_ctrl, ws=1, translation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, translation=1)))
 
