@@ -123,7 +123,6 @@ class Controller(RigController):
 
     def prebuild(self):
         self.create_temporary_outputs(["ankle_OUTPUT"])
-        self.create_out_objects(["ik_HDL"])
 
         self.guides_names = ["{0}_hip_GUIDE".format(self.model.module_name),
                              "{0}_knee_GUIDE".format(self.model.module_name),
@@ -301,6 +300,8 @@ class Controller(RigController):
 
         for i, ctrl in enumerate(self.created_fk_ctrls):
             ctrl.rotate >> self.created_fk_jnts[i].rotate
+            if ctrl == self.created_fk_ctrls[-1]:
+                ctrl.scale >> self.created_fk_jnts[i].scale
 
     def create_ik(self):
         self.created_ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)),

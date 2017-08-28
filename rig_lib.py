@@ -220,7 +220,7 @@ class RigController(AuriScriptController):
         for i, jnt in enumerate(created_ik_jnts):
             if i != 0:
                 jnt.addAttr("baseTranslateX", attributeType="float",
-                            defaultValue=(pmc.xform(jnt, q=1, translation=1)[0]*side_coef), hidden=0, keyable=0)
+                            defaultValue=(pmc.xform(jnt, q=1, translation=1)[0]), hidden=0, keyable=0)
                 jnt.setAttr("baseTranslateX", lock=1, channelBox=0)
                 jnt_stretch_mult = pmc.createNode("multDoubleLinear",
                                                   n="{0}_ik_stretch_mult_{1}_MDL".format(self.model.module_name, i))

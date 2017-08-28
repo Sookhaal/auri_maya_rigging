@@ -264,27 +264,25 @@ class Controller(RigController):
         jnt_offset.output3D >> self.created_fk_jnts[1].rotate
 
     def create_ik_and_roll(self):
-        ball_ik_handle = pmc.ikHandle(n=("{0}_ball_ik_HDL".format(self.model.module_name)),
-                                              startJoint=self.created_ik_jnts[0], endEffector=self.created_ik_jnts[1],
-                                              solver="ikRPsolver")[0]
-        ball_ik_handle.setAttr("poleVector", (0, 2 * self.side_coef, 0))
-        ik_effector = pmc.listRelatives(self.created_ik_jnts[0], children=1)[1]
-        ik_effector.rename("{0}_ball_ik_EFF".format(self.model.module_name))
         toe_ik_handle = pmc.ikHandle(n=("{0}_toe_ik_HDL".format(self.model.module_name)),
-                                      startJoint=self.created_ik_jnts[1], endEffector=self.created_ik_jnts[2],
-                                      solver="ikRPsolver")[0]
-        toe_ik_handle.setAttr("poleVector", (0, 2 * self.side_coef, 0))
+                                     startJoint=self.created_ik_jnts[1], endEffector=self.created_ik_jnts[2],
+                                     solver="ikSCsolver")[0]
         ik_effector = pmc.listRelatives(self.created_ik_jnts[1], children=1)[1]
         ik_effector.rename("{0}_toe_ik_EFF".format(self.model.module_name))
+        ball_ik_handle = pmc.ikHandle(n=("{0}_ball_ik_HDL".format(self.model.module_name)),
+                                      startJoint=self.created_ik_jnts[0], endEffector=self.created_ik_jnts[1],
+                                      solver="ikSCsolver")[0]
+        ik_effector = pmc.listRelatives(self.created_ik_jnts[0], children=1)[1]
+        ik_effector.rename("{0}_ball_ik_EFF".format(self.model.module_name))
 
-        toe_bend_group = pmc.group(em=1, n="{0}_toe_bend_OFS")
+        toe_bend_group = pmc.group(em=1, n="{0}_toe_bend_OFS".format(self.model.module_name))
         toe_bend_group.setAttr("translate", pmc.xform(self.created_locs[0], q=1, ws=1, translation=1))
-        pmc.parent(ball_ik_handle, self.created_locs[0])
-        pmc.parent(toe_bend_group, self.created_locs[1])
-        pmc.parent(toe_ik_handle, toe_bend_group)
-        pmc.parent(self.created_locs[2], self.leg_ik_ctrl)
-        pmc.parent(self.leg_ik_handle, self.created_locs[0])
-        pmc.parent(self.leg_ik_length_end_loc, self.created_locs[0])
+        pmc.parent(ball_ik_handle, self.created_locs[0], r=0)
+        pmc.parent(toe_bend_group, self.created_locs[1], r=0)
+        pmc.parent(toe_ik_handle, toe_bend_group, r=0)
+        pmc.parent(self.created_locs[2], self.leg_ik_ctrl, r=0)
+        pmc.parent(self.leg_ik_handle, self.created_locs[0], r=0)
+        pmc.parent(self.leg_ik_length_end_loc, self.created_locs[0], r=0)
 
         self.leg_ik_ctrl.addAttr("roll", attributeType="float", defaultValue=0, hidden=0, keyable=1)
         self.leg_ik_ctrl.addAttr("bendLimitAngle", attributeType="float", defaultValue=45, hidden=0, keyable=1)
