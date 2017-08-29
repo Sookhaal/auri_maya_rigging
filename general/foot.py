@@ -74,9 +74,6 @@ class Controller(RigController):
             model (Model):
             view (View):
         """
-        self.modules_with_out_objects = QtGui.QStringListModel()
-        self.objects_model = QtGui.QStringListModel()
-        self.current_object_module = None
         self.guides_grp = None
         self.guides = []
         self.guides_names = []

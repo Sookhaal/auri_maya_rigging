@@ -111,8 +111,15 @@ class RigController(AuriScriptController):
                 return False
         elif type(guides_names) == list:
             for guide in guides_names:
-                if not pmc.objExists("guide_GRP|{0}_guides|{1}".format(self.model.module_name, guide)):
-                    return False
+                if isinstance(guide, (str, unicode)):
+                    if not pmc.objExists("guide_GRP|{0}_guides|{1}".format(self.model.module_name, guide)):
+                        return False
+                elif type(guide) == list:
+                    for obj in guide:
+                        if not pmc.objExists("guide_GRP|{0}_guides|{1}".format(self.model.module_name, obj)):
+                            return False
+                else:
+                    print("Wrong argument given to guide_check fonction")
         else:
             print("Wrong argument given to guide_check fonction")
         return True
@@ -127,7 +134,11 @@ class RigController(AuriScriptController):
 
         if type(guides) == list:
             for guide in guides:
-                pmc.parent(guide, guides_grp, r=0)
+                if type(guide) == list:
+                    for obj in guide:
+                        pmc.parent(obj, guides_grp, r=0)
+                else:
+                    pmc.parent(guide, guides_grp, r=0)
         else:
             pmc.parent(guides, guides_grp, r=0)
 
