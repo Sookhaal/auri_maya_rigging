@@ -238,6 +238,7 @@ class RigController(AuriScriptController):
                 jnt_stretch_mult_list.append(jnt_stretch_mult)
 
         created_ik_ctrls[0].setAttr("translate", (0, 0, 0))
+        created_ik_ctrls[0].setAttr("rotate", (0, 0, 0))
         start_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_start_LOC".format(self.model.module_name))
         end_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_end_LOC".format(self.model.module_name))
         pmc.parent(start_loc, start_parent, r=1)
@@ -276,6 +277,7 @@ class RigController(AuriScriptController):
         end_loc_shape.setAttr("visibility", 0)
 
         pmc.xform(created_ik_ctrls[0], ws=1, translation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, translation=1)))
+        pmc.xform(created_ik_ctrls[0], ws=1, rotation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, rotation=1)))
 
 
 def square_arrow_curve(name):

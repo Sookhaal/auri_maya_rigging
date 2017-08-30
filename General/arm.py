@@ -286,7 +286,6 @@ class Controller(RigController):
 
         ik_ctrl = rig_lib.medium_cube("{0}_wrist_ik_CTRL".format(self.model.module_name))
         ik_ctrl_ofs = pmc.group(ik_ctrl, n="{0}_wrist_ik_ctrl_OFS".format(self.model.module_name))
-
         fk_ctrl_01_value = pmc.xform(self.created_fk_ctrls[0], q=1, rotation=1)
         fk_ctrl_02_value = pmc.xform(self.created_fk_ctrls[1], q=1, rotation=1)
         fk_ctrl_03_value = pmc.xform(self.created_fk_ctrls[2], q=1, rotation=1)
@@ -302,6 +301,8 @@ class Controller(RigController):
         pmc.parent(ik_handle, ik_ctrl, r=0)
         pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
 
+        ik_ctrl.setAttr("translate", (0, 0, 0))
+
         pole_vector = rig_lib.jnt_shape_curve("{0}_poleVector_CTRL".format(self.model.module_name))
         pv_ofs = pmc.group(pole_vector, n="{0}_poleVector_ctrl_OFS".format(self.model.module_name))
         pv_ofs.setAttr("translate", (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0],
@@ -313,8 +314,9 @@ class Controller(RigController):
 
         self.created_ik_jnts[1].setAttr("preferredAngleY", -90)
 
-        self.created_ik_ctrls = [ik_ctrl, pole_vector]
+        pmc.parentConstraint(ik_ctrl, self.created_ik_jnts[-1], maintainOffset=0, skipTranslate=["x", "y", "z"])
 
+        self.created_ik_ctrls = [ik_ctrl, pole_vector]
         self.created_fk_ctrls[0].setAttr("rotate", fk_ctrl_01_value)
         self.created_fk_ctrls[1].setAttr("rotate", fk_ctrl_02_value)
         self.created_fk_ctrls[2].setAttr("rotate", fk_ctrl_03_value)
@@ -325,6 +327,7 @@ class Controller(RigController):
 
         pmc.evalDeferred("import pymel.core as pmc")
         pmc.evalDeferred("pmc.xform(\"{0}\", ws=1, translation=(pmc.xform(\"{1}\", q=1, ws=1, translation=1)))".format(ik_ctrl, self.created_fk_jnts[-1]))
+        pmc.evalDeferred("pmc.xform(\"{0}\", ws=1, rotation=(pmc.xform(\"{1}\", q=1, ws=1, rotation=1)))".format(ik_ctrl, self.created_fk_jnts[-1]))
 
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)

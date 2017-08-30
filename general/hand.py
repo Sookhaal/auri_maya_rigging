@@ -95,6 +95,8 @@ class Controller(RigController):
         self.side = {}
         self.side_coef = 0
         self.created_skn_jnts = []
+        self.parent_wrist_fk_ctrl = None
+        self.parent_wrist_ik_ctrl = None
         RigController.__init__(self, model, view)
 
     def on_how_many_fingers_changed(self, value):
@@ -103,8 +105,8 @@ class Controller(RigController):
     def prebuild(self):
         self.guides_names = []
         self.guides = []
+        first_jnt = "{0}_wrist_GUIDE".format(self.model.module_name)
         for i in range(0, self.model.how_many_fingers):
-            first_jnt = "{0}_finger{1}_wrist_GUIDE".format(self.model.module_name, i+1)
             finger_curve = "{0}_finger{1}_phalanges_GUIDE".format(self.model.module_name, i+1)
             finger = [first_jnt, finger_curve]
             self.guides_names.append(finger)
@@ -117,10 +119,10 @@ class Controller(RigController):
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
             return
 
+        wrist_guide = pmc.spaceLocator(p=(0, 0, 0), n=first_jnt)
+        wrist_guide.setAttr("translate", (7 * self.side_coef, 14, 0))
         for i, finger in enumerate(self.guides_names):
-            wrist_guide = pmc.spaceLocator(p=(0, 0, 0), n=finger[0])
             finger_guide = rig_lib.create_curve_guide(d=1, number_of_points=4, name=finger[1], hauteur_curve=3)
-            wrist_guide.setAttr("translate", (7 * self.side_coef, 14, 0))
             if i == 0:
                 finger_guide.setAttr("translate", (8 * self.side_coef, 14, 1))
             else:
@@ -138,19 +140,37 @@ class Controller(RigController):
 
         self.delete_existing_objects()
         self.connect_to_parent()
+
+        self.get_parent_needed_objects()
+
         self.create_skn_jnts()
+        self.create_ctrls()
+
+    def get_parent_needed_objects(self):
+        self.parent_wrist_fk_ctrl = pmc.ls("{0}_wrist_fk_CTRL".format(self.model.selected_module))[0]
+        self.parent_wrist_ik_ctrl = pmc.ls("{0}_wrist_ik_CTRL".format(self.model.selected_module))[0]
 
     def create_skn_jnts(self):
         duplicate_guides = []
         self.created_skn_jnts = []
+        orient_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_wrist_LOC".format(self.model.module_name))
+        orient_loc.setAttr("translate", pmc.xform(self.guides[0][0], q=1, ws=1, translation=1))
+        loc_const = pmc.aimConstraint(self.guides[len(self.guides)/2][1], orient_loc, maintainOffset=0,
+                                      aimVector=(1.0 * self.side_coef, 0.0, 0.0),
+                                      upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="scene")
+        pmc.xform(self.parent_wrist_fk_ctrl, ws=1, rotation=(pmc.xform(orient_loc, q=1, ws=1, rotation=1)))
+        pmc.xform(self.parent_wrist_ik_ctrl, ws=1, rotation=(pmc.xform(orient_loc, q=1, ws=1, rotation=1)))
+        pmc.delete(loc_const)
         for n, finger in enumerate(self.guides):
             created_finger_jnts = []
             wrist_guide = finger[0].duplicate(n="{0}_duplicate".format(finger[0]))[0]
+            wrist_guide.setAttr("rotateOrder", 3)
             finger_crv_vertex_list = finger[1].cv[:]
             finger_new_guides = [wrist_guide]
             for i, cv in enumerate(finger_crv_vertex_list):
                 loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_{1}_duplicate".format(finger[1], i+1))
                 loc.setAttr("translate", (pmc.xform(cv, q=1, ws=1, translation=1)))
+                loc.setAttr("rotateOrder", 3)
                 finger_new_guides.append(loc)
             duplicate_guides.append(finger_new_guides)
 
@@ -163,35 +183,37 @@ class Controller(RigController):
                     pmc.select(d=1)
                 if i != 0:
                     pmc.parent(guide, finger_new_guides[i-1])
-                    # pmc.select(created_finger_jnts[i-1])
+                    pmc.select(created_finger_jnts[i-1])
 
-                #
-                # jnt = pmc.joint(p=(pmc.xform(guide, q=1, ws=1, translation=1)),
-                #                 n="{0}_finger{1}_{2}_SKN".format(self.model.module_name, n+1, i))
-                # jnt.setAttr("rotate", pmc.xform(guide, q=1, rotation=1))
-                #
-                # if i == 0:
-                #     # jnt_orient_X = jnt.getAttr("jointOrientX") # TODO: JNT ORIENT SONT EN WORLD
-                #     # jnt_orient_Y = jnt.getattr("jointOrientY")
-                #     # jnt_orient_Z = jnt.getattr("jointOrientZ")
-                #     pmc.parent(jnt, self.jnt_input_grp, r=0)
-                #     jnt.setAttr("rotate", (pmc.xform(jnt, q=1, rotation=1)[0] + jnt.getAttr("jointOrientX"),
-                #                            pmc.xform(jnt, q=1, rotation=1)[1] + jnt.getAttr("jointOrientY"),
-                #                            pmc.xform(jnt, q=1, rotation=1)[2] + jnt.getAttr("jointOrientZ")))
-                #
-                #     if self.model.side == "Right":
-                #         jnt.setAttr("jointOrientX", -180)
-                #         jnt.setAttr("rotate", (pmc.xform(jnt, q=1, rotation=1)[0] + 180,
-                #                                pmc.xform(jnt, q=1, rotation=1)[1] * -1,
-                #                                pmc.xform(jnt, q=1, rotation=1)[2] * -1))
-                #
-                # created_finger_jnts.append(jnt)
+                jnt = pmc.joint(p=(pmc.xform(guide, q=1, ws=1, translation=1)),
+                                n="{0}_finger{1}_{2}_SKN".format(self.model.module_name, n+1, i), rad=0.2)
+                jnt.setAttr("rotateOrder", 3)
 
-            # created_finger_jnts[-1].rename("{0}_finger{1}_end_JNT".format(self.model.module_name, n+1))
+                if i == 0:
+                    pmc.parent(jnt, self.jnt_input_grp, r=0)
+                    jnt.setAttr("jointOrient", (0, 0, 0))
+
+                if i != len(finger_new_guides)-1:
+                    pmc.xform(jnt, ws=1, rotation=(pmc.xform(guide, q=1, ws=1, rotation=1)))
+
+                if i == 0 and self.model.side == "Right":
+                    jnt.setAttr("jointOrientX", -180)
+                    jnt.setAttr("rotate", (pmc.xform(jnt, q=1, rotation=1)[0] + 180,
+                                           pmc.xform(jnt, q=1, rotation=1)[1] * -1,
+                                           pmc.xform(jnt, q=1, rotation=1)[2] * -1))
+
+                created_finger_jnts.append(jnt)
+
+            created_finger_jnts[-1].rename("{0}_finger{1}_end_JNT".format(self.model.module_name, n+1))
 
             self.created_skn_jnts.append(created_finger_jnts)
 
-        # pmc.delete(duplicate_guides[:])
+        pmc.delete(duplicate_guides[:])
+        pmc.delete(orient_loc)
+
+    def create_ctrls(self):
+        pass
+    # TODO: penser a creer un node d'offset pour garder la valeur de rotate Y des jnt (pour l'ecartement des doigts)
 
 
 class Model(AuriScriptModel):
