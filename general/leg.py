@@ -367,7 +367,7 @@ class Controller(RigController):
             for i, ctrl in enumerate(self.created_fk_ctrls):
                 rig_lib.raz_fk_ctrl_rotate(ctrl, self.created_fk_jnts[i])
 
-            rig_lib.raz_ik_ctrl_translate(self.created_ik_ctrls[0])
+            rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0])
 
         invert_value = pmc.createNode("plusMinusAverage", n="{0}_fk_visibility_MDL".format(self.model.module_name))
         invert_value.setAttr("input1D[0]", 1)

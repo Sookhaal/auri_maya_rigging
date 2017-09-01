@@ -272,12 +272,15 @@ class Controller(RigController):
         ik_effector = pmc.listRelatives(self.created_ik_jnts[0], children=1)[1]
         ik_effector.rename("{0}_ball_ik_EFF".format(self.model.module_name))
 
+        locs_offset = pmc.group(em=1, n="{0}_roll_OFS".format(self.model.module_name))
+        locs_offset.setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
+        pmc.parent(locs_offset, self.leg_ik_ctrl, r=0)
         toe_bend_group = pmc.group(em=1, n="{0}_toe_bend_OFS".format(self.model.module_name))
         toe_bend_group.setAttr("translate", pmc.xform(self.created_locs[0], q=1, ws=1, translation=1))
         pmc.parent(ball_ik_handle, self.created_locs[0], r=0)
         pmc.parent(toe_bend_group, self.created_locs[1], r=0)
         pmc.parent(toe_ik_handle, toe_bend_group, r=0)
-        pmc.parent(self.created_locs[2], self.leg_ik_ctrl, r=0)
+        pmc.parent(self.created_locs[2], locs_offset, r=0)
         pmc.parent(self.leg_ik_handle, self.created_locs[0], r=0)
         pmc.parent(self.leg_ik_length_end_loc, self.created_locs[0], r=0)
 

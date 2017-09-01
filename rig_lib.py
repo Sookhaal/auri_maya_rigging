@@ -513,3 +513,13 @@ def raz_ik_ctrl_translate(ctrl):
     raz.setAttr("translate", ctrl.getAttr("translate"))
     pmc.parent(ctrl, raz, r=1)
     ctrl.setAttr("translate", (0, 0, 0))
+
+
+def raz_ik_ctrl_translate_rotate(ctrl):
+    raz = pmc.group(em=1, n="{0}_RAZ".format(ctrl))
+    pmc.parent(raz, ctrl.getParent(), r=1)
+    raz.setAttr("translate", ctrl.getAttr("translate"))
+    raz.setAttr("rotate", ctrl.getAttr("rotate"))
+    pmc.parent(ctrl, raz, r=1)
+    ctrl.setAttr("translate", (0, 0, 0))
+    ctrl.setAttr("rotate", (0, 0, 0))
