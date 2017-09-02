@@ -367,6 +367,16 @@ def jnt_shape_curve(name):
     return crv
 
 
+def oval_curve(name, side=1):
+    crv = pmc.curve(d=3, p=[(0, 1 * side, 0), (0.0624626 * side, 1 * side, -0.0470694),
+                            (0.187388 * side, 1 * side, -0.141208), (1.007808 * side, 1 * side, -0.199698),
+                            (1.781381 * side, 1 * side, -0.141208), (2 * side, 1 * side, 0),
+                            (1.781381 * side, 1 * side, 0.141208), (1.007808 * side, 1 * side, 0.199698),
+                            (0.187388 * side, 1 * side, 0.141208), (0.0624626 * side, 1 * side, 0.0470694),
+                            (0 * side, 1 * side, 0)], n=name)
+    return crv
+
+
 def matrix_constraint(driver, driven, srt="srt"):
     """ Constraint one node to another using their worldMatrix attributes
         if doesn't work, check if plug-in "matrixNodes" is loaded

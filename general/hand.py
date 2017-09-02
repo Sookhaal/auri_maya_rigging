@@ -95,8 +95,11 @@ class Controller(RigController):
         self.side = {}
         self.side_coef = 0
         self.created_skn_jnts = []
+        self.created_fk_ctrls = []
         self.parent_wrist_fk_ctrl = None
         self.parent_wrist_ik_ctrl = None
+        self.parent_option_ctrl = None
+        self.second_jnts_y_value_add_nodes = []
         RigController.__init__(self, model, view)
 
     def on_how_many_fingers_changed(self, value):
@@ -145,10 +148,12 @@ class Controller(RigController):
 
         self.create_skn_jnts()
         self.create_ctrls()
+        self.create_options_attributes()
 
     def get_parent_needed_objects(self):
         self.parent_wrist_fk_ctrl = pmc.ls("{0}_wrist_fk_CTRL".format(self.model.selected_module))[0]
         self.parent_wrist_ik_ctrl = pmc.ls("{0}_wrist_ik_CTRL".format(self.model.selected_module))[0]
+        self.parent_option_ctrl = pmc.ls("{0}_option_CTRL".format(self.model.selected_module))[0]
 
     def create_skn_jnts(self):
         duplicate_guides = []
@@ -196,12 +201,6 @@ class Controller(RigController):
                 if i != len(finger_new_guides)-1:
                     pmc.xform(jnt, ws=1, rotation=(pmc.xform(guide, q=1, ws=1, rotation=1)))
 
-                if i == 0 and self.model.side == "Right":
-                    jnt.setAttr("jointOrientX", -180)
-                    jnt.setAttr("rotate", (pmc.xform(jnt, q=1, rotation=1)[0] + 180,
-                                           pmc.xform(jnt, q=1, rotation=1)[1] * -1,
-                                           pmc.xform(jnt, q=1, rotation=1)[2] * -1))
-
                 created_finger_jnts.append(jnt)
 
             created_finger_jnts[-1].rename("{0}_finger{1}_end_JNT".format(self.model.module_name, n+1))
@@ -212,8 +211,106 @@ class Controller(RigController):
         pmc.delete(orient_loc)
 
     def create_ctrls(self):
-        pass
-    # TODO: penser a creer un node d'offset pour garder la valeur de rotate Y des jnt (pour l'ecartement des doigts)
+        self.created_fk_ctrls = []
+        self.second_jnts_y_value_add_nodes = []
+        for n, finger in enumerate(self.created_skn_jnts):
+            created_finger_ctrls = []
+            for i, jnt in enumerate(finger):
+                if 1 < i < len(finger) - 1:
+                    ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=0.5, d=3, s=8,
+                                      n="{0}_finger{1}_{2}_fk_CTRL".format(self.model.module_name, (n + 1), i), ch=0)[0]
+                    ctrl.setAttr("rotateOrder", 3)
+                    ctrl_ofs = pmc.group(ctrl,
+                                         n="{0}_finger{1}_{2}_fk_ctrl_OFS".format(self.model.module_name, (n + 1), i))
+                    ctrl_ofs.setAttr("rotateOrder", 3)
+                    ctrl_ofs.setAttr("translate", pmc.xform(jnt, q=1, ws=1, translation=1))
+                    pmc.parent(ctrl_ofs, created_finger_ctrls[i-1], r=0)
+                    ctrl_ofs.setAttr("rotate", (0, 0, 0))
+                    ctrl.setAttr("rotate", pmc.xform(self.created_skn_jnts[n][i], q=1, rotation=1))
+
+                    ctrl.rotate >> self.created_skn_jnts[n][i].rotate
+
+                    created_finger_ctrls.append(ctrl)
+
+                elif i == 1:
+                    ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=.5, d=3, s=8,
+                                      n="{0}_finger{1}_{2}_fk_CTRL".format(self.model.module_name, (n + 1), i), ch=0)[0]
+                    ctrl.setAttr("rotateOrder", 3)
+                    ctrl_ofs = pmc.group(ctrl,
+                                         n="{0}_finger{1}_{2}_fk_ctrl_OFS".format(self.model.module_name, (n + 1), i))
+                    ctrl_ofs.setAttr("rotateOrder", 3)
+                    ctrl_ofs.setAttr("translate", pmc.xform(jnt, q=1, ws=1, translation=1))
+                    pmc.parent(ctrl_ofs, created_finger_ctrls[i-1], r=0)
+                    ctrl_ofs.setAttr("rotate", (0, 0, 0))
+
+                    if n != 0:
+                        ctrl_ofs.setAttr("rotateY", pmc.xform(self.created_skn_jnts[n][i-1], q=1, rotation=1)[1] * -1)
+
+                    pmc.xform(ctrl, ws=1, rotation=pmc.xform(self.created_skn_jnts[n][i], q=1, ws=1, rotation=1))
+
+                    if n != 0:
+                        jnt_offset = pmc.createNode("plusMinusAverage", n="{0}_Yoffset_Yctrlvalue_spreadValue_cumul_PMA".format(ctrl))
+                        jnt_offset.setAttr("operation", 1)
+                        ctrl.rotateY >> jnt_offset.input1D[0]
+                        ctrl_ofs.rotateY >> jnt_offset.input1D[1]
+                        jnt_offset.output1D >> self.created_skn_jnts[n][i].rotateY
+
+                        self.second_jnts_y_value_add_nodes.append(jnt_offset)
+
+                    else:
+                        ctrl.rotateY >> self.created_skn_jnts[n][i].rotateY
+
+                    ctrl.rotateX >> self.created_skn_jnts[n][i].rotateX
+                    ctrl.rotateZ >> self.created_skn_jnts[n][i].rotateZ
+
+                    created_finger_ctrls.append(ctrl)
+
+                elif i == 0:
+                    ctrl = rig_lib.oval_curve("{0}_finger{1}_{2}_fk_CTRL".format(self.model.module_name, (n + 1), i), self.side_coef)
+                    ctrl.setAttr("rotateOrder", 3)
+                    ctrl_ofs = pmc.group(em=1,
+                                         n="{0}_finger{1}_{2}_fk_ctrl_OFS".format(self.model.module_name, (n + 1), i))
+                    ctrl_ofs.setAttr("rotateOrder", 3)
+                    pmc.parent(ctrl, ctrl_ofs, r=0)
+                    pmc.parent(ctrl_ofs, self.ctrl_input_grp, r=1)
+                    ctrl_ofs.setAttr("rotateY", pmc.xform(self.created_skn_jnts[n][i], q=1, rotation=1)[1])
+                    pmc.xform(ctrl, ws=1, rotation=pmc.xform(self.created_skn_jnts[n][i], q=1, ws=1, rotation=1))
+                    jnt_offset = pmc.createNode("plusMinusAverage", n="{0}_raz_jnt_offset_PMA".format(ctrl))
+                    jnt_offset.setAttr("operation", 1)
+                    ctrl.rotateY >> jnt_offset.input1D[0]
+                    ctrl_ofs.rotateY >> jnt_offset.input1D[1]
+                    jnt_offset.output1D >> self.created_skn_jnts[n][i].rotateY
+                    ctrl.rotateX >> self.created_skn_jnts[n][i].rotateX
+                    ctrl.rotateZ >> self.created_skn_jnts[n][i].rotateZ
+
+                    created_finger_ctrls.append(ctrl)
+
+            self.created_fk_ctrls.append(created_finger_ctrls)
+
+    def create_options_attributes(self):
+        self.parent_option_ctrl.addAttr("spread", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        for n, finger in enumerate(self.created_fk_ctrls):
+            self.parent_option_ctrl.addAttr("finger{0}Curl".format(n+1), attributeType="float", defaultValue=0,
+                                            hidden=0, keyable=1)
+
+            if n != 0:
+                if self.created_skn_jnts[n][0].getAttr("rotateY") > 0:
+                    self.parent_option_ctrl.spread >> self.second_jnts_y_value_add_nodes[n-1].input1D[2]
+                elif self.created_skn_jnts[n][0].getAttr("rotateY") < 0:
+                    invert_spread_value = pmc.createNode("multiplyDivide",
+                                                         n="{0}_invert_spread_MDV".format(self.created_fk_ctrls[n][1]))
+                    invert_spread_value.setAttr("operation", 1)
+                    invert_spread_value.setAttr("input2X", -1)
+                    self.parent_option_ctrl.spread >> invert_spread_value.input1X
+                    invert_spread_value.outputX >> self.second_jnts_y_value_add_nodes[n-1].input1D[2]
+
+            for i, ctrl in enumerate(finger):
+                if i != 0:
+                    add_curl_value = pmc.createNode("plusMinusAverage", n="{0}_add_curl_value_PMA".format(ctrl))
+                    add_curl_value.setAttr("operation", 1)
+                    ctrl.rotateZ >> add_curl_value.input1D[0]
+                    self.parent_option_ctrl.connectAttr("finger{0}Curl".format(n + 1), add_curl_value.input1D[1])
+                    add_curl_value.output1D >> self.created_skn_jnts[n][i].rotateZ
 
 
 class Model(AuriScriptModel):
