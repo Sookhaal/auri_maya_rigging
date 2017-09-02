@@ -149,6 +149,7 @@ class Controller(RigController):
         self.create_skn_jnts()
         self.create_ctrls()
         self.create_options_attributes()
+        self.clean_rig()
 
     def get_parent_needed_objects(self):
         self.parent_wrist_fk_ctrl = pmc.ls("{0}_wrist_fk_CTRL".format(self.model.selected_module))[0]
@@ -311,6 +312,20 @@ class Controller(RigController):
                     ctrl.rotateZ >> add_curl_value.input1D[0]
                     self.parent_option_ctrl.connectAttr("finger{0}Curl".format(n + 1), add_curl_value.input1D[1])
                     add_curl_value.output1D >> self.created_skn_jnts[n][i].rotateZ
+
+    def clean_rig(self):
+        self.jnt_input_grp.setAttr("visibility", 0)
+        self.parts_grp.setAttr("visibility", 0)
+        self.guides_grp.setAttr("visibility", 0)
+
+        if self.model.side == "Left":
+            color_value = 6
+        else:
+            color_value = 13
+
+        for finger in self.created_fk_ctrls:
+            for ctrl in finger:
+                rig_lib.clean_ctrl(ctrl, color_value, trs="ts")
 
 
 class Model(AuriScriptModel):

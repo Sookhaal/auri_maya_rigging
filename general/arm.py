@@ -277,6 +277,8 @@ class Controller(RigController):
         for i, ctrl in enumerate(self.created_fk_ctrls):
             ctrl.rotate >> self.created_fk_jnts[i].rotate
 
+        wrist_ctrl.scale >> self.created_fk_jnts[-1].scale
+
     def create_ik(self):
         ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)),
                                  startJoint=self.created_ik_jnts[0], endEffector=self.created_ik_jnts[-1],
@@ -315,6 +317,7 @@ class Controller(RigController):
         self.created_ik_jnts[1].setAttr("preferredAngleY", -90)
 
         pmc.parentConstraint(ik_ctrl, self.created_ik_jnts[-1], maintainOffset=0, skipTranslate=["x", "y", "z"])
+        ik_ctrl.scale >> self.created_ik_jnts[-1].scale
 
         self.created_ik_ctrls = [ik_ctrl, pole_vector]
         self.created_fk_ctrls[0].setAttr("rotate", fk_ctrl_01_value)
