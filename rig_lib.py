@@ -68,8 +68,8 @@ class RigController(AuriScriptController):
         self.model.side = text
 
     def on_modules_cbbox_changed(self, text):
+        self.model.selected_module = text
         if self.has_updated_modules:
-            self.model.selected_module = text
             self.look_for_parent()
 
     def on_outputs_cbbox_changed(self, text):
