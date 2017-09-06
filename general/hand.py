@@ -294,7 +294,7 @@ class Controller(RigController):
             self.parent_option_ctrl.addAttr("finger{0}Curl".format(n+1), attributeType="float", defaultValue=0,
                                             hidden=0, keyable=1)
 
-            if n != 0:
+            if n != 0 and n != int((len(self.created_fk_ctrls)-1) / 2):
                 if self.created_skn_jnts[n][0].getAttr("rotateY") > 0:
                     self.parent_option_ctrl.spread >> self.second_jnts_y_value_add_nodes[n-1].input1D[2]
                 elif self.created_skn_jnts[n][0].getAttr("rotateY") < 0:
