@@ -180,11 +180,22 @@ class Controller(RigController):
                 finger_new_guides.append(loc)
             duplicate_guides.append(finger_new_guides)
 
+            leg_plane = pmc.polyCreateFacet(p=[pmc.xform(finger_new_guides[1], q=1, ws=1, translation=1),
+                                               pmc.xform(finger_new_guides[2], q=1, ws=1, translation=1),
+                                               pmc.xform(finger_new_guides[3], q=1, ws=1, translation=1)],
+                                            n="{0}_temporary_finger{1}_plane".format(self.model.module_name, n), ch=1)[0]
+            leg_plane_face = pmc.ls(leg_plane)[0].f[0]
+
             for i, guide in enumerate(finger_new_guides):
                 if not guide == finger_new_guides[-1]:
-                    const = pmc.aimConstraint(finger_new_guides[i+1], guide, maintainOffset=0,
-                                              aimVector=(1.0 * self.side_coef, 0.0, 0.0),
-                                              upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="scene")
+                    if i == 0:
+                        const = pmc.aimConstraint(finger_new_guides[i+1], guide, maintainOffset=0,
+                                                  aimVector=(1.0 * self.side_coef, 0.0, 0.0),
+                                                  upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="scene")
+                    else:
+                        const = pmc.normalConstraint(leg_plane_face, guide, aimVector=(0.0, 0.0, -1.0),
+                                                     upVector=(1.0 * self.side_coef, 0.0, 0.0), worldUpType="object",
+                                                     worldUpObject=finger_new_guides[i+1])
                     pmc.delete(const)
                     pmc.select(d=1)
                 if i != 0:
@@ -205,6 +216,7 @@ class Controller(RigController):
                 created_finger_jnts.append(jnt)
 
             created_finger_jnts[-1].rename("{0}_finger{1}_end_JNT".format(self.model.module_name, n+1))
+            pmc.delete(leg_plane)
 
             self.created_skn_jnts.append(created_finger_jnts)
 
