@@ -326,6 +326,9 @@ class Controller(RigController):
         pmc.parent(self.created_ik_handle, ik_ctrl, r=0)
         pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
 
+        ik_ctrl.rotate >> self.created_ik_jnts[-1].rotate
+        ik_ctrl.scale >> self.created_ik_jnts[-1].scale
+
         pole_vector = rig_lib.jnt_shape_curve("{0}_poleVector_CTRL".format(self.model.module_name))
         pv_ofs = pmc.group(pole_vector, n="{0}_poleVector_ctrl_OFS".format(self.model.module_name))
         pv_ofs.setAttr("translate", (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0],

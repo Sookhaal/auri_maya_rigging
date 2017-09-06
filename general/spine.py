@@ -200,6 +200,7 @@ class Controller(RigController):
         self.constrain_ikspline_tan_to_ctrls(ik_spline_controlpoints_list)
         self.ik_spline.setAttr("translate", (0, 0, 0))
         self.ik_spline.setAttr("rotate", (0, 0, 0))
+        self.ik_spline.setAttr("scale", (1, 1, 1))
 
     def create_locators(self, i, cv, ik_spline_controlpoints_for_ctrls):
         cv_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_{1}_pos".format(self.model.module_name, (i + 1)))
