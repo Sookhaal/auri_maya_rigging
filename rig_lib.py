@@ -504,16 +504,19 @@ def create_output(name, parent):
 
 
 def raz_fk_ctrl_rotate(ctrl, jnt):
-    raz = pmc.group(em=1, n="{0}_RAZ".format(ctrl))
-    pmc.parent(raz, ctrl.getParent(), r=1)
-    raz.setAttr("translate", ctrl.getAttr("translate"))
-    raz.setAttr("rotate", ctrl.getAttr("rotate"))
-    pmc.parent(ctrl, raz, r=1)
+    ctrl.addAttr("rotateOffsetX", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+    ctrl.addAttr("rotateOffsetY", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+    ctrl.addAttr("rotateOffsetZ", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+    ctrl.setAttr("rotateOffsetX", ctrl.getAttr("rotateX"))
+    ctrl.setAttr("rotateOffsetY", ctrl.getAttr("rotateY"))
+    ctrl.setAttr("rotateOffsetZ", ctrl.getAttr("rotateZ"))
     ctrl.setAttr("rotate", (0, 0, 0))
     jnt_offset = pmc.createNode("plusMinusAverage", n="{0}_raz_jnt_offset_PMA".format(ctrl))
     jnt_offset.setAttr("operation", 1)
     ctrl.rotate >> jnt_offset.input3D[0]
-    raz.rotate >> jnt_offset.input3D[1]
+    ctrl.rotateOffsetX >> jnt_offset.input3D[1].input3Dx
+    ctrl.rotateOffsetY >> jnt_offset.input3D[1].input3Dy
+    ctrl.rotateOffsetZ >> jnt_offset.input3D[1].input3Dz
     jnt_offset.output3D >> jnt.rotate
 
 
