@@ -296,8 +296,6 @@ class Controller(RigController):
         self.created_fk_ctrls[2].setAttr("rotate", (0, 0, 0))
 
         ik_ctrl_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[2], q=1, ws=1, translation=1))
-        if self.model.side == "Right":
-            ik_ctrl_ofs.setAttr("rotateX", -180)
         pmc.parent(ik_handle, ik_ctrl_ofs, r=0)
         ik_ctrl.setAttr("translate", pmc.xform(ik_handle, q=1, translation=1))
         pmc.parent(ik_handle, ik_ctrl, r=0)
@@ -316,7 +314,9 @@ class Controller(RigController):
 
         self.created_ik_jnts[1].setAttr("preferredAngleY", -90)
 
-        pmc.parentConstraint(ik_ctrl, self.created_ik_jnts[-1], maintainOffset=0, skipTranslate=["x", "y", "z"])
+        const = pmc.parentConstraint(ik_ctrl, self.created_ik_jnts[-1], maintainOffset=1, skipTranslate=["x", "y", "z"])
+        const.setAttr("target[0].targetOffsetRotate", (-90 * (-1 + self.side_coef), 0, 0))
+        const.setAttr("target[0].targetOffsetTranslate", (0, 0, 0))
         ik_ctrl.scale >> self.created_ik_jnts[-1].scale
 
         self.created_ik_ctrls = [ik_ctrl, pole_vector]
@@ -328,9 +328,11 @@ class Controller(RigController):
 
         ik_handle.setAttr("visibility", 0)
 
-        pmc.evalDeferred("import pymel.core as pmc")
-        pmc.evalDeferred("pmc.xform(\"{0}\", ws=1, translation=(pmc.xform(\"{1}\", q=1, ws=1, translation=1)))".format(ik_ctrl, self.created_fk_jnts[-1]))
-        pmc.evalDeferred("pmc.xform(\"{0}\", ws=1, rotation=(pmc.xform(\"{1}\", q=1, ws=1, rotation=1)))".format(ik_ctrl, self.created_fk_jnts[-1]))
+        pmc.xform(ik_ctrl, ws=1,
+                  translation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, translation=1)))
+        pmc.xform(ik_ctrl, ws=1, rotation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, rotation=1)))
+        if self.model.side == "Right":
+            ik_ctrl.setAttr("rotateX", (ik_ctrl.getAttr("rotateX") + 180))
 
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)
