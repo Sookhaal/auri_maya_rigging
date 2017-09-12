@@ -166,6 +166,8 @@ class Controller(RigController):
                                       upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="scene")
         pmc.xform(self.parent_wrist_fk_ctrl, ws=1, rotation=(pmc.xform(orient_loc, q=1, ws=1, rotation=1)))
         pmc.xform(self.parent_wrist_ik_ctrl, ws=1, rotation=(pmc.xform(orient_loc, q=1, ws=1, rotation=1)))
+        if self.model.side == "Right":
+            self.parent_wrist_ik_ctrl.setAttr("rotateX", (self.parent_wrist_ik_ctrl.getAttr("rotateX") + 180))
         pmc.delete(loc_const)
         for n, finger in enumerate(self.guides):
             created_finger_jnts = []
