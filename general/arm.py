@@ -166,14 +166,20 @@ class Controller(RigController):
             duplicate = guide.duplicate(n="{0}_duplicate".format(guide))[0]
             duplicates_guides.append(duplicate)
 
-        shoulder_const = pmc.aimConstraint(duplicates_guides[1], duplicates_guides[0], maintainOffset=0,
-                                           aimVector=(1.0 * self.side_coef, 0.0, 0.0),
-                                           upVector=(0.0, 1.0 * self.side_coef, 0.0),
-                                           worldUpType="scene")
-        elbow_cons = pmc.aimConstraint(duplicates_guides[2], duplicates_guides[1], maintainOffset=0,
-                                       aimVector=(1.0 * self.side_coef, 0.0, 0.0),
-                                       upVector=(0.0, 1.0 * self.side_coef, 0.0),
-                                       worldUpType="scene")
+        leg_plane = pmc.polyCreateFacet(p=[pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1),
+                                           pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1),
+                                           pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)],
+                                        n="{0}_temporary_leg_plane".format(self.model.module_name), ch=1)[0]
+
+        leg_plane_face = pmc.ls(leg_plane)[0].f[0]
+
+        shoulder_const = pmc.normalConstraint(leg_plane_face, duplicates_guides[0], aimVector=(0.0, -1.0, 0.0),
+                                              upVector=(1.0 * self.side_coef, 0.0, 0.0), worldUpType="object",
+                                              worldUpObject=duplicates_guides[1])
+        elbow_cons = pmc.normalConstraint(leg_plane_face, duplicates_guides[1], aimVector=(0.0, -1.0, 0.0),
+                                          upVector=(1.0 * self.side_coef, 0.0, 0.0), worldUpType="object",
+                                          worldUpObject=duplicates_guides[2])
+
         pmc.delete(shoulder_const)
         pmc.delete(elbow_cons)
         pmc.parent(duplicates_guides[1], duplicates_guides[0])
@@ -182,15 +188,15 @@ class Controller(RigController):
 
         shoulder_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1)),
                                  n="{0}_shoulder_SKN".format(self.model.module_name))
-        shoulder_jnt.setAttr("rotate", pmc.xform(duplicates_guides[0], q=1, rotation=1))
         if self.model.side == "Right":
-            shoulder_jnt.setAttr("jointOrientX", -180)
-            shoulder_jnt.setAttr("rotate", (pmc.xform(shoulder_jnt, q=1, rotation=1)[0] + 180,
-                                            pmc.xform(shoulder_jnt, q=1, rotation=1)[1] * -1,
-                                            pmc.xform(shoulder_jnt, q=1, rotation=1)[2] * -1))
+            shoulder_jnt.setAttr("jointOrientX", 180)
+
+        pmc.xform(shoulder_jnt, ws=1, rotation=(pmc.xform(duplicates_guides[0], q=1, ws=1, rotation=1)))
+
         elbow_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1)),
                               n="{0}_elbow_SKN".format(self.model.module_name))
         elbow_jnt.setAttr("rotate", pmc.xform(duplicates_guides[1], q=1, rotation=1))
+
         wrist_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)),
                               n="{0}_wrist_SKN".format(self.model.module_name))
 
@@ -198,6 +204,7 @@ class Controller(RigController):
         self.created_skn_jnts = [shoulder_jnt, elbow_jnt, wrist_jnt]
 
         pmc.delete(duplicates_guides[:])
+        pmc.delete(leg_plane)
 
     def create_options_ctrl(self):
         self.option_ctrl = rig_lib.little_cube("{0}_option_CTRL".format(self.model.module_name))
