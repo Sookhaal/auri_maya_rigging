@@ -279,7 +279,7 @@ class RigController(AuriScriptController):
         pmc.xform(created_ik_ctrls[0], ws=1, translation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, translation=1)))
         pmc.xform(created_ik_ctrls[0], ws=1, rotation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, rotation=1)))
         if self.model.side == "Right":
-            created_ik_ctrls[0].setAttr("rotateX", (created_ik_ctrls[0].getAttr("rotateX") + 180))
+            created_ik_ctrls[0].setAttr("rotateX", (created_ik_ctrls[0].getAttr("rotateX") - 180))
 
 
 def square_arrow_curve(name):

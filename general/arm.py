@@ -339,7 +339,7 @@ class Controller(RigController):
                   translation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, translation=1)))
         pmc.xform(ik_ctrl, ws=1, rotation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, rotation=1)))
         if self.model.side == "Right":
-            ik_ctrl.setAttr("rotateX", (ik_ctrl.getAttr("rotateX") + 180))
+            ik_ctrl.setAttr("rotateX", (ik_ctrl.getAttr("rotateX") - 180))
 
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)
