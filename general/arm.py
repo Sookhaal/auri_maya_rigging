@@ -173,21 +173,26 @@ class Controller(RigController):
 
         leg_plane_face = pmc.ls(leg_plane)[0].f[0]
 
-        shoulder_const = pmc.normalConstraint(leg_plane_face, duplicates_guides[0], aimVector=(0.0, -1.0, 0.0),
-                                              upVector=(1.0 * self.side_coef, 0.0, 0.0), worldUpType="object",
+        for guide in duplicates_guides:
+            guide.setAttr("rotateOrder", 4)
+
+        shoulder_const = pmc.normalConstraint(leg_plane_face, duplicates_guides[0], aimVector=(1.0, 0.0, 0.0),
+                                              upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="object",
                                               worldUpObject=duplicates_guides[1])
-        elbow_cons = pmc.normalConstraint(leg_plane_face, duplicates_guides[1], aimVector=(0.0, -1.0, 0.0),
-                                          upVector=(1.0 * self.side_coef, 0.0, 0.0), worldUpType="object",
+        elbow_cons = pmc.normalConstraint(leg_plane_face, duplicates_guides[1], aimVector=(1.0, 0.0, 0.0),
+                                          upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="object",
                                           worldUpObject=duplicates_guides[2])
 
         pmc.delete(shoulder_const)
         pmc.delete(elbow_cons)
-        pmc.parent(duplicates_guides[1], duplicates_guides[0])
-        pmc.parent(duplicates_guides[2], duplicates_guides[1])
+        pmc.parent(duplicates_guides[1], duplicates_guides[0], r=0)
+        pmc.parent(duplicates_guides[2], duplicates_guides[1], r=0)
         pmc.select(d=1)
 
         shoulder_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1)),
                                  n="{0}_shoulder_SKN".format(self.model.module_name))
+        shoulder_jnt.setAttr("rotateOrder", 4)
+        shoulder_jnt.setAttr("jointOrientZ", -90 * self.side_coef)
         if self.model.side == "Right":
             shoulder_jnt.setAttr("jointOrientX", 180)
 
@@ -195,10 +200,12 @@ class Controller(RigController):
 
         elbow_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1)),
                               n="{0}_elbow_SKN".format(self.model.module_name))
+        elbow_jnt.setAttr("rotateOrder", 4)
         elbow_jnt.setAttr("rotate", pmc.xform(duplicates_guides[1], q=1, rotation=1))
 
         wrist_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)),
                               n="{0}_wrist_SKN".format(self.model.module_name))
+        wrist_jnt.setAttr("rotateOrder", 4)
 
         pmc.parent(shoulder_jnt, self.jnt_input_grp, r=0)
         self.created_skn_jnts = [shoulder_jnt, elbow_jnt, wrist_jnt]
@@ -249,33 +256,38 @@ class Controller(RigController):
             self.option_ctrl.fkIk >> blend_color.blender
 
     def create_fk(self):
-        shoulder_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
+        shoulder_ctrl = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=2, d=3, s=8,
                                    n="{0}_shoulder_fk_CTRL".format(self.model.module_name), ch=0)[0]
         shoulder_ofs = pmc.group(shoulder_ctrl, n="{0}_shoulder_fk_ctrl_OFS".format(self.model.module_name))
+        shoulder_ofs.setAttr("rotateOrder", 4)
+        shoulder_ctrl.setAttr("rotateOrder", 4)
         shoulder_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1))
         if self.model.side == "Right":
-            shoulder_ofs.setAttr("rotateX", -180)
+            shoulder_ofs.setAttr("rotateX", 180)
+        shoulder_ofs.setAttr("rotateZ", -90 * self.side_coef)
+
         shoulder_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[0], q=1, rotation=1))
-        shoulder_ctrl.setAttr("rotateOrder", 0)
         pmc.parent(shoulder_ofs, self.ctrl_input_grp, r=0)
 
-        elbow_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
+        elbow_ctrl = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=2, d=3, s=8,
                                 n="{0}_elbow_fk_CTRL".format(self.model.module_name), ch=0)[0]
         elbow_ofs = pmc.group(elbow_ctrl,
                               n="{0}_elbow_fk_ctrl_OFS".format(self.model.module_name))
+        elbow_ofs.setAttr("rotateOrder", 4)
+        elbow_ctrl.setAttr("rotateOrder", 4)
         elbow_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1))
         elbow_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[1], q=1, rotation=1))
-        elbow_ctrl.setAttr("rotateOrder", 0)
         pmc.parent(elbow_ofs, shoulder_ctrl, r=0)
         elbow_ofs.setAttr("rotate", (0, 0, 0))
 
-        wrist_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
+        wrist_ctrl = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=2, d=3, s=8,
                                 n="{0}_wrist_fk_CTRL".format(self.model.module_name), ch=0)[0]
         wrist_ofs = pmc.group(wrist_ctrl,
                               n="{0}_wrist_fk_ctrl_OFS".format(self.model.module_name))
+        wrist_ofs.setAttr("rotateOrder", 4)
+        wrist_ctrl.setAttr("rotateOrder", 4)
         wrist_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[2], q=1, ws=1, translation=1))
         wrist_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[2], q=1, rotation=1))
-        wrist_ctrl.setAttr("rotateOrder", 0)
         pmc.parent(wrist_ofs, elbow_ctrl, r=0)
         wrist_ofs.setAttr("rotate", (0, 0, 0))
 
@@ -295,6 +307,8 @@ class Controller(RigController):
 
         ik_ctrl = rig_lib.medium_cube("{0}_wrist_ik_CTRL".format(self.model.module_name))
         ik_ctrl_ofs = pmc.group(ik_ctrl, n="{0}_wrist_ik_ctrl_OFS".format(self.model.module_name))
+        ik_ctrl_ofs.setAttr("rotateOrder", 4)
+        ik_ctrl.setAttr("rotateOrder", 4)
         fk_ctrl_01_value = pmc.xform(self.created_fk_ctrls[0], q=1, rotation=1)
         fk_ctrl_02_value = pmc.xform(self.created_fk_ctrls[1], q=1, rotation=1)
         fk_ctrl_03_value = pmc.xform(self.created_fk_ctrls[2], q=1, rotation=1)
@@ -303,6 +317,7 @@ class Controller(RigController):
         self.created_fk_ctrls[2].setAttr("rotate", (0, 0, 0))
 
         ik_ctrl_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[2], q=1, ws=1, translation=1))
+        ik_ctrl_ofs.setAttr("rotate", (0, 0, -90))
         pmc.parent(ik_handle, ik_ctrl_ofs, r=0)
         ik_ctrl.setAttr("translate", pmc.xform(ik_handle, q=1, translation=1))
         pmc.parent(ik_handle, ik_ctrl, r=0)
@@ -319,10 +334,10 @@ class Controller(RigController):
         pmc.poleVectorConstraint(pole_vector, ik_handle)
         pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
 
-        self.created_ik_jnts[1].setAttr("preferredAngleY", -90)
+        self.created_ik_jnts[1].setAttr("preferredAngleX", 90)
 
         const = pmc.parentConstraint(ik_ctrl, self.created_ik_jnts[-1], maintainOffset=1, skipTranslate=["x", "y", "z"])
-        const.setAttr("target[0].targetOffsetRotate", (-90 * (-1 + self.side_coef), 0, 0))
+        const.setAttr("target[0].targetOffsetRotate", (0, -90 * (-1 + self.side_coef), 0))
         const.setAttr("target[0].targetOffsetTranslate", (0, 0, 0))
         ik_ctrl.scale >> self.created_ik_jnts[-1].scale
 
@@ -339,7 +354,7 @@ class Controller(RigController):
                   translation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, translation=1)))
         pmc.xform(ik_ctrl, ws=1, rotation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, rotation=1)))
         if self.model.side == "Right":
-            ik_ctrl.setAttr("rotateX", (ik_ctrl.getAttr("rotateX") - 180))
+            ik_ctrl.setAttr("rotateY", (ik_ctrl.getAttr("rotateY") - 180))
 
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)

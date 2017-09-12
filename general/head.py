@@ -119,10 +119,10 @@ class Controller(RigController):
             duplicates_guides.append(duplicate)
 
         head_const = pmc.aimConstraint(duplicates_guides[1], duplicates_guides[0], maintainOffset=0,
-                                       aimVector=(1.0, 0.0, 0.0), upVector=(0.0, 1.0, 0.0), worldUpType="vector",
-                                       worldUpVector=(0, 0, -1))
+                                       aimVector=(0.0, 1.0, 0.0), upVector=(1.0, 0.0, 0.0), worldUpType="vector",
+                                       worldUpVector=(1, 0, 0))
         jaw_const = pmc.aimConstraint(duplicates_guides[3], duplicates_guides[2], maintainOffset=0,
-                                      aimVector=(1.0, 0.0, 0.0), upVector=(0.0, 1.0, 0.0), worldUpType="scene")
+                                      aimVector=(0.0, 1.0, 0.0), upVector=(0.0, 0.0, -1.0), worldUpType="scene")
         pmc.delete(head_const)
         pmc.delete(jaw_const)
         pmc.parent(duplicates_guides[1], duplicates_guides[0])
@@ -157,13 +157,13 @@ class Controller(RigController):
         pmc.delete(duplicates_guides[:])
 
     def create_ctrls(self):
-        jaw_ctrl = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=3, d=3, s=8,
+        jaw_ctrl = pmc.circle(c=(0, 0, 0), nr=(0, 0, 1), sw=360, r=3, d=3, s=8,
                               n="{0}_jaw_CTRL".format(self.model.module_name), ch=0)[0]
         jaw_ofs = pmc.group(jaw_ctrl, n="{0}_jaw_ctrl_OFS".format(self.model.module_name))
         jaw_cvs = jaw_ctrl.cv[:]
         for cv in jaw_cvs:
-            pmc.xform(cv, ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0] + 2,
-                                             pmc.xform(cv, q=1, ws=1, translation=1)[1],
+            pmc.xform(cv, ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0],
+                                             pmc.xform(cv, q=1, ws=1, translation=1)[1] + 2,
                                              pmc.xform(cv, q=1, ws=1, translation=1)[2]))
         jaw_ofs.setAttr("translate", pmc.xform(self.created_skn_jnts[2], q=1, ws=1, translation=1))
         jaw_ofs.setAttr("rotate", pmc.xform(self.created_skn_jnts[2], q=1, ws=1, rotation=1))

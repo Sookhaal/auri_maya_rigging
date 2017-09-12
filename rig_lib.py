@@ -279,7 +279,7 @@ class RigController(AuriScriptController):
         pmc.xform(created_ik_ctrls[0], ws=1, translation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, translation=1)))
         pmc.xform(created_ik_ctrls[0], ws=1, rotation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, rotation=1)))
         if self.model.side == "Right":
-            created_ik_ctrls[0].setAttr("rotateX", (created_ik_ctrls[0].getAttr("rotateX") - 180))
+            created_ik_ctrls[0].setAttr("rotateY", (created_ik_ctrls[0].getAttr("rotateY") - 180))
 
 
 def square_arrow_curve(name):
@@ -506,19 +506,30 @@ def create_output(name, parent):
 
 
 def raz_fk_ctrl_rotate(ctrl, jnt):
-    ctrl.addAttr("rotateOffsetX", attributeType="float", defaultValue=0, hidden=0, keyable=1)
-    ctrl.addAttr("rotateOffsetY", attributeType="float", defaultValue=0, hidden=0, keyable=1)
-    ctrl.addAttr("rotateOffsetZ", attributeType="float", defaultValue=0, hidden=0, keyable=1)
-    ctrl.setAttr("rotateOffsetX", ctrl.getAttr("rotateX"))
-    ctrl.setAttr("rotateOffsetY", ctrl.getAttr("rotateY"))
-    ctrl.setAttr("rotateOffsetZ", ctrl.getAttr("rotateZ"))
+    # ctrl.addAttr("rotateOffsetX", attributeType="float", defaultValue=0, hidden=0, keyable=0)
+    # ctrl.addAttr("rotateOffsetY", attributeType="float", defaultValue=0, hidden=0, keyable=0)
+    # ctrl.addAttr("rotateOffsetZ", attributeType="float", defaultValue=0, hidden=0, keyable=0)
+    # ctrl.setAttr("rotateOffsetX", ctrl.getAttr("rotateX"))
+    # ctrl.setAttr("rotateOffsetY", ctrl.getAttr("rotateY"))
+    # ctrl.setAttr("rotateOffsetZ", ctrl.getAttr("rotateZ"))
+    # ctrl.setAttr("rotate", (0, 0, 0))
+    # jnt_offset = pmc.createNode("plusMinusAverage", n="{0}_raz_jnt_offset_PMA".format(ctrl))
+    # jnt_offset.setAttr("operation", 1)
+    # ctrl.rotate >> jnt_offset.input3D[0]
+    # ctrl.rotateOffsetX >> jnt_offset.input3D[1].input3Dx
+    # ctrl.rotateOffsetY >> jnt_offset.input3D[1].input3Dy
+    # ctrl.rotateOffsetZ >> jnt_offset.input3D[1].input3Dz
+    # jnt_offset.output3D >> jnt.rotate
+    raz = pmc.group(em=1, n="{0}_RAZ".format(ctrl))
+    pmc.parent(raz, ctrl.getParent(), r=1)
+    raz.setAttr("translate", ctrl.getAttr("translate"))
+    raz.setAttr("rotate", ctrl.getAttr("rotate"))
+    pmc.parent(ctrl, raz, r=1)
     ctrl.setAttr("rotate", (0, 0, 0))
     jnt_offset = pmc.createNode("plusMinusAverage", n="{0}_raz_jnt_offset_PMA".format(ctrl))
     jnt_offset.setAttr("operation", 1)
     ctrl.rotate >> jnt_offset.input3D[0]
-    ctrl.rotateOffsetX >> jnt_offset.input3D[1].input3Dx
-    ctrl.rotateOffsetY >> jnt_offset.input3D[1].input3Dy
-    ctrl.rotateOffsetZ >> jnt_offset.input3D[1].input3Dz
+    raz.rotate >> jnt_offset.input3D[1]
     jnt_offset.output3D >> jnt.rotate
 
 
@@ -530,7 +541,7 @@ def raz_ik_ctrl_translate(ctrl):
     ctrl.setAttr("translate", (0, 0, 0))
 
 
-def raz_ik_ctrl_translate_rotate(ctrl):
+def raz_ik_ctrl_translate_rotate(ctrl, jnt=None):
     raz = pmc.group(em=1, n="{0}_RAZ".format(ctrl))
     pmc.parent(raz, ctrl.getParent(), r=1)
     raz.setAttr("translate", ctrl.getAttr("translate"))
