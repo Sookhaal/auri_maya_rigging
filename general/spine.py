@@ -129,7 +129,7 @@ class Controller(RigController):
         if self.guide_check(self.guide_name):
             if d != 2:
                 self.guide = pmc.rebuildCurve(self.guide_name, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
-                                          s=(nb_points - 1), d=d, ch=0, replaceOriginal=1)[0]
+                                              s=(nb_points - 1), d=d, ch=0, replaceOriginal=1)[0]
             else:
                 self.guide = pmc.rebuildCurve(self.guide_name, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
                                               s=3, d=d, ch=0, replaceOriginal=1)[0]
@@ -212,14 +212,10 @@ class Controller(RigController):
 
     def create_ctrls(self, i, cv_loc):
         pmc.select(d=1)
-        ctrl = pmc.joint(p=(0, 0, 0), n="{0}_{1}_fk_CTRL".format(self.model.module_name, (i + 1)))
         ctrl_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=3, d=3, s=8,
                                 n="{0}_{1}_fk_CTRL_shape".format(self.model.module_name, (i + 1)), ch=0)[0]
-        pmc.parent(ctrl_shape.getShape(), ctrl, r=1, s=1)
-        ctrl.getShape().rename("{0}Shape".format(ctrl))
-        ctrl.setAttr("drawStyle", 2)
-        pmc.delete(ctrl_shape)
-        ctrl.setAttr("rotateOrder", 2)
+        ctrl = rig_lib.create_jnttype_ctrl(name="{0}_{1}_fk_CTRL".format(self.model.module_name, (i + 1)), shape=ctrl_shape,
+                                           drawstyle=2, rotateorder=2)
 
         ctrl.setAttr("translate", pmc.xform(cv_loc, q=1, ws=1, translation=1))
         if i == 0:

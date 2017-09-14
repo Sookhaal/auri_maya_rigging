@@ -16,6 +16,7 @@ class View(AuriScriptView):
         self.prebuild_btn = QtWidgets.QPushButton("Prebuild")
         self.how_many_jnts = QtWidgets.QSpinBox()
         self.how_many_ctrls = QtWidgets.QSpinBox()
+        self.ik_creation_switch = QtWidgets.QCheckBox()
         self.stretch_creation_switch = QtWidgets.QCheckBox()
         super(View, self).__init__(*args, **kwargs)
 
@@ -26,6 +27,7 @@ class View(AuriScriptView):
         self.model = Model()
 
     def refresh_view(self):
+        self.ik_creation_switch.setChecked(self.model.ik_creation_switch)
         self.stretch_creation_switch.setChecked(self.model.stretch_creation_switch)
         self.how_many_ctrls.setValue(self.model.how_many_ctrls)
         self.how_many_jnts.setValue(self.model.how_many_jnts)
@@ -43,6 +45,7 @@ class View(AuriScriptView):
         self.how_many_ctrls.setMinimum(2)
         self.how_many_ctrls.valueChanged.connect(self.ctrl.on_how_many_ctrls_changed)
 
+        self.ik_creation_switch.stateChanged.connect(self.ctrl.on_ik_creation_switch_changed)
         self.stretch_creation_switch.stateChanged.connect(self.ctrl.on_stretch_creation_switch_changed)
 
         self.refresh_btn.clicked.connect(self.ctrl.look_for_parent)
@@ -75,11 +78,16 @@ class View(AuriScriptView):
         how_many_layout.addLayout(ctrls_layout)
 
         checkbox_layout = QtWidgets.QVBoxLayout()
+        ik_layout = QtWidgets.QHBoxLayout()
+        ik_text = QtWidgets.QLabel("IK ctrls :")
+        ik_layout.addWidget(ik_text)
+        ik_layout.addWidget(self.ik_creation_switch)
         stretch_layout = QtWidgets.QHBoxLayout()
         stretch_text = QtWidgets.QLabel("stretch/squash :")
         stretch_layout.addWidget(stretch_text)
         stretch_layout.addWidget(self.stretch_creation_switch)
 
+        checkbox_layout.addLayout(ik_layout)
         checkbox_layout.addLayout(stretch_layout)
 
         options_layout.addLayout(how_many_layout)
@@ -113,22 +121,33 @@ class Controller(RigController):
         self.create_temporary_outputs(["end_OUTPUT"])
 
         self.guide_name = "{0}_GUIDE".format(self.model.module_name)
+        d = 3
+        nb_points = self.model.how_many_ctrls - 2
+        if self.model.how_many_ctrls < 4:
+            d = 3 + self.model.how_many_ctrls - 4
+            nb_points = 2
         if self.guide_check(self.guide_name):
-            self.guide = pmc.rebuildCurve(self.guide_name, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
-                                          s=(self.model.how_many_ctrls - 1), d=3, ch=0, replaceOriginal=1)[0]
+            if d != 2:
+                self.guide = pmc.rebuildCurve(self.guide_name, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
+                                              s=(nb_points - 1), d=d, ch=0, replaceOriginal=1)[0]
+            else:
+                self.guide = pmc.rebuildCurve(self.guide_name, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
+                                              s=3, d=d, ch=0, replaceOriginal=1)[0]
+                pmc.delete(self.guide.cv[-2])
+                pmc.delete(self.guide.cv[1])
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
+            self.guides_grp.setAttr("visibility", 1)
             return
-        self.guide = rig_lib.create_curve_guide(d=3, number_of_points=self.model.how_many_ctrls, name=self.guide_name,
-                                                hauteur_curve=3)
+        self.guide = rig_lib.create_curve_guide(d=d, number_of_points=nb_points, name=self.guide_name, hauteur_curve=3)
         self.guides_grp = self.group_guides(self.guide)
         self.guide.setAttr("translate", (0, 20, 0))
-        self.guides_grp.setAttr("visibility", 1)
         self.view.refresh_view()
         pmc.select(d=1)
 
     def execute(self):
         self.created_locs = []
         self.created_fk_ctrls = []
+        self.created_ik_ctrls = []
         self.prebuild()
 
         self.delete_existing_objects()
@@ -139,6 +158,8 @@ class Controller(RigController):
         self.activate_twist()
         if self.model.stretch_creation_switch == 1:
             self.connect_ik_spline_stretch(self.ik_spline, self.created_jnts)
+        if self.model.ik_creation_switch == 1:
+            self.create_ik()
         self.clean_rig()
         self.create_output()
         pmc.select(d=1)
@@ -148,8 +169,7 @@ class Controller(RigController):
                                            s=self.model.how_many_jnts, d=1, ch=0, replaceOriginal=0)[0]
         guide_rebuilded.rename("{0}_temp_rebuilded_GUIDE".format(self.model.module_name))
         vertex_list = guide_rebuilded.cv[:]
-        self.created_jnts = rig_lib.create_jnts_from_cv_list_and_return_jnts_list(vertex_list, guide_rebuilded,
-                                                                                  self.model.module_name)
+        self.created_jnts = rig_lib.create_jnts_from_cv_list_and_return_jnts_list(vertex_list, self.model.module_name)
         pmc.parent(self.created_jnts[0], self.jnt_input_grp, r=0)
 
         rig_lib.change_jnt_chain_suffix(self.created_jnts, new_suffix="SKN")
@@ -157,9 +177,7 @@ class Controller(RigController):
         pmc.delete(guide_rebuilded)
 
     def create_ikspline(self):
-        self.ik_spline = pmc.rebuildCurve(self.guide, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0, s=(self.model.how_many_ctrls - 1),
-                             d=3, ch=0, replaceOriginal=0)[0]
-        self.ik_spline.rename("{0}_ik_CRV".format(self.model.module_name))
+        self.ik_spline = pmc.duplicate(self.guide, n="{0}_ik_CRV".format(self.model.module_name))[0]
         ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)), startJoint=self.created_jnts[0],
                                  endEffector=self.created_jnts[-1], solver="ikSplineSolver", curve=self.ik_spline,
                                  createCurve=False, parentCurve=False)[0]
@@ -172,22 +190,15 @@ class Controller(RigController):
         ik_spline_cv_list = []
         for i, cv in enumerate(self.guide.cv):
             ik_spline_cv_list.append(cv)
-        ik_spline_cv_for_ctrls = ik_spline_cv_list
-        del ik_spline_cv_for_ctrls[1]
-        del ik_spline_cv_for_ctrls[-2]
 
         ik_spline_controlpoints_list = []
         for i, cv in enumerate(self.ik_spline.controlPoints):
             ik_spline_controlpoints_list.append(cv)
-        ik_spline_controlpoints_for_ctrls = ik_spline_controlpoints_list[:]
-        del ik_spline_controlpoints_for_ctrls[1]
-        del ik_spline_controlpoints_for_ctrls[-2]
 
-        for i, cv in enumerate(ik_spline_cv_for_ctrls):
-            cv_loc = self.create_locators(i, cv, ik_spline_controlpoints_for_ctrls)
+        for i, cv in enumerate(ik_spline_cv_list):
+            cv_loc = self.create_locators(i, cv, ik_spline_controlpoints_list)
             self.create_ctrls(i, cv_loc)
             self.created_locs.append(cv_loc)
-        self.constrain_ikspline_tan_to_ctrls(ik_spline_controlpoints_list)
         self.ik_spline.setAttr("translate", (0, 0, 0))
         self.ik_spline.setAttr("rotate", (0, 0, 0))
         self.ik_spline.setAttr("scale", (1, 1, 1))
@@ -200,46 +211,57 @@ class Controller(RigController):
         return cv_loc
 
     def create_ctrls(self, i, cv_loc):
-        if i == self.model.how_many_ctrls-1:
-            ctrl = rig_lib.box_curve("{0}_{1}_fk_CTRL".format(self.model.module_name, (i + 1)))
-        else:
-            ctrl = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=3, d=3, s=8,
-                              n="{0}_{1}_fk_CTRL".format(self.model.module_name, (i + 1)), ch=0)[0]
+        pmc.select(d=1)
+        ctrl_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=3, d=3, s=8,
+                                n="{0}_{1}_fk_CTRL_shape".format(self.model.module_name, (i + 1)), ch=0)[0]
+        ctrl = rig_lib.create_jnttype_ctrl(name="{0}_{1}_fk_CTRL".format(self.model.module_name, (i + 1)), shape=ctrl_shape,
+                                           drawstyle=2, rotateorder=2)
 
-        ctrl_ofs = pmc.group(ctrl, n="{0}_{1}_fk_ctrl_OFS".format(self.model.module_name, (i + 1)))
-        value = 1.0 / (self.model.how_many_ctrls - 1) * i
-        ctrl_ofs.setAttr("translate", self.guide.getPointAtParam(value, space="world"))
+        ctrl.setAttr("translate", pmc.xform(cv_loc, q=1, ws=1, translation=1))
         if i == 0:
-            pmc.parent(ctrl_ofs, self.ctrl_input_grp, r=0)
+            pmc.parent(ctrl, self.ctrl_input_grp, r=0)
         else:
-            pmc.parent(ctrl_ofs, "{0}_{1}_fk_CTRL".format(self.model.module_name, i), r=0)
+            pmc.parent(ctrl, "{0}_{1}_fk_CTRL".format(self.model.module_name, i), r=0)
+            pmc.reorder(ctrl, front=1)
         pmc.parent(cv_loc, ctrl, r=0)
-        ctrl.setAttr("rotateOrder", 1)
         self.created_fk_ctrls.append(ctrl)
 
-    def constrain_ikspline_tan_to_ctrls(self, ik_spline_controlpoints_list):
-        first_tan_cv_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_first_tan_pos".format(self.model.module_name))
-        last_tan_cv_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_last_tan_pos".format(self.model.module_name))
-        first_tan_cv_loc.setAttr("translate", pmc.xform(self.ik_spline.cv[1], q=1, ws=1, translation=1))
-        last_tan_cv_loc.setAttr("translate", pmc.xform(self.ik_spline.cv[-2], q=1, ws=1, translation=1))
-        first_tan_cv_loc_shape = first_tan_cv_loc.getShape()
-        last_tan_cv_loc_shape = last_tan_cv_loc.getShape()
-        first_tan_cv_loc_shape.worldPosition >> self.ik_spline.controlPoints[1]
-        last_tan_cv_loc_shape.worldPosition >> self.ik_spline.controlPoints[len(ik_spline_controlpoints_list) - 2]
+    def create_ik(self):
+        start_shape = rig_lib.box_curve("{0}_start_ik_CTRL_shape".format(self.model.module_name))
+        start_ctrl = rig_lib.create_jnttype_ctrl(name="{0}_start_ik_CTRL".format(self.model.module_name), shape=start_shape,
+                                                 drawstyle=2, rotateorder=3)
 
-        # TODO: a voir si on garde tel quel ou si on change de methode pour gerer les tangentes de la curve ik_spline
-        pmc.parent(first_tan_cv_loc, self.created_locs[0], r=0)
-        pmc.parent(last_tan_cv_loc, self.created_locs[-1], r=0)
+        end_shape = rig_lib.box_curve("{0}_end_ik_CTRL_shape".format(self.model.module_name))
+        end_ctrl = rig_lib.create_jnttype_ctrl(name="{0}_end_ik_CTRL".format(self.model.module_name), shape=end_shape,
+                                               drawstyle=2, rotateorder=1)
 
-        first_tan_cv_loc_shape.setAttr("visibility", 0)
-        last_tan_cv_loc_shape.setAttr("visibility", 0)
+        start_ofs = pmc.group(start_ctrl, n="{0}_start_ik_ctrl_OFS".format(self.model.module_name))
+        start_ofs.setAttr("rotateOrder", 3)
+        end_ofs = pmc.group(end_ctrl, n="{0}_end_ik_ctrl_OFS".format(self.model.module_name))
+        end_ofs.setAttr("rotateOrder", 1)
+
+        start_ofs.setAttr("translate", pmc.xform(self.created_fk_ctrls[0], q=1, ws=1, translation=1))
+        start_ofs.setAttr("rotate", pmc.xform(self.created_fk_ctrls[0], q=1, ws=1, rotation=1))
+        end_ofs.setAttr("translate", pmc.xform(self.created_fk_ctrls[-1], q=1, ws=1, translation=1))
+        end_ofs.setAttr("rotate", pmc.xform(self.created_fk_ctrls[-1], q=1, ws=1, rotation=1))
+
+        pmc.parent(start_ofs, self.ctrl_input_grp, r=0)
+        pmc.parent(end_ofs, self.created_fk_ctrls[-2], r=0)
+        pmc.parent(self.created_fk_ctrls[-1], end_ctrl, r=0)
+
+        pmc.parent(self.created_locs[0], start_ctrl, r=0)
+
+        self.created_fk_ctrls[-1].setAttr("visibility", 0)
+
+        self.created_ik_ctrls.append(start_ctrl)
+        self.created_ik_ctrls.append(end_ctrl)
 
     def activate_twist(self):
         ik_handle = pmc.ls("{0}_ik_HDL".format(self.model.module_name))[0]
         ik_handle.setAttr("dTwistControlEnable", 1)
         ik_handle.setAttr("dWorldUpType", 4)
-        ik_handle.setAttr("dForwardAxis", 0)
-        ik_handle.setAttr("dWorldUpAxis", 0)
+        ik_handle.setAttr("dForwardAxis", 2)
+        ik_handle.setAttr("dWorldUpAxis", 4)
         ik_handle.setAttr("dWorldUpVectorX", 0)
         ik_handle.setAttr("dWorldUpVectorY", 0)
         ik_handle.setAttr("dWorldUpVectorZ", -1)
@@ -259,10 +281,10 @@ class Controller(RigController):
             loc_shape.setAttr("visibility", 0)
 
         for ctrl in self.created_fk_ctrls:
-            if ctrl == self.created_fk_ctrls[-1]:
-                rig_lib.clean_ctrl(ctrl, 17, trs="")
-            else:
-                rig_lib.clean_ctrl(ctrl, 14, trs="ts")
+            rig_lib.clean_ctrl(ctrl, 14, trs="ts")
+
+        rig_lib.clean_ctrl(self.created_ik_ctrls[0], 17, trs="s")
+        rig_lib.clean_ctrl(self.created_ik_ctrls[1], 17, trs="")
 
     def create_output(self):
         rig_lib.create_output(name="{0}_end_OUTPUT".format(self.model.module_name), parent=self.created_locs[-1])
@@ -275,4 +297,5 @@ class Model(AuriScriptModel):
         self.selected_output = None
         self.how_many_jnts = 5
         self.how_many_ctrls = 3
+        self.ik_creation_switch = True
         self.stretch_creation_switch = True
