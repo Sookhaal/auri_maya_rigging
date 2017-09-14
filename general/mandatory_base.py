@@ -80,7 +80,9 @@ class Controller(RigController):
         jnt_grp = pmc.group(em=1, n="JNT_GRP")
         mesh_grp = pmc.group(em=1, n="MESH_GRP")
         parts_grp = pmc.group(em=1, n="PARTS_GRP")
-        global_ctrl = rig_lib.square_arrow_curve("{0}_global_CTRL".format(self.model.module_name))
+        global_shape = rig_lib.square_arrow_curve("{0}_global_CTRL_shape".format(self.model.module_name))
+        global_ctrl = rig_lib.create_jnttype_ctrl(name="{0}_global_CTRL".format(self.model.module_name), shape=global_shape,
+                                                  drawstyle=2)
         global_output = pmc.spaceLocator(p=(0, 0, 0), n="{0}_global_OUTPUT".format(self.model.module_name))
         global_output.visibility.set(0)
 
@@ -91,9 +93,10 @@ class Controller(RigController):
 
         rig_lib.matrix_constraint(global_output, local_input, srt="trs")
 
-        local_ctrl = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=5, d=3, s=8, n="{0}_local_CTRL".format(self.model.module_name), ch=0)[0]
-        local_ofs = pmc.group(local_ctrl, n="{0}_local_ctrl_OFS".format(self.model.module_name))
-        pmc.parent(local_ofs, local_input, r=1)
+        local_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=5, d=3, s=8, n="{0}_local_CTRL_shape".format(self.model.module_name), ch=0)[0]
+        local_ctrl = rig_lib.create_jnttype_ctrl(name="{0}_local_CTRL".format(self.model.module_name), shape=local_shape,
+                                                 drawstyle=2)
+        pmc.parent(local_ctrl, local_input, r=1)
 
         rig_lib.create_output(name="{0}_local_ctrl_OUTPUT".format(self.model.module_name), parent=local_ctrl)
 

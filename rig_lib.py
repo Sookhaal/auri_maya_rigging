@@ -188,51 +188,51 @@ class RigController(AuriScriptController):
         crv_info = pmc.createNode("curveInfo", n="{0}_CURVEINFO".format(self.model.module_name))
         global_stretch = pmc.createNode("multDoubleLinear", n="{0}_global_stretch_MDL".format(self.model.module_name))
         neck_stretch_div = pmc.createNode("multiplyDivide", n="{0}_stretch_MDIV".format(self.model.module_name))
-        neck_stretch_mult = pmc.createNode("multDoubleLinear", n="{0}stretch_MDL".format(self.model.module_name))
+        neck_stretch_mult = pmc.createNode("multDoubleLinear", n="{0}_stretch_MDL".format(self.model.module_name))
         self.jnt_input_grp.addAttr("baseArcLength", attributeType="float", defaultValue=0, hidden=0, keyable=1)
-        self.jnt_input_grp.addAttr("baseTranslateX", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        self.jnt_input_grp.addAttr("baseTranslateY", attributeType="float", defaultValue=0, hidden=0, keyable=1)
         crv_shape = ik_spline.getShape()
         global_scale = pmc.ls(regex=".*_global_mult_local_scale_MDL$")[0]
 
         crv_shape.worldSpace[0] >> crv_info.inputCurve
         base_arc_length = crv_info.getAttr("arcLength")
         self.jnt_input_grp.setAttr("baseArcLength", base_arc_length)
-        base_translate_x = created_jnts[1].getAttr("translateX")
-        self.jnt_input_grp.setAttr("baseTranslateX", base_translate_x)
+        base_translate_y = created_jnts[1].getAttr("translateY")
+        self.jnt_input_grp.setAttr("baseTranslateY", base_translate_y)
         global_scale.output >> global_stretch.input1
         self.jnt_input_grp.baseArcLength >> global_stretch.input2
         crv_info.arcLength >> neck_stretch_div.input1X
         global_stretch.output >> neck_stretch_div.input2X
         neck_stretch_div.setAttr("operation", 2)
         neck_stretch_div.outputX >> neck_stretch_mult.input1
-        self.jnt_input_grp.baseTranslateX >> neck_stretch_mult.input2
+        self.jnt_input_grp.baseTranslateY >> neck_stretch_mult.input2
 
         for jnt in created_jnts:
             if not jnt == created_jnts[0]:
-                neck_stretch_mult.output >> jnt.translateX
+                neck_stretch_mult.output >> jnt.translateY
 
     def connect_fk_stretch(self, created_fk_jnts, created_fk_ctrls):
         for i, jnt in enumerate(created_fk_jnts):
             if i != 0:
-                jnt.addAttr("baseTranslateX", attributeType="float",
-                            defaultValue=pmc.xform(jnt, q=1, translation=1)[0], hidden=0, keyable=0)
-                jnt.setAttr("baseTranslateX", lock=1, channelBox=0)
+                jnt.addAttr("baseTranslateY", attributeType="float",
+                            defaultValue=pmc.xform(jnt, q=1, translation=1)[1], hidden=0, keyable=0)
+                jnt.setAttr("baseTranslateY", lock=1, channelBox=0)
                 created_fk_ctrls[i-1].addAttr("stretch", attributeType="float", defaultValue=1, hidden=0, keyable=1,
                                               hasMinValue=1, minValue=0)
                 arm_mult = pmc.createNode("multDoubleLinear", n="{0}_fk_stretch_{1}_MDL".format(self.model.module_name,
                                                                                                 i))
                 created_fk_ctrls[i-1].stretch >> arm_mult.input1
-                jnt.baseTranslateX >> arm_mult.input2
-                arm_mult.output >> jnt.translateX
-                arm_mult.output >> created_fk_ctrls[i].getParent().translateX
+                jnt.baseTranslateY >> arm_mult.input2
+                arm_mult.output >> jnt.translateY
+                arm_mult.output >> created_fk_ctrls[i].getParent().translateY
 
     def connect_ik_stretch(self, created_ik_jnts, created_ik_ctrls, side_coef, start_parent, end_parent, ik_ctrl_object_to_snap_to):
         jnt_stretch_mult_list = []
         for i, jnt in enumerate(created_ik_jnts):
             if i != 0:
-                jnt.addAttr("baseTranslateX", attributeType="float",
-                            defaultValue=(pmc.xform(jnt, q=1, translation=1)[0]), hidden=0, keyable=0)
-                jnt.setAttr("baseTranslateX", lock=1, channelBox=0)
+                jnt.addAttr("baseTranslateY", attributeType="float",
+                            defaultValue=(pmc.xform(jnt, q=1, translation=1)[1]), hidden=0, keyable=0)
+                jnt.setAttr("baseTranslateY", lock=1, channelBox=0)
                 jnt_stretch_mult = pmc.createNode("multDoubleLinear",
                                                   n="{0}_ik_stretch_mult_{1}_MDL".format(self.model.module_name, i))
                 jnt_stretch_mult_list.append(jnt_stretch_mult)
@@ -270,16 +270,21 @@ class RigController(AuriScriptController):
         for i, jnt in enumerate(created_ik_jnts):
             if i != 0:
                 stretch_condition.outColorR >> jnt_stretch_mult_list[i-1].input1
-                jnt.baseTranslateX >> jnt_stretch_mult_list[i-1].input2
-                jnt_stretch_mult_list[i - 1].output >> jnt.translateX
+                jnt.baseTranslateY >> jnt_stretch_mult_list[i-1].input2
+                jnt_stretch_mult_list[i - 1].output >> jnt.translateY
 
         start_loc_shape.setAttr("visibility", 0)
         end_loc_shape.setAttr("visibility", 0)
 
         pmc.xform(created_ik_ctrls[0], ws=1, translation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, translation=1)))
         pmc.xform(created_ik_ctrls[0], ws=1, rotation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, rotation=1)))
-        if self.model.side == "Right":
-            created_ik_ctrls[0].setAttr("rotateY", (created_ik_ctrls[0].getAttr("rotateY") - 180))
+        #TODO: mettre un check arm or leg avec un arg arm/leg dans la fonction
+        # if self.model.side == "Right":
+        #     created_ik_ctrls[0].setAttr("rotateY", (created_ik_ctrls[0].getAttr("rotateY") - 180))
+        # if self.model.side == "Left":
+        #     created_ik_ctrls[0].setAttr("rotateX", (created_ik_ctrls[0].getAttr("rotateX") * -1))
+        #     created_ik_ctrls[0].setAttr("rotateY", (created_ik_ctrls[0].getAttr("rotateY") - 180) * -1)
+        #     created_ik_ctrls[0].setAttr("rotateZ", (created_ik_ctrls[0].getAttr("rotateZ") - 180))
 
 
 def square_arrow_curve(name):
@@ -443,27 +448,41 @@ def cbbox_set_selected(selected, cbbox):
 
 
 def create_curve_guide(d, number_of_points, name, hauteur_curve=10):
-    crv = pmc.curve(d=1, p=[(0, 0, 0), (hauteur_curve, 0, 0)], k=[0, 1])
-    crv.setAttr("rotate", (-90, 0, 90))
-    crv_rebuilded = pmc.rebuildCurve(crv, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0, s=(number_of_points - 1),
-                                     d=d, ch=0, replaceOriginal=1)[0]
-    crv_rebuilded.rename(name)
+    crv = pmc.curve(d=1, p=[(0, 0, 0), (0, hauteur_curve/2, 0), (0, hauteur_curve, 0)], k=[0, 1, 2])
+    if d != 2:
+        crv_rebuilded = pmc.rebuildCurve(crv, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0, s=(number_of_points - 1),
+                                         d=d, ch=0, replaceOriginal=1)[0]
+        crv_rebuilded.rename(name)
+    else:
+        crv_rebuilded = crv
     return crv_rebuilded
 
 
-def create_jnts_from_cv_list_and_return_jnts_list(vertex_list, guide, module_name):
+def create_jnts_from_cv_list_and_return_jnts_list(vertex_list, module_name):
     pmc.select(d=1)
+    loc_list = []
     created_jnts_list = []
     for i, vertex in enumerate(vertex_list):
-        if i == 0:
-            jnt = pmc.joint(p=(pmc.xform(vertex, q=1, ws=1, translation=1)),
-                            o=(pmc.xform(guide, q=1, ws=1, rotation=1)),
-                            n="{0}_{1}_JNT".format(module_name, i), rad=0.5)
-        else:
-            jnt = pmc.joint(p=(pmc.xform(vertex, q=1, ws=1, translation=1)),
-                            n="{0}_{1}_JNT".format(module_name, i), rad=0.5)
+        loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_tempLOC".format(vertex))
+        loc.setAttr("translate", pmc.xform(vertex, q=1, ws=1, translation=1))
+        if i > 0:
+            const = pmc.aimConstraint(loc, loc_list[i-1], maintainOffset=0,
+                                        aimVector=(0.0, 1.0, 0.0),
+                                        upVector=(0.0, 0.0, 1.0), worldUpType="vector", worldUpVector=(0.0, 0.0, 1.0))
+            pmc.delete(const)
+            pmc.parent(loc, loc_list[i-1], r=0)
+        loc_list.append(loc)
+
+    pmc.select(d=1)
+    for i, loc in enumerate(loc_list):
+        jnt = pmc.joint(p=(pmc.xform(loc, q=1, ws=1, translation=1)),
+                        o=(pmc.xform(loc, q=1, rotation=1)),
+                        n="{0}_{1}_JNT".format(module_name, i), rad=0.5)
         created_jnts_list.append(jnt)
+
+    created_jnts_list[-1].setAttr("jointOrient", (0, 0, 0))
     created_jnts_list[-1].rename("{0}_end_JNT".format(module_name))
+    pmc.delete(loc_list[0])
     return created_jnts_list
 
 
@@ -485,15 +504,16 @@ def clean_ctrl(ctrl, color_value, trs="trs", visibility_dependence=None):
             ctrl.setAttr(attr, lock=True, keyable=False, channelBox=False)
 
         ctrl_ofs = ctrl.getParent()
-        ctrl_ofs.setAttr("translateX", lock=True, keyable=False, channelBox=False)
-        ctrl_ofs.setAttr("translateY", lock=True, keyable=False, channelBox=False)
-        ctrl_ofs.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
-        ctrl_ofs.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
-        ctrl_ofs.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
-        ctrl_ofs.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
-        ctrl_ofs.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
-        ctrl_ofs.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
-        ctrl_ofs.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+        if pmc.nodeType(ctrl_ofs) == "transform":
+            ctrl_ofs.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+            ctrl_ofs.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
 
         if visibility_dependence is not None:
             pmc.connectAttr(visibility_dependence, ctrl.visibility)
@@ -549,3 +569,14 @@ def raz_ik_ctrl_translate_rotate(ctrl, jnt=None):
     pmc.parent(ctrl, raz, r=1)
     ctrl.setAttr("translate", (0, 0, 0))
     ctrl.setAttr("rotate", (0, 0, 0))
+
+
+def create_jnttype_ctrl(name, shape, drawstyle=2, rotateorder=0):
+    pmc.select(d=1)
+    ctrl = pmc.joint(p=(0, 0, 0), n=name)
+    pmc.parent(shape.getShape(), ctrl, r=1, s=1)
+    ctrl.getShape().rename("{0}Shape".format(ctrl))
+    ctrl.setAttr("drawStyle", drawstyle)
+    pmc.delete(shape)
+    ctrl.setAttr("rotateOrder", rotateorder)
+    return ctrl

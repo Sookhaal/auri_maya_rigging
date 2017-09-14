@@ -71,12 +71,12 @@ class Controller(RigController):
         if self.guide_check(self.guide_name):
             self.guide = pmc.ls(self.guide_name)
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
+            self.guides_grp.setAttr("visibility", 1)
             return
 
         self.guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guide_name)
         self.guide.setAttr("translate", (0, 7.5, 0))
         self.guides_grp = self.group_guides(self.guide)
-        self.guides_grp.setAttr("visibility", 1)
         self.view.refresh_view()
         pmc.select(d=1)
 
@@ -86,7 +86,9 @@ class Controller(RigController):
         self.delete_existing_objects()
         self.connect_to_parent()
 
-        cog_ctrl = rig_lib.large_box_curve("{0}_CTRL".format(self.model.module_name))
+        cog_shape = rig_lib.large_box_curve("{0}_CTRL_shape".format(self.model.module_name))
+        cog_ctrl = rig_lib.create_jnttype_ctrl(name="{0}_CTRL".format(self.model.module_name), shape=cog_shape,
+                                               drawstyle=2)
         cog_ofs = pmc.group(cog_ctrl, n="{0}_ctrl_OFS".format(self.model.module_name))
         cog_ofs.setAttr("translate", pmc.xform(self.guide, q=1, ws=1, translation=1))
         pmc.parent(cog_ofs, self.ctrl_input_grp)
