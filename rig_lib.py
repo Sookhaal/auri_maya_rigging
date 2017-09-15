@@ -58,6 +58,9 @@ class RigController(AuriScriptController):
     def on_stretch_creation_switch_changed(self, state):
         self.model.stretch_creation_switch = is_checked(state)
 
+    def on_clavicle_creation_switch_changed(self, state):
+        self.model.clavicle_creation_switch = is_checked(state)
+
     def on_how_many_jnts_changed(self, value):
         self.model.how_many_jnts = value
 
@@ -66,6 +69,9 @@ class RigController(AuriScriptController):
 
     def on_side_cbbox_changed(self, text):
         self.model.side = text
+
+    def on_fk_ik_type_changed(self, text):
+        self.model.fk_ik_type = text
 
     def on_modules_cbbox_changed(self, text):
         self.model.selected_module = text
@@ -224,7 +230,7 @@ class RigController(AuriScriptController):
                 created_fk_ctrls[i-1].stretch >> arm_mult.input1
                 jnt.baseTranslateY >> arm_mult.input2
                 arm_mult.output >> jnt.translateY
-                arm_mult.output >> created_fk_ctrls[i].getParent().translateY
+                arm_mult.output >> created_fk_ctrls[i].translateY
 
     def connect_ik_stretch(self, created_ik_jnts, created_ik_ctrls, side_coef, start_parent, end_parent, ik_ctrl_object_to_snap_to):
         jnt_stretch_mult_list = []
@@ -249,24 +255,24 @@ class RigController(AuriScriptController):
         measure_transform = length_measure.getParent()
         measure_transform.rename("{0}_ik_length_measure_DDM".format(self.model.module_name))
         pmc.parent(measure_transform, self.parts_grp, r=0)
-        arm_global_scale = pmc.createNode("multiplyDivide", n="{0}_ik_global_scale_MDV".format(self.model.module_name))
-        arm_stretch_value = pmc.createNode("multiplyDivide", n="{0}_ik_stretch_value_MDV".format(self.model.module_name))
+        ik_global_scale = pmc.createNode("multiplyDivide", n="{0}_ik_global_scale_MDV".format(self.model.module_name))
+        ik_stretch_value = pmc.createNode("multiplyDivide", n="{0}_ik_stretch_value_MDV".format(self.model.module_name))
         stretch_condition = pmc.createNode("condition", n="{0}_ik_stretch_CONDITION".format(self.model.module_name))
         global_scale = pmc.ls(regex=".*_global_mult_local_scale_MDL$")[0]
 
         start_loc_shape.worldPosition[0] >> length_measure.startPoint
         end_loc_shape.worldPosition[0] >> length_measure.endPoint
-        arm_global_scale.setAttr("operation", 2)
-        length_measure.distance >> arm_global_scale.input1X
-        global_scale.output >> arm_global_scale.input2X
-        arm_stretch_value.setAttr("operation", 2)
-        arm_stretch_value.setAttr("input2X", length_measure.getAttr("distance"))
-        arm_global_scale.outputX >> arm_stretch_value.input1X
+        ik_global_scale.setAttr("operation", 2)
+        length_measure.distance >> ik_global_scale.input1X
+        global_scale.output >> ik_global_scale.input2X
+        ik_stretch_value.setAttr("operation", 2)
+        ik_stretch_value.setAttr("input2X", length_measure.getAttr("distance"))
+        ik_global_scale.outputX >> ik_stretch_value.input1X
         stretch_condition.setAttr("operation", 4)
         stretch_condition.setAttr("secondTerm", length_measure.getAttr("distance"))
         stretch_condition.setAttr("colorIfTrueR", 1)
-        arm_global_scale.outputX >> stretch_condition.firstTerm
-        arm_stretch_value.outputX >> stretch_condition.colorIfFalseR
+        ik_global_scale.outputX >> stretch_condition.firstTerm
+        ik_stretch_value.outputX >> stretch_condition.colorIfFalseR
         for i, jnt in enumerate(created_ik_jnts):
             if i != 0:
                 stretch_condition.outColorR >> jnt_stretch_mult_list[i-1].input1
@@ -278,14 +284,68 @@ class RigController(AuriScriptController):
 
         pmc.xform(created_ik_ctrls[0], ws=1, translation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, translation=1)))
         pmc.xform(created_ik_ctrls[0], ws=1, rotation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, rotation=1)))
-        #TODO: mettre un check arm or leg avec un arg arm/leg dans la fonction
-        # if self.model.side == "Right":
+        # TODO: if this function is used for the mirrored limb, don't forget to invert the rotation of the ik_ctrl
+        # EX:
+        # if self.model.side == "Right": (for the arm)
         #     created_ik_ctrls[0].setAttr("rotateY", (created_ik_ctrls[0].getAttr("rotateY") - 180))
-        # if self.model.side == "Left":
+        # if self.model.side == "Left": (for the leg)
         #     created_ik_ctrls[0].setAttr("rotateX", (created_ik_ctrls[0].getAttr("rotateX") * -1))
         #     created_ik_ctrls[0].setAttr("rotateY", (created_ik_ctrls[0].getAttr("rotateY") - 180) * -1)
         #     created_ik_ctrls[0].setAttr("rotateZ", (created_ik_ctrls[0].getAttr("rotateZ") - 180))
 
+    def connect_one_jnt_ik_stretch(self, jnt, start_parent, end_parent):
+        # jnt_stretch_mult_list = []
+        # for i, jnt in enumerate(created_ik_jnts):
+        #     if i != 0:
+        jnt.addAttr("baseTranslateY", attributeType="float",
+                    defaultValue=(pmc.xform(jnt, q=1, translation=1)[1]), hidden=0, keyable=0)
+        jnt.setAttr("baseTranslateY", lock=1, channelBox=0)
+        jnt_stretch_mult = pmc.createNode("multDoubleLinear",
+                                          n="{0}_ik_stretch_mult_MDL".format(jnt))
+                # jnt_stretch_mult_list.append(jnt_stretch_mult)
+
+        # created_ik_ctrls[0].setAttr("translate", (0, 0, 0))
+        # created_ik_ctrls[0].setAttr("rotate", (0, 0, 0))
+        start_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_start_LOC".format(jnt))
+        end_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_end_LOC".format(jnt))
+        pmc.parent(start_loc, start_parent, r=1)
+        pmc.parent(end_loc, end_parent, r=1)
+        start_loc_shape = start_loc.getShape()
+        end_loc_shape = end_loc.getShape()
+        length_measure = pmc.createNode("distanceDimShape",
+                                        n="{0}_ik_length_measure_DDMShape".format(jnt))
+        measure_transform = length_measure.getParent()
+        measure_transform.rename("{0}_ik_length_measure_DDM".format(jnt))
+        pmc.parent(measure_transform, self.parts_grp, r=0)
+        ik_global_scale = pmc.createNode("multiplyDivide", n="{0}_ik_global_scale_MDV".format(jnt))
+        ik_stretch_value = pmc.createNode("multiplyDivide", n="{0}_ik_stretch_value_MDV".format(jnt))
+        # stretch_condition = pmc.createNode("condition", n="{0}_ik_stretch_CONDITION".format(jnt))
+        global_scale = pmc.ls(regex=".*_global_mult_local_scale_MDL$")[0]
+
+        start_loc_shape.worldPosition[0] >> length_measure.startPoint
+        end_loc_shape.worldPosition[0] >> length_measure.endPoint
+        ik_global_scale.setAttr("operation", 2)
+        length_measure.distance >> ik_global_scale.input1X
+        global_scale.output >> ik_global_scale.input2X
+        ik_stretch_value.setAttr("operation", 2)
+        ik_stretch_value.setAttr("input2X", length_measure.getAttr("distance"))
+        ik_global_scale.outputX >> ik_stretch_value.input1X
+        # stretch_condition.setAttr("operation", 4)
+        # stretch_condition.setAttr("secondTerm", length_measure.getAttr("distance"))
+        # stretch_condition.setAttr("colorIfTrueR", 1)
+        # ik_global_scale.outputX >> stretch_condition.firstTerm
+        # ik_stretch_value.outputX >> stretch_condition.colorIfFalseR
+        # for i, jnt in enumerate(created_ik_jnts):
+        #     if i != 0:
+        #         stretch_condition.outColorR >> jnt_stretch_mult_list[i - 1].input1
+        ik_stretch_value.outputX >> jnt_stretch_mult.input1
+        #         jnt.baseTranslateY >> jnt_stretch_mult_list[i - 1].input2
+        jnt.baseTranslateY >> jnt_stretch_mult.input2
+        #         jnt_stretch_mult_list[i - 1].output >> jnt.translateY
+        jnt_stretch_mult.output >> jnt.translateY
+
+        start_loc_shape.setAttr("visibility", 0)
+        end_loc_shape.setAttr("visibility", 0)
 
 def square_arrow_curve(name):
     crv = pmc.curve(d=1, p=[(-5, 0, -5), (-2, 0, -5), (-2, 0, -7), (-3, 0, -7), (0, 0, -9), (3, 0, -7), (2, 0, -7),
@@ -414,10 +474,16 @@ def change_shape_color(selection, color):
             shape = obj.getShape()
             pmc.setAttr(shape + ".overrideEnabled", 1)
             pmc.setAttr(shape + ".overrideColor", color)
+            if pmc.nodeType(obj) == "joint":
+                pmc.setAttr(obj + ".overrideEnabled", 1)
+                pmc.setAttr(obj + ".overrideColor", color)
     else:
         shape = selection.getShape()
         pmc.setAttr(shape + ".overrideEnabled", 1)
         pmc.setAttr(shape + ".overrideColor", color)
+        if pmc.nodeType(selection) == "joint":
+            pmc.setAttr(selection + ".overrideEnabled", 1)
+            pmc.setAttr(selection + ".overrideColor", color)
 
 
 def exists_check(objects):
