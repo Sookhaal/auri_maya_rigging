@@ -125,9 +125,10 @@ class Controller(RigController):
         self.created_ik_jnts = []
         self.created_fk_ctrls = []
         self.created_ik_ctrls = []
+        self.clavicle_ctrl = None
         self.option_ctrl = None
         self.plane = None
-        self.clavicle_ik_handle = None
+        self.clavicle_ik_ctrl = None
         RigController.__init__(self,  model, view)
 
     def prebuild(self):
@@ -152,11 +153,11 @@ class Controller(RigController):
                 if pmc.objExists("{0}_clavicle_GUIDE".format(self.model.module_name)):
                     pmc.delete("{0}_clavicle_GUIDE".format(self.model.module_name))
 
-            if pmc.objExists("{0}_leg_plane".format(self.model.module_name)):
-                pmc.delete("{0}_leg_plane".format(self.model.module_name))
+            if pmc.objExists("{0}_arm_plane".format(self.model.module_name)):
+                pmc.delete("{0}_arm_plane".format(self.model.module_name))
 
             self.plane = pmc.ls(pmc.polyCreateFacet(p=[(0, 0, 0), (0, 0, 0), (0, 0, 0)],
-                                                    n="{0}_leg_plane".format(self.model.module_name), ch=0))[0]
+                                                    n="{0}_arm_plane".format(self.model.module_name), ch=0))[0]
             self.guides[0].getShape().worldPosition[0] >> self.plane.getShape().pnts[0]
             self.guides[1].getShape().worldPosition[0] >> self.plane.getShape().pnts[1]
             self.guides[2].getShape().worldPosition[0] >> self.plane.getShape().pnts[2]
@@ -186,7 +187,7 @@ class Controller(RigController):
         wrist_guide.setAttr("translate", (7 * self.side_coef, 14, 0))
 
         self.plane = pmc.ls(pmc.polyCreateFacet(p=[(0, 0, 0), (0, 0, 0), (0, 0, 0)],
-                                                n="{0}_leg_plane".format(self.model.module_name), ch=0))[0]
+                                                n="{0}_arm_plane".format(self.model.module_name), ch=0))[0]
 
         shoulder_guide.getShape().worldPosition[0] >> self.plane.getShape().pnts[0]
         elbow_guide.getShape().worldPosition[0] >> self.plane.getShape().pnts[1]
@@ -224,6 +225,7 @@ class Controller(RigController):
         self.create_options_ctrl()
         if self.model.clavicle_creation_switch:
             self.create_clavicle_ctrl()
+        return
         if self.model.fk_ik_type == "three_chains":
             self.create_and_connect_fk_ik_jnts()
             self.create_fk()
@@ -251,7 +253,7 @@ class Controller(RigController):
         arm_plane = pmc.polyCreateFacet(p=[pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1),
                                            pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1),
                                            pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)],
-                                        n="{0}_leg_plane".format(self.model.module_name), ch=1)[0]
+                                        n="{0}_arm_plane".format(self.model.module_name), ch=1)[0]
 
         arm_plane_face = pmc.ls(arm_plane)[0].f[0]
 
@@ -349,18 +351,52 @@ class Controller(RigController):
                                  hasMinValue=1, maxValue=1, minValue=0)
 
     def create_clavicle_ctrl(self):
-        self.clavicle_ik_handle = pmc.ikHandle(n="{0}_clavicle_ik_HDL".format(self.model.module_name), startJoint=self.clavicle_jnt,
-                                 endEffector=pmc.listRelatives(self.clavicle_jnt, children=1)[0],
-                                 solver="ikSCsolver")[0]
+        clavicle_ik_handle = pmc.ikHandle(n="{0}_clavicle_ik_HDL".format(self.model.module_name), startJoint=self.clavicle_jnt,
+                                               endEffector=pmc.listRelatives(self.clavicle_jnt, children=1)[0],
+                                               solver="ikSCsolver")[0]
         ik_effector = pmc.listRelatives(self.clavicle_jnt, children=1)[-1]
         ik_effector.rename("{0}_clavicle_ik_EFF".format(self.model.module_name))
 
-        self.connect_one_jnt_ik_stretch(pmc.listRelatives(self.clavicle_jnt, children=1)[0], self.clavicle_jnt,
-                                        self.clavicle_ik_handle)
-        # TODO: trouver ou mettre les loc pour eviter les boucles
+        clav_shape = rig_lib.stick_ball("{0}_clavicle_CTRL_shape".format(self.model.module_name))
+        cvs = clav_shape.getShape().cv[:]
+        for i, cv in enumerate(cvs):
+            if i != 0:
+                pmc.xform(cv, ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0],
+                                                 pmc.xform(cv, q=1, ws=1, translation=1)[1] + (2 * self.side_coef),
+                                                 pmc.xform(cv, q=1, ws=1, translation=1)[2] * -self.side_coef))
 
-        pmc.parent(self.clavicle_ik_handle, self.parts_grp)
-        self.clavicle_ik_handle.setAttr("visibility", 0)
+        self.clavicle_ctrl = rig_lib.create_jnttype_ctrl("{0}_clavicle_CTRL".format(self.model.module_name), clav_shape,
+                                                         drawstyle=2, rotateorder=4)
+        pmc.select(d=1)
+        clav_ofs = pmc.joint(p=(0, 0, 0), n="{0}_clavicle_ctrl_OFS".format(self.model.module_name))
+        clav_ofs.setAttr("rotateOrder", 4)
+        clav_ofs.setAttr("drawStyle", 2)
+        pmc.parent(self.clavicle_ctrl, clav_ofs)
+        clav_ofs.setAttr("translate", pmc.xform(self.clavicle_jnt, q=1, ws=1, translation=1))
+        clav_ofs.setAttr("jointOrient", (90 * (1 - self.side_coef), 0, -90*self.side_coef))
+        # self.clavicle_ctrl.setAttr("jointOrient", pmc.xform(self.clavicle_jnt, q=1, rotation=1))
+
+        pmc.parent(clav_ofs, self.ctrl_input_grp)
+
+        pmc.parentConstraint(self.clavicle_ctrl, self.clavicle_jnt, maintainOffset=1)
+
+        clav_ik_shape = rig_lib.medium_cube("{0}_clavicle_ik_CTRL_shape".format(self.model.module_name))
+        self.clavicle_ik_ctrl = rig_lib.create_jnttype_ctrl("{0}_clavicle_ik_CTRL".format(self.model.module_name),
+                                                            clav_ik_shape, drawstyle=2, rotateorder=4)
+        pmc.select(d=1)
+        clav_ik_ofs = pmc.joint(p=(0, 0, 0), n="{0}_clavicle_ik_ctrl_OFS".format(self.model.module_name))
+        clav_ik_ofs.setAttr("rotateOrder", 4)
+        clav_ik_ofs.setAttr("drawStyle", 2)
+        pmc.parent(self.clavicle_ik_ctrl, clav_ik_ofs)
+        clav_ik_ofs.setAttr("translate", pmc.xform(pmc.listRelatives(self.clavicle_jnt, children=1)[0], q=1, ws=1,
+                                                   translation=1))
+
+        pmc.parent(clav_ik_ofs, self.clavicle_ctrl, r=0)
+        pmc.parent(clavicle_ik_handle, self.clavicle_ik_ctrl)
+        clavicle_ik_handle.setAttr("visibility", 0)
+
+        self.connect_one_jnt_ik_stretch(pmc.listRelatives(self.clavicle_jnt, children=1)[0], self.clavicle_ctrl,
+                                        self.clavicle_ik_ctrl)
 
     def create_and_connect_fk_ik_jnts(self):
         shoulder_fk_jnt = \
@@ -438,7 +474,7 @@ class Controller(RigController):
 
         wrist_ctrl.scale >> self.created_fk_jnts[-1].scale
 
-        pmc.parent(self.clavicle_ik_handle, self.created_fk_ctrls[0])
+        # pmc.parent(self.clavicle_ik_handle, self.created_fk_ctrls[0])
 
     def create_ik(self):
         ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)),
