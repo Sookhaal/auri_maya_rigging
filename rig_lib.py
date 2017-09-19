@@ -494,15 +494,17 @@ def change_shape_color(selection, color):
     if isinstance(selection, list):
         for obj in selection:
             shape = obj.getShape()
-            pmc.setAttr(shape + ".overrideEnabled", 1)
-            pmc.setAttr(shape + ".overrideColor", color)
+            if shape is not None:
+                pmc.setAttr(shape + ".overrideEnabled", 1)
+                pmc.setAttr(shape + ".overrideColor", color)
             if pmc.nodeType(obj) == "joint":
                 pmc.setAttr(obj + ".overrideEnabled", 1)
                 pmc.setAttr(obj + ".overrideColor", color)
     else:
         shape = selection.getShape()
-        pmc.setAttr(shape + ".overrideEnabled", 1)
-        pmc.setAttr(shape + ".overrideColor", color)
+        if shape is not None:
+            pmc.setAttr(shape + ".overrideEnabled", 1)
+            pmc.setAttr(shape + ".overrideColor", color)
         if pmc.nodeType(selection) == "joint":
             pmc.setAttr(selection + ".overrideEnabled", 1)
             pmc.setAttr(selection + ".overrideColor", color)
