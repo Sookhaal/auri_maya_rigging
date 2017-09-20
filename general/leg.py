@@ -16,9 +16,11 @@ class View(AuriScriptView):
         self.refresh_btn = QtWidgets.QPushButton("Refresh")
         self.prebuild_btn = QtWidgets.QPushButton("Prebuild")
         self.side_cbbox = QtWidgets.QComboBox()
+        self.fk_ik_type_cbbox = QtWidgets.QComboBox()
         self.ik_creation_switch = QtWidgets.QCheckBox()
         self.stretch_creation_switch = QtWidgets.QCheckBox()
         self.raz_ctrls = QtWidgets.QCheckBox()
+        self.clavicle_creation_switch = QtWidgets.QCheckBox()
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -30,8 +32,10 @@ class View(AuriScriptView):
     def refresh_view(self):
         self.ik_creation_switch.setChecked(self.model.ik_creation_switch)
         self.stretch_creation_switch.setChecked(self.model.stretch_creation_switch)
+        self.clavicle_creation_switch.setChecked(self.model.clavicle_creation_switch)
         self.raz_ctrls.setChecked(self.model.raz_ctrls)
         self.side_cbbox.setCurrentText(self.model.side)
+        self.fk_ik_type_cbbox.setCurrentText(self.model.fk_ik_type)
         self.ctrl.look_for_parent()
 
     def setup_ui(self):
@@ -45,9 +49,13 @@ class View(AuriScriptView):
         self.ik_creation_switch.setEnabled(False)
         self.stretch_creation_switch.stateChanged.connect(self.ctrl.on_stretch_creation_switch_changed)
         self.raz_ctrls.stateChanged.connect(self.ctrl.on_raz_ctrls_changed)
+        self.clavicle_creation_switch.stateChanged.connect(self.ctrl.on_clavicle_creation_switch_changed)
 
         self.side_cbbox.insertItems(0, ["Left", "Right"])
         self.side_cbbox.currentTextChanged.connect(self.ctrl.on_side_cbbox_changed)
+
+        self.fk_ik_type_cbbox.insertItems(0, ["one_chain", "three_chains"])
+        self.fk_ik_type_cbbox.currentTextChanged.connect(self.ctrl.on_fk_ik_type_changed)
 
         self.refresh_btn.clicked.connect(self.ctrl.look_for_parent)
         self.prebuild_btn.clicked.connect(self.ctrl.prebuild)
@@ -69,6 +77,10 @@ class View(AuriScriptView):
         side_grp = grpbox("Side", side_layout)
         side_layout.addWidget(self.side_cbbox)
 
+        chain_type_layout = QtWidgets.QVBoxLayout()
+        chain_type_grp = grpbox("Fk/Ik chain type", chain_type_layout)
+        chain_type_layout.addWidget(self.fk_ik_type_cbbox)
+
         checkbox_layout = QtWidgets.QVBoxLayout()
         ik_layout = QtWidgets.QHBoxLayout()
         ik_text = QtWidgets.QLabel("IK ctrls :")
@@ -78,6 +90,10 @@ class View(AuriScriptView):
         stretch_text = QtWidgets.QLabel("stretch/squash :")
         stretch_layout.addWidget(stretch_text)
         stretch_layout.addWidget(self.stretch_creation_switch)
+        clavicle_layout = QtWidgets.QHBoxLayout()
+        clavicle_text = QtWidgets.QLabel("clavicle :")
+        clavicle_layout.addWidget(clavicle_text)
+        clavicle_layout.addWidget(self.clavicle_creation_switch)
         raz_ctrls_layout = QtWidgets.QHBoxLayout()
         raz_ctrls_text = QtWidgets.QLabel("\"Freez\" ctrls :")
         raz_ctrls_layout.addWidget(raz_ctrls_text)
@@ -85,12 +101,14 @@ class View(AuriScriptView):
 
         checkbox_layout.addLayout(ik_layout)
         checkbox_layout.addLayout(stretch_layout)
+        checkbox_layout.addLayout(clavicle_layout)
         checkbox_layout.addLayout(raz_ctrls_layout)
 
         options_layout.addLayout(checkbox_layout)
 
         main_layout.addWidget(select_parent_grp)
         main_layout.addWidget(side_grp)
+        main_layout.addWidget(chain_type_grp)
         main_layout.addWidget(options_grp)
         main_layout.addWidget(self.prebuild_btn)
         self.setLayout(main_layout)
@@ -110,12 +128,16 @@ class Controller(RigController):
         self.side = {}
         self.side_coef = 0
         self.created_skn_jnts = []
+        self.clavicle_jnt = None
         self.created_fk_jnts = []
         self.created_ik_jnts = []
         self.created_fk_ctrls = []
         self.created_ik_ctrls = []
-        self.created_ik_handle = None
+        self.clavicle_ctrl = None
         self.option_ctrl = None
+        self.plane = None
+        self.clavicle_ik_ctrl = None
+        self.ankle_fk_pos_reader = None
         RigController.__init__(self, model, view)
 
     def on_raz_ctrls_changed(self, state):
@@ -127,6 +149,8 @@ class Controller(RigController):
         self.guides_names = ["{0}_hip_GUIDE".format(self.model.module_name),
                              "{0}_knee_GUIDE".format(self.model.module_name),
                              "{0}_ankle_GUIDE".format(self.model.module_name)]
+        if self.model.clavicle_creation_switch:
+            self.guides_names.append("{0}_clavicle_GUIDE".format(self.model.module_name))
 
         self.side = {"Left": 1, "Right": -1}
         self.side_coef = self.side.get(self.model.side)
@@ -135,7 +159,35 @@ class Controller(RigController):
             self.guides = pmc.ls("{0}_hip_GUIDE".format(self.model.module_name),
                                  "{0}_knee_GUIDE".format(self.model.module_name),
                                  "{0}_ankle_GUIDE".format(self.model.module_name))
+            if self.model.clavicle_creation_switch:
+                self.guides.append(pmc.ls("{0}_clavicle_GUIDE".format(self.model.module_name))[0])
+            else:
+                if pmc.objExists("{0}_clavicle_GUIDE".format(self.model.module_name)):
+                    pmc.delete("{0}_clavicle_GUIDE".format(self.model.module_name))
+
+            if pmc.objExists("{0}_leg_plane".format(self.model.module_name)):
+                pmc.delete("{0}_leg_plane".format(self.model.module_name))
+
+            self.plane = pmc.ls(pmc.polyCreateFacet(p=[(0, 0, 0), (0, 0, 0), (0, 0, 0)],
+                                                    n="{0}_leg_plane".format(self.model.module_name), ch=0))[0]
+            self.guides[0].getShape().worldPosition[0] >> self.plane.getShape().pnts[0]
+            self.guides[1].getShape().worldPosition[0] >> self.plane.getShape().pnts[1]
+            self.guides[2].getShape().worldPosition[0] >> self.plane.getShape().pnts[2]
+
+            self.plane.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+            self.plane.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+            self.plane.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+            self.plane.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+            self.plane.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+            self.plane.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+            self.plane.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+            self.plane.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+            self.plane.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
+            pmc.parent(self.plane, self.guides_grp)
+            self.guides_grp.setAttr("visibility", 1)
+            pmc.select(d=1)
             return
 
         hip_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[0])
@@ -146,9 +198,32 @@ class Controller(RigController):
         knee_guide.setAttr("translate", (2 * self.side_coef, 4, 0.0001))
         ankle_guide.setAttr("translate", (2 * self.side_coef, 1, 0))
 
+        self.plane = pmc.ls(pmc.polyCreateFacet(p=[(0, 0, 0), (0, 0, 0), (0, 0, 0)],
+                                                n="{0}_leg_plane".format(self.model.module_name), ch=0))[0]
+
+        hip_guide.getShape().worldPosition[0] >> self.plane.getShape().pnts[0]
+        knee_guide.getShape().worldPosition[0] >> self.plane.getShape().pnts[1]
+        ankle_guide.getShape().worldPosition[0] >> self.plane.getShape().pnts[2]
+
+        self.plane.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+        self.plane.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+        self.plane.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+        self.plane.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+        self.plane.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+        self.plane.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+        self.plane.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+        self.plane.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+        self.plane.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+
         self.guides = [hip_guide, knee_guide, ankle_guide]
+
+        if self.model.clavicle_creation_switch:
+            clavicle_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[3])
+            clavicle_guide.setAttr("translate", (1 * self.side_coef, 7.5, 0.5))
+            self.guides.append(clavicle_guide)
+
         self.guides_grp = self.group_guides(self.guides)
-        self.guides_grp.setAttr("visibility", 1)
+        pmc.parent(self.plane, self.guides_grp)
         self.view.refresh_view()
         pmc.select(d=1)
 
@@ -160,15 +235,20 @@ class Controller(RigController):
 
         self.create_skn_jnts()
         self.create_options_ctrl()
-        self.create_and_connect_fk_ik_jnts()
-        self.create_fk()
-        if self.model.ik_creation_switch:
-            self.create_ik()
-        if self.model.stretch_creation_switch == 1:
-            self.connect_fk_stretch(self.created_fk_jnts, self.created_fk_ctrls)
-            self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
-                                    self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
-                                    self.created_fk_jnts[-1])
+        if self.model.clavicle_creation_switch:
+            self.create_clavicle_ctrl()
+        if self.model.fk_ik_type == "three_chains":
+            self.create_and_connect_fk_ik_jnts()
+            self.create_fk()
+            if self.model.ik_creation_switch:
+                self.create_ik()
+            if self.model.stretch_creation_switch == 1:
+                self.connect_fk_stretch(self.created_fk_jnts, self.created_fk_ctrls)
+                self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
+                                        self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
+                                        self.ankle_fk_pos_reader)
+        if self.model.fk_ik_type == "one_chain":
+            self.create_one_chain_fk()
         self.clean_rig()
         self.create_output()
         pmc.select(d=1)
@@ -185,11 +265,21 @@ class Controller(RigController):
                                         n="{0}_temporary_leg_plane".format(self.model.module_name), ch=1)[0]
         leg_plane_face = pmc.ls(leg_plane)[0].f[0]
 
-        hip_const = pmc.normalConstraint(leg_plane_face, duplicates_guides[0], aimVector=(0.0, 0.0, 1.0),
-                                         upVector=(1.0 * self.side_coef, 0.0, 0.0), worldUpType="object",
+        for guide in duplicates_guides:
+            guide.setAttr("rotateOrder", 4)
+
+        if self.model.clavicle_creation_switch:
+            clav_const = pmc.aimConstraint(duplicates_guides[0], duplicates_guides[3], maintainOffset=0,
+                                           aimVector=(0.0, 1.0 * self.side_coef, 0.0),
+                                           upVector=(0.0, 0.0, 1.0 * self.side_coef), worldUpType="vector",
+                                           worldUpVector=(0.0, 0.0, 1.0))
+            pmc.delete(clav_const)
+
+        hip_const = pmc.normalConstraint(leg_plane_face, duplicates_guides[0], aimVector=(-1.0, 0.0, 0.0),
+                                         upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="object",
                                          worldUpObject=duplicates_guides[1])
-        knee_cons = pmc.normalConstraint(leg_plane_face, duplicates_guides[1], aimVector=(0.0, 0.0, 1.0),
-                                         upVector=(1.0 * self.side_coef, 0.0, 0.0), worldUpType="object",
+        knee_cons = pmc.normalConstraint(leg_plane_face, duplicates_guides[1], aimVector=(-1.0, 0.0, 0.0),
+                                         upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="object",
                                          worldUpObject=duplicates_guides[2])
         pmc.delete(hip_const)
         pmc.delete(knee_cons)
@@ -198,26 +288,53 @@ class Controller(RigController):
 
         temp_guide_orient = pmc.group(em=1, n="temp_guide_orient_grp")
         temp_guide_orient.setAttr("translate", pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1))
-        temp_guide_orient.setAttr("rotate", -90 * self.side_coef, 0, -90 * self.side_coef)
+        temp_guide_orient.setAttr("rotate", 90 * (1 - self.side_coef), 0, 180)
         pmc.parent(duplicates_guides[0], temp_guide_orient, r=0)
-        pmc.select(d=1)
 
+        if self.model.clavicle_creation_switch:
+            pmc.select(d=1)
+            self.clavicle_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[3], q=1, ws=1, translation=1)),
+                                          n="{0}_hip_clavicle_SKN".format(self.model.module_name))
+            self.clavicle_jnt.setAttr("rotateOrder", 4)
+            self.clavicle_jnt.setAttr("jointOrientX", 90 * (1 - self.side_coef))
+            self.clavicle_jnt.setAttr("jointOrientZ", 180)
+            pmc.xform(self.clavicle_jnt, ws=1, rotation=(pmc.xform(duplicates_guides[3], q=1, ws=1, rotation=1)))
+
+            clav_end = pmc.joint(p=(pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1)),
+                                 n="{0}_clavicle_end_JNT".format(self.model.module_name))
+            clav_end.setAttr("rotateOrder", 4)
+
+            pmc.parent(self.clavicle_jnt, self.jnt_input_grp, r=0)
+
+        pmc.select(d=1)
         hip_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1)),
                             n="{0}_hip_SKN".format(self.model.module_name))
+        hip_jnt.setAttr("rotateOrder", 4)
+        hip_jnt.setAttr("jointOrientX", 90 * (1 - self.side_coef))
+        hip_jnt.setAttr("jointOrientZ", 180)
         hip_jnt.setAttr("rotate", pmc.xform(duplicates_guides[0], q=1, rotation=1))
-        hip_jnt.setAttr("jointOrientX", -90 * self.side_coef)
-        hip_jnt.setAttr("jointOrientY", 0)
-        hip_jnt.setAttr("jointOrientZ", -90 * self.side_coef)
 
         knee_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1)),
                              n="{0}_knee_SKN".format(self.model.module_name))
+        knee_jnt.setAttr("rotateOrder", 4)
         knee_jnt.setAttr("rotate", pmc.xform(duplicates_guides[1], q=1, rotation=1))
+
         ankle_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)),
                               n="{0}_ankle_SKN".format(self.model.module_name))
+        ankle_jnt.setAttr("rotateOrder", 4)
 
         pmc.parent(hip_jnt, self.jnt_input_grp, r=0)
+
+        if self.model.clavicle_creation_switch:
+            group = pmc.group(em=1, n="{0}_leg_to_hip_clav_const_GRP".format(self.model.module_name))
+            group.setAttr("translate", pmc.xform(hip_jnt, q=1, ws=1, translation=1))
+            pmc.parent(group, self.jnt_input_grp, r=0)
+            pmc.pointConstraint(pmc.listRelatives(self.clavicle_jnt, children=1)[0], group, maintainOffset=0)
+            pmc.parent(hip_jnt, group, r=0)
+
         self.created_skn_jnts = [hip_jnt, knee_jnt, ankle_jnt]
 
+        pmc.delete(duplicates_guides[:])
         pmc.delete(temp_guide_orient)
         pmc.delete(leg_plane)
 
@@ -227,9 +344,58 @@ class Controller(RigController):
         pmc.parent(option_ofs, self.ctrl_input_grp)
         rig_lib.matrix_constraint(self.created_skn_jnts[-1], option_ofs, srt="trs")
         ctrl_shape = self.option_ctrl.getShape()
-        pmc.move(ctrl_shape, [0, 0, 3 * self.side_coef], relative=1, objectSpace=1, worldSpaceDistance=1)
+        pmc.move(ctrl_shape, [-2.5 * self.side_coef, 0, 0], relative=1, objectSpace=1, worldSpaceDistance=1)
         self.option_ctrl.addAttr("fkIk", attributeType="float", defaultValue=0, hidden=0, keyable=1, hasMaxValue=1,
                                  hasMinValue=1, maxValue=1, minValue=0)
+        if self.model.clavicle_creation_switch:
+            self.option_ctrl.addAttr("hipClavicleIkCtrl", attributeType="bool", defaultValue=0, hidden=0, keyable=1)
+
+    def create_clavicle_ctrl(self):
+        clavicle_ik_handle = pmc.ikHandle(n="{0}_hip_clavicle_ik_HDL".format(self.model.module_name), startJoint=self.clavicle_jnt,
+                                               endEffector=pmc.listRelatives(self.clavicle_jnt, children=1)[0],
+                                               solver="ikSCsolver")[0]
+        ik_effector = pmc.listRelatives(self.clavicle_jnt, children=1)[-1]
+        ik_effector.rename("{0}_hip_clavicle_ik_EFF".format(self.model.module_name))
+
+        clav_shape = rig_lib.stick_ball("{0}_hip_clavicle_CTRL_shape".format(self.model.module_name))
+        cvs = clav_shape.getShape().cv[:]
+        for i, cv in enumerate(cvs):
+            if i != 0:
+                pmc.xform(cv, ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0] - (2 * self.side_coef),
+                                                 pmc.xform(cv, q=1, ws=1, translation=1)[1],
+                                                 pmc.xform(cv, q=1, ws=1, translation=1)[2] * -self.side_coef))
+
+        self.clavicle_ctrl = rig_lib.create_jnttype_ctrl("{0}_hip_clavicle_CTRL".format(self.model.module_name), clav_shape,
+                                                         drawstyle=2, rotateorder=4)
+        pmc.select(d=1)
+        clav_ofs = pmc.joint(p=(0, 0, 0), n="{0}_hip_clavicle_ctrl_OFS".format(self.model.module_name))
+        clav_ofs.setAttr("rotateOrder", 4)
+        clav_ofs.setAttr("drawStyle", 2)
+        pmc.parent(self.clavicle_ctrl, clav_ofs)
+        clav_ofs.setAttr("translate", pmc.xform(self.clavicle_jnt, q=1, ws=1, translation=1))
+        clav_ofs.setAttr("jointOrient", (90 * (1 - self.side_coef), 0, 180))
+
+        pmc.parent(clav_ofs, self.ctrl_input_grp)
+
+        pmc.parentConstraint(self.clavicle_ctrl, self.clavicle_jnt, maintainOffset=1)
+
+        clav_ik_shape = rig_lib.medium_cube("{0}_hip_clavicle_ik_CTRL_shape".format(self.model.module_name))
+        self.clavicle_ik_ctrl = rig_lib.create_jnttype_ctrl("{0}_hip_clavicle_ik_CTRL".format(self.model.module_name),
+                                                            clav_ik_shape, drawstyle=2, rotateorder=4)
+        pmc.select(d=1)
+        clav_ik_ofs = pmc.joint(p=(0, 0, 0), n="{0}_hip_clavicle_ik_ctrl_OFS".format(self.model.module_name))
+        clav_ik_ofs.setAttr("rotateOrder", 4)
+        clav_ik_ofs.setAttr("drawStyle", 2)
+        pmc.parent(self.clavicle_ik_ctrl, clav_ik_ofs)
+        clav_ik_ofs.setAttr("translate", pmc.xform(pmc.listRelatives(self.clavicle_jnt, children=1)[0], q=1, ws=1,
+                                                   translation=1))
+
+        pmc.parent(clav_ik_ofs, self.clavicle_ctrl, r=0)
+        pmc.parent(clavicle_ik_handle, self.clavicle_ik_ctrl)
+        clavicle_ik_handle.setAttr("visibility", 0)
+
+        self.connect_one_jnt_ik_stretch(pmc.listRelatives(self.clavicle_jnt, children=1)[0], self.clavicle_ctrl,
+                                        self.clavicle_ik_ctrl)
 
     def create_and_connect_fk_ik_jnts(self):
         hip_fk_jnt = \
@@ -264,37 +430,44 @@ class Controller(RigController):
             self.option_ctrl.fkIk >> blend_color.blender
 
     def create_fk(self):
-        hip_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
-                              n="{0}_hip_fk_CTRL".format(self.model.module_name), ch=0)[0]
-        hip_ofs = pmc.group(hip_ctrl, n="{0}_hip_fk_ctrl_OFS".format(self.model.module_name))
+        hip_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=2, d=3, s=8,
+                               n="{0}_hip_fk_CTRL_shape".format(self.model.module_name), ch=0)[0]
+        hip_ctrl = rig_lib.create_jnttype_ctrl("{0}_hip_fk_CTRL".format(self.model.module_name), hip_shape,
+                                               drawstyle=0, rotateorder=4)
+        hip_ctrl.setAttr("radius", 0)
+        pmc.select(d=1)
+        hip_ofs = pmc.joint(p=(0, 0, 0), n="{0}_hip_fk_ctrl_OFS".format(self.model.module_name))
+        hip_ofs.setAttr("rotateOrder", 4)
+        hip_ofs.setAttr("drawStyle", 2)
+        pmc.parent(hip_ctrl, hip_ofs)
         hip_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1))
-        hip_ofs.setAttr("rotateX", -90 * self.side_coef)
-        hip_ofs.setAttr("rotateY", 0)
-        hip_ofs.setAttr("rotateZ", -90 * self.side_coef)
+        hip_ofs.setAttr("jointOrientX", 90 * (1 - self.side_coef))
+        hip_ofs.setAttr("jointOrientZ", 180)
 
         hip_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[0], q=1, rotation=1))
-        hip_ctrl.setAttr("rotateOrder", 0)
         pmc.parent(hip_ofs, self.ctrl_input_grp, r=0)
 
-        knee_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
-                               n="{0}_knee_fk_CTRL".format(self.model.module_name), ch=0)[0]
-        knee_ofs = pmc.group(knee_ctrl,
-                             n="{0}_knee_fk_ctrl_OFS".format(self.model.module_name))
-        knee_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1))
+        knee_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=2, d=3, s=8,
+                                n="{0}_knee_fk_CTRL_shape".format(self.model.module_name), ch=0)[0]
+        knee_ctrl = rig_lib.create_jnttype_ctrl("{0}_knee_fk_CTRL".format(self.model.module_name), knee_shape,
+                                                drawstyle=0, rotateorder=4)
+        knee_ctrl.setAttr("radius", 0)
+        knee_ctrl.setAttr("translate", pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1))
         knee_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[1], q=1, rotation=1))
-        knee_ctrl.setAttr("rotateOrder", 0)
-        pmc.parent(knee_ofs, hip_ctrl, r=0)
-        knee_ofs.setAttr("rotate", (0, 0, 0))
+        pmc.parent(knee_ctrl, hip_ctrl, r=0)
+        pmc.reorder(knee_ctrl, front=1)
+        knee_ctrl.setAttr("jointOrient", (0, 0, 0))
 
-        ankle_ctrl = pmc.circle(c=(0, 0, 0), nr=(1, 0, 0), sw=360, r=2, d=3, s=8,
-                                n="{0}_ankle_fk_CTRL".format(self.model.module_name), ch=0)[0]
-        ankle_ofs = pmc.group(ankle_ctrl,
-                              n="{0}_ankle_fk_ctrl_OFS".format(self.model.module_name))
-        ankle_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[2], q=1, ws=1, translation=1))
+        ankle_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=2, d=3, s=8,
+                                 n="{0}_ankle_fk_CTRL_shape".format(self.model.module_name), ch=0)[0]
+        ankle_ctrl = rig_lib.create_jnttype_ctrl("{0}_ankle_fk_CTRL".format(self.model.module_name), ankle_shape,
+                                                 drawstyle=0, rotateorder=4)
+        ankle_ctrl.setAttr("radius", 0)
+        ankle_ctrl.setAttr("translate", pmc.xform(self.created_fk_jnts[2], q=1, ws=1, translation=1))
         ankle_ctrl.setAttr("rotate", pmc.xform(self.created_fk_jnts[2], q=1, rotation=1))
-        ankle_ctrl.setAttr("rotateOrder", 0)
-        pmc.parent(ankle_ofs, knee_ctrl, r=0)
-        ankle_ofs.setAttr("rotate", (0, 0, 0))
+        pmc.parent(ankle_ctrl, knee_ctrl, r=0)
+        pmc.reorder(ankle_ctrl, front=1)
+        ankle_ctrl.setAttr("jointOrient", (0, 0, 0))
 
         self.created_fk_ctrls = [hip_ctrl, knee_ctrl, ankle_ctrl]
 
@@ -303,16 +476,24 @@ class Controller(RigController):
             if ctrl == self.created_fk_ctrls[-1]:
                 ctrl.scale >> self.created_fk_jnts[i].scale
 
+        if self.model.clavicle_creation_switch:
+            pmc.pointConstraint(pmc.listRelatives(self.clavicle_jnt, children=1)[0], hip_ofs, maintainOffset=1)
+
     def create_ik(self):
-        self.created_ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)),
+        ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)),
                                  startJoint=self.created_ik_jnts[0], endEffector=self.created_ik_jnts[-1],
                                  solver="ikRPsolver")[0]
         ik_effector = pmc.listRelatives(self.created_ik_jnts[-2], children=1)[1]
         ik_effector.rename("{0}_ik_EFF".format(self.model.module_name))
 
-        ik_ctrl = rig_lib.medium_cube("{0}_ankle_ik_CTRL".format(self.model.module_name))
-        ik_ctrl_ofs = pmc.group(ik_ctrl, n="{0}_ankle_ik_ctrl_OFS".format(self.model.module_name))
-
+        ik_shape = rig_lib.medium_cube("{0}_ankle_ik_CTRL_shape".format(self.model.module_name))
+        ik_ctrl = rig_lib.create_jnttype_ctrl("{0}_ankle_ik_CTRL".format(self.model.module_name), ik_shape, drawstyle=2,
+                                              rotateorder=4)
+        pmc.select(d=1)
+        ik_ctrl_ofs = pmc.joint(p=(0, 0, 0), n="{0}_ankle_ik_ctrl_OFS".format(self.model.module_name))
+        ik_ctrl_ofs.setAttr("rotateOrder", 4)
+        ik_ctrl_ofs.setAttr("drawStyle", 2)
+        pmc.parent(ik_ctrl, ik_ctrl_ofs)
         fk_ctrl_01_value = pmc.xform(self.created_fk_ctrls[0], q=1, rotation=1)
         fk_ctrl_02_value = pmc.xform(self.created_fk_ctrls[1], q=1, rotation=1)
         fk_ctrl_03_value = pmc.xform(self.created_fk_ctrls[2], q=1, rotation=1)
@@ -321,25 +502,30 @@ class Controller(RigController):
         self.created_fk_ctrls[2].setAttr("rotate", (0, 0, 0))
 
         ik_ctrl_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[2], q=1, ws=1, translation=1))
-        pmc.parent(self.created_ik_handle, ik_ctrl_ofs, r=0)
-        ik_ctrl.setAttr("translate", pmc.xform(self.created_ik_handle, q=1, translation=1))
-        pmc.parent(self.created_ik_handle, ik_ctrl, r=0)
+        pmc.parent(ik_handle, ik_ctrl_ofs, r=0)
+        ik_ctrl.setAttr("translate", pmc.xform(ik_handle, q=1, translation=1))
+        pmc.parent(ik_handle, ik_ctrl, r=0)
         pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
 
-        ik_ctrl.rotate >> self.created_ik_jnts[-1].rotate
-        ik_ctrl.scale >> self.created_ik_jnts[-1].scale
+        ik_ctrl.setAttr("translate", (0, 0, 0))
 
-        pole_vector = rig_lib.jnt_shape_curve("{0}_poleVector_CTRL".format(self.model.module_name))
+        pole_vector_shape = rig_lib.jnt_shape_curve("{0}_poleVector_CTRL_shape".format(self.model.module_name))
+        pole_vector = rig_lib.create_jnttype_ctrl("{0}_poleVector_CTRL".format(self.model.module_name), pole_vector_shape,
+                                                  drawstyle=2)
         pv_ofs = pmc.group(pole_vector, n="{0}_poleVector_ctrl_OFS".format(self.model.module_name))
         pv_ofs.setAttr("translate", (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0],
                                      pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[1],
                                      pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[2] + (
-                                         (pmc.xform(self.created_fk_jnts[1], q=1, translation=1)[
-                                              0]) * self.side_coef)))
-        pmc.poleVectorConstraint(pole_vector, self.created_ik_handle)
+                                         (pmc.xform(self.created_fk_jnts[1], q=1, translation=1)[1]) * self.side_coef)))
+        pmc.poleVectorConstraint(pole_vector, ik_handle)
         pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
 
-        self.created_ik_jnts[1].setAttr("preferredAngleZ", 90)
+        self.created_ik_jnts[1].setAttr("preferredAngleX", -90)
+
+        const = pmc.parentConstraint(ik_ctrl, self.created_ik_jnts[-1], maintainOffset=1, skipTranslate=["x", "y", "z"])
+        const.setAttr("target[0].targetOffsetRotate", (0, 90 * (1 - self.side_coef), 90 * (1 + self.side_coef)))
+        const.setAttr("target[0].targetOffsetTranslate", (0, 0, 0))
+        ik_ctrl.scale >> self.created_ik_jnts[-1].scale
 
         self.created_ik_ctrls = [ik_ctrl, pole_vector]
 
@@ -349,9 +535,18 @@ class Controller(RigController):
 
         pmc.xform(pole_vector, ws=1, translation=(pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)))
 
-        self.created_ik_handle.setAttr("visibility", 0)
+        ik_handle.setAttr("visibility", 0)
+
+        self.ankle_fk_pos_reader = pmc.spaceLocator(p=(0, 0, 0),
+                                                    n="{0}_ankle_fk_pos_reader_LOC".format(self.model.module_name))
+        self.ankle_fk_pos_reader.setAttr("rotateOrder", 4)
+        self.ankle_fk_pos_reader.setAttr("visibility", 0)
+        pmc.parent(self.ankle_fk_pos_reader, self.created_fk_ctrls[-1], r=1)
+        self.ankle_fk_pos_reader.setAttr("rotate", (90 * (1 - self.side_coef), 0, 180))
+        rig_lib.clean_ctrl(self.ankle_fk_pos_reader, 0, trs="trs")
 
         pmc.xform(ik_ctrl, ws=1, translation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, translation=1)))
+        pmc.xform(ik_ctrl, ws=1, rotation=(pmc.xform(self.ankle_fk_pos_reader, q=1, ws=1, rotation=1)))
 
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)
@@ -368,26 +563,35 @@ class Controller(RigController):
 
         if self.model.raz_ctrls:
             for i, ctrl in enumerate(self.created_fk_ctrls):
-                rig_lib.raz_fk_ctrl_rotate(ctrl, self.created_fk_jnts[i])
+                rig_lib.raz_fk_ctrl_rotate(ctrl, self.created_fk_jnts[i], self.model.stretch_creation_switch)
 
-            rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0])
+            rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0], self.created_ik_jnts[-1], self.side_coef)
 
         invert_value = pmc.createNode("plusMinusAverage", n="{0}_fk_visibility_MDL".format(self.model.module_name))
         invert_value.setAttr("input1D[0]", 1)
         invert_value.setAttr("operation", 2)
         self.option_ctrl.fkIk >> invert_value.input1D[1]
 
-        for ctrl in self.created_fk_ctrls:
-            if ctrl == self.created_fk_ctrls[-1]:
-                rig_lib.clean_ctrl(ctrl, color_value, trs="t", visibility_dependence=invert_value.output1D)
-            else:
-                rig_lib.clean_ctrl(ctrl, color_value, trs="ts", visibility_dependence=invert_value.output1D)
+        if self.model.clavicle_creation_switch:
+            rig_lib.clean_ctrl(self.clavicle_ctrl, color_value, trs="s")
+            rig_lib.clean_ctrl(self.clavicle_ik_ctrl, color_value, trs="rs",
+                               visibility_dependence=self.option_ctrl.hipClavicleIkCtrl)
+
+        rig_lib.clean_ctrl(self.created_fk_ctrls[0], color_value, trs="ts",
+                           visibility_dependence=invert_value.output1D)
+        rig_lib.clean_ctrl(self.created_fk_ctrls[0].getParent(), color_value, trs="trs")
+        rig_lib.clean_ctrl(self.created_fk_ctrls[1], color_value, trs="ts", visibility_dependence=invert_value.output1D)
+        rig_lib.clean_ctrl(self.created_fk_ctrls[2], color_value, trs="t", visibility_dependence=invert_value.output1D)
 
         rig_lib.clean_ctrl(self.created_ik_ctrls[0], color_value, trs="", visibility_dependence=self.option_ctrl.fkIk)
+        rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
         rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
 
     def create_output(self):
         rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
+
+    def create_one_chain_fk(self):
+        pass
 
 
 class Model(AuriScriptModel):
@@ -399,4 +603,6 @@ class Model(AuriScriptModel):
         self.ik_creation_switch = True
         self.stretch_creation_switch = True
         self.raz_ctrls = True
+        self.clavicle_creation_switch = True
+        self.fk_ik_type = "one_chain"
         # self.bend_creation_switch = False

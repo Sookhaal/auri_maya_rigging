@@ -129,6 +129,7 @@ class Controller(RigController):
         self.option_ctrl = None
         self.plane = None
         self.clavicle_ik_ctrl = None
+        self.wrist_fk_pos_reader = None
         RigController.__init__(self,  model, view)
 
     def prebuild(self):
@@ -234,9 +235,7 @@ class Controller(RigController):
                 self.connect_fk_stretch(self.created_fk_jnts, self.created_fk_ctrls)
                 self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
                                         self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
-                                        self.created_fk_jnts[-1])
-                if self.model.side == "Right":
-                    self.created_ik_ctrls[0].setAttr("rotateY", (self.created_ik_ctrls[0].getAttr("rotateY") - 180))
+                                        self.wrist_fk_pos_reader)
         if self.model.fk_ik_type == "one_chain":
             self.create_one_chain_fk()
         self.clean_rig()
@@ -277,18 +276,15 @@ class Controller(RigController):
         pmc.parent(duplicates_guides[1], duplicates_guides[0], r=0)
         pmc.parent(duplicates_guides[2], duplicates_guides[1], r=0)
 
-        pmc.select(d=1)
         if self.model.clavicle_creation_switch:
+            pmc.select(d=1)
             self.clavicle_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[3], q=1, ws=1, translation=1)),
-                                     n="{0}_clavicle_SKN".format(self.model.module_name))
+                                          n="{0}_clavicle_SKN".format(self.model.module_name))
             self.clavicle_jnt.setAttr("rotateOrder", 4)
             self.clavicle_jnt.setAttr("jointOrientZ", -90 * self.side_coef)
             if self.model.side == "Right":
                 self.clavicle_jnt.setAttr("jointOrientX", 180)
             pmc.xform(self.clavicle_jnt, ws=1, rotation=(pmc.xform(duplicates_guides[3], q=1, ws=1, rotation=1)))
-
-            # group = pmc.group(em=1, n="temp_group")
-            # group.setAttr("rotateOrder", 4)
 
             clav_end = pmc.joint(p=(pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1)),
                                  n="{0}_clavicle_end_JNT".format(self.model.module_name))
@@ -296,21 +292,13 @@ class Controller(RigController):
 
             pmc.parent(self.clavicle_jnt, self.jnt_input_grp, r=0)
 
-            # pmc.parent(shoulder_jnt, group, r=1)
-            # group.setAttr("translate", pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1))
-            # group.setAttr("rotate", (-90 * (1 - self.side_coef), 0, -90 * self.side_coef))
-
-            # pmc.parent(shoulder_jnt, self.clavicle_jnt, r=0)
-            # pmc.delete(group)
-
         pmc.select(d=1)
         shoulder_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1)),
                                  n="{0}_shoulder_SKN".format(self.model.module_name))
 
         shoulder_jnt.setAttr("rotateOrder", 4)
         shoulder_jnt.setAttr("jointOrientZ", -90 * self.side_coef)
-        if self.model.side == "Right":
-            shoulder_jnt.setAttr("jointOrientX", 180)
+        shoulder_jnt.setAttr("jointOrientX", 90 * (1 - self.side_coef))
 
         pmc.xform(shoulder_jnt, ws=1, rotation=(pmc.xform(duplicates_guides[0], q=1, ws=1, rotation=1)))
 
@@ -331,8 +319,6 @@ class Controller(RigController):
             pmc.parent(group, self.jnt_input_grp, r=0)
             pmc.pointConstraint(pmc.listRelatives(self.clavicle_jnt, children=1)[0], group, maintainOffset=0)
             pmc.parent(shoulder_jnt, group, r=0)
-        #     pmc.parent(shoulder_jnt, pmc.listRelatives(self.clavicle_jnt, children=1)[0], r=0)
-        # else:
 
         self.created_skn_jnts = [shoulder_jnt, elbow_jnt, wrist_jnt]
 
@@ -375,7 +361,6 @@ class Controller(RigController):
         pmc.parent(self.clavicle_ctrl, clav_ofs)
         clav_ofs.setAttr("translate", pmc.xform(self.clavicle_jnt, q=1, ws=1, translation=1))
         clav_ofs.setAttr("jointOrient", (90 * (1 - self.side_coef), 0, -90*self.side_coef))
-        # self.clavicle_ctrl.setAttr("jointOrient", pmc.xform(self.clavicle_jnt, q=1, rotation=1))
 
         pmc.parent(clav_ofs, self.ctrl_input_grp)
 
@@ -490,10 +475,10 @@ class Controller(RigController):
 
         ik_shape = rig_lib.medium_cube("{0}_wrist_ik_CTRL_shape".format(self.model.module_name))
         ik_ctrl = rig_lib.create_jnttype_ctrl("{0}_wrist_ik_CTRL".format(self.model.module_name), ik_shape, drawstyle=2,
-                                              rotateorder=4)
+                                              rotateorder=3)
         pmc.select(d=1)
         ik_ctrl_ofs = pmc.joint(p=(0, 0, 0), n="{0}_wrist_ik_ctrl_OFS".format(self.model.module_name))
-        ik_ctrl_ofs.setAttr("rotateOrder", 4)
+        ik_ctrl_ofs.setAttr("rotateOrder", 3)
         ik_ctrl_ofs.setAttr("drawStyle", 2)
         pmc.parent(ik_ctrl, ik_ctrl_ofs)
         fk_ctrl_01_value = pmc.xform(self.created_fk_ctrls[0], q=1, rotation=1)
@@ -504,7 +489,6 @@ class Controller(RigController):
         self.created_fk_ctrls[2].setAttr("rotate", (0, 0, 0))
 
         ik_ctrl_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[2], q=1, ws=1, translation=1))
-        ik_ctrl_ofs.setAttr("jointOrient", (0, 0, -90))
         pmc.parent(ik_handle, ik_ctrl_ofs, r=0)
         ik_ctrl.setAttr("translate", pmc.xform(ik_handle, q=1, translation=1))
         pmc.parent(ik_handle, ik_ctrl, r=0)
@@ -526,11 +510,14 @@ class Controller(RigController):
         self.created_ik_jnts[1].setAttr("preferredAngleX", 90)
 
         const = pmc.parentConstraint(ik_ctrl, self.created_ik_jnts[-1], maintainOffset=1, skipTranslate=["x", "y", "z"])
-        const.setAttr("target[0].targetOffsetRotate", (0, -90 * (-1 + self.side_coef), 0))
+        const.setAttr("target[0].targetOffsetRotate", (90 * (1 - self.side_coef), 0, 90 * -self.side_coef))
         const.setAttr("target[0].targetOffsetTranslate", (0, 0, 0))
-        ik_ctrl.scale >> self.created_ik_jnts[-1].scale
+        ik_ctrl.scaleX >> self.created_ik_jnts[-1].scaleY
+        ik_ctrl.scaleY >> self.created_ik_jnts[-1].scaleX
+        ik_ctrl.scaleZ >> self.created_ik_jnts[-1].scaleZ
 
         self.created_ik_ctrls = [ik_ctrl, pole_vector]
+
         self.created_fk_ctrls[0].setAttr("rotate", fk_ctrl_01_value)
         self.created_fk_ctrls[1].setAttr("rotate", fk_ctrl_02_value)
         self.created_fk_ctrls[2].setAttr("rotate", fk_ctrl_03_value)
@@ -539,11 +526,16 @@ class Controller(RigController):
 
         ik_handle.setAttr("visibility", 0)
 
+        self.wrist_fk_pos_reader = pmc.spaceLocator(p=(0, 0, 0), n="{0}_wrist_fk_pos_reader_LOC".format(self.model.module_name))
+        self.wrist_fk_pos_reader.setAttr("rotateOrder", 3)
+        self.wrist_fk_pos_reader.setAttr("visibility", 0)
+        pmc.parent(self.wrist_fk_pos_reader, self.created_fk_ctrls[-1], r=1)
+        self.wrist_fk_pos_reader.setAttr("rotate", (90 * (1 - self.side_coef), 0, 90))
+        rig_lib.clean_ctrl(self.wrist_fk_pos_reader, 0, trs="trs")
+
         pmc.xform(ik_ctrl, ws=1,
                   translation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, translation=1)))
-        pmc.xform(ik_ctrl, ws=1, rotation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, rotation=1)))
-        if self.model.side == "Right":
-            ik_ctrl.setAttr("rotateY", (ik_ctrl.getAttr("rotateY") - 180))
+        pmc.xform(ik_ctrl, ws=1, rotation=(pmc.xform(self.wrist_fk_pos_reader, q=1, ws=1, rotation=1)))
 
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)

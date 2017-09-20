@@ -285,14 +285,6 @@ class RigController(AuriScriptController):
 
         pmc.xform(created_ik_ctrls[0], ws=1, translation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, translation=1)))
         pmc.xform(created_ik_ctrls[0], ws=1, rotation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, rotation=1)))
-        # TODO: if this function is used for the mirrored limb, don't forget to invert the rotation of the ik_ctrl
-        # EX:
-        # if self.model.side == "Right": (for the arm)
-        #     created_ik_ctrls[0].setAttr("rotateY", (created_ik_ctrls[0].getAttr("rotateY") - 180))
-        # if self.model.side == "Left": (for the leg)
-        #     created_ik_ctrls[0].setAttr("rotateX", (created_ik_ctrls[0].getAttr("rotateX") * -1))
-        #     created_ik_ctrls[0].setAttr("rotateY", (created_ik_ctrls[0].getAttr("rotateY") - 180) * -1)
-        #     created_ik_ctrls[0].setAttr("rotateZ", (created_ik_ctrls[0].getAttr("rotateZ") - 180))
 
     def connect_one_jnt_ik_stretch(self, jnt, start_parent, end_parent):
         # jnt_stretch_mult_list = []
@@ -618,50 +610,61 @@ def create_output(name, parent):
     output.visibility.set(0)
 
 
-def raz_fk_ctrl_rotate(ctrl, jnt):
-    # ctrl.addAttr("rotateOffsetX", attributeType="float", defaultValue=0, hidden=0, keyable=0)
-    # ctrl.addAttr("rotateOffsetY", attributeType="float", defaultValue=0, hidden=0, keyable=0)
-    # ctrl.addAttr("rotateOffsetZ", attributeType="float", defaultValue=0, hidden=0, keyable=0)
-    # ctrl.setAttr("rotateOffsetX", ctrl.getAttr("rotateX"))
-    # ctrl.setAttr("rotateOffsetY", ctrl.getAttr("rotateY"))
-    # ctrl.setAttr("rotateOffsetZ", ctrl.getAttr("rotateZ"))
-    # ctrl.setAttr("rotate", (0, 0, 0))
-    # jnt_offset = pmc.createNode("plusMinusAverage", n="{0}_raz_jnt_offset_PMA".format(ctrl))
-    # jnt_offset.setAttr("operation", 1)
-    # ctrl.rotate >> jnt_offset.input3D[0]
-    # ctrl.rotateOffsetX >> jnt_offset.input3D[1].input3Dx
-    # ctrl.rotateOffsetY >> jnt_offset.input3D[1].input3Dy
-    # ctrl.rotateOffsetZ >> jnt_offset.input3D[1].input3Dz
-    # jnt_offset.output3D >> jnt.rotate
-    raz = pmc.group(em=1, n="{0}_RAZ".format(ctrl))
-    pmc.parent(raz, ctrl.getParent(), r=1)
-    raz.setAttr("translate", ctrl.getAttr("translate"))
-    raz.setAttr("rotate", ctrl.getAttr("rotate"))
-    pmc.parent(ctrl, raz, r=1)
+def raz_fk_ctrl_rotate(ctrl, jnt, stretch=False):
+    pmc.select(d=1)
+    jnt_ofs = pmc.joint(p=(0, 0, 0), n="{0}_RAZ".format(ctrl))
+    jnt_ofs.setAttr("rotateOrder", 4)
+    jnt_ofs.setAttr("drawStyle", 2)
+    pmc.parent(jnt_ofs, ctrl.getParent(), r=1)
+    pmc.reorder(jnt_ofs, front=1)
+    jnt_ofs.setAttr("translate", ctrl.getAttr("translate"))
+    jnt_ofs.setAttr("jointOrient", ctrl.getAttr("jointOrient"))
+    jnt_ofs.setAttr("rotate", ctrl.getAttr("rotate"))
+    pmc.parent(ctrl, jnt_ofs, r=0)
+
+    if stretch and pmc.listConnections(ctrl.ty, destination=0, source=1) != []:
+        stretch_node = pmc.listConnections(ctrl.ty, destination=0, source=1)[0]
+        stretch_node.output // ctrl.ty
+        stretch_node.output >> jnt_ofs.ty
+
+    ctrl.setAttr("translate", (0, 0, 0))
     ctrl.setAttr("rotate", (0, 0, 0))
+    ctrl.setAttr("jointOrient", (0, 0, 0))
+
     jnt_offset = pmc.createNode("plusMinusAverage", n="{0}_raz_jnt_offset_PMA".format(ctrl))
     jnt_offset.setAttr("operation", 1)
     ctrl.rotate >> jnt_offset.input3D[0]
-    raz.rotate >> jnt_offset.input3D[1]
+    jnt_ofs.rotate >> jnt_offset.input3D[1]
     jnt_offset.output3D >> jnt.rotate
 
+    ctrl_cvs = ctrl.cv[:]
+    for i, cv in enumerate(ctrl_cvs):
+        pmc.xform(ctrl.getShape().controlPoints[i], ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0],
+                  pmc.xform(ctrl, q=1, ws=1, translation=1)[1], pmc.xform(cv, q=1, ws=1, translation=1)[2]))
 
-def raz_ik_ctrl_translate(ctrl):
-    raz = pmc.group(em=1, n="{0}_RAZ".format(ctrl))
-    pmc.parent(raz, ctrl.getParent(), r=1)
-    raz.setAttr("translate", ctrl.getAttr("translate"))
-    pmc.parent(ctrl, raz, r=1)
-    ctrl.setAttr("translate", (0, 0, 0))
+    clean_ctrl(jnt_ofs, 0, trs="trs")
+
+#
+# def raz_ik_ctrl_translate(ctrl):
+#     raz = pmc.group(em=1, n="{0}_RAZ".format(ctrl))
+#     pmc.parent(raz, ctrl.getParent(), r=1)
+#     raz.setAttr("translate", ctrl.getAttr("translate"))
+#     pmc.parent(ctrl, raz, r=1)
+#     ctrl.setAttr("translate", (0, 0, 0))
 
 
-def raz_ik_ctrl_translate_rotate(ctrl, jnt=None):
-    raz = pmc.group(em=1, n="{0}_RAZ".format(ctrl))
-    pmc.parent(raz, ctrl.getParent(), r=1)
-    raz.setAttr("translate", ctrl.getAttr("translate"))
-    raz.setAttr("rotate", ctrl.getAttr("rotate"))
-    pmc.parent(ctrl, raz, r=1)
+def raz_ik_ctrl_translate_rotate(ctrl, jnt, side_coef):
+    const = pmc.listRelatives(jnt, children=1)[0]
+    const.setAttr("target[0].targetOffsetRotate", (const.getAttr("target[0].targetOffsetRotateX") -
+                                                   (pmc.xform(ctrl, q=1, rotation=1)[0] * side_coef),
+                                                   const.getAttr("target[0].targetOffsetRotateY") -
+                                                   (pmc.xform(ctrl, q=1, rotation=1)[1] * side_coef),
+                                                   const.getAttr("target[0].targetOffsetRotateZ") +
+                                                   pmc.xform(ctrl, q=1, rotation=1)[2]))
+    pmc.xform(ctrl.getParent(), ws=1, translation=(pmc.xform(ctrl, q=1, ws=1, translation=1)))
     ctrl.setAttr("translate", (0, 0, 0))
     ctrl.setAttr("rotate", (0, 0, 0))
+    ctrl.setAttr("jointOrient", (0, 0, 0))
 
 
 def create_jnttype_ctrl(name, shape, drawstyle=2, rotateorder=0):
