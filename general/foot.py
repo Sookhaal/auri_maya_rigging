@@ -17,6 +17,7 @@ class View(AuriScriptView):
         self.refresh_btn = QtWidgets.QPushButton("Refresh")
         self.prebuild_btn = QtWidgets.QPushButton("Prebuild")
         self.side_cbbox = QtWidgets.QComboBox()
+        self.fk_ik_type_cbbox = QtWidgets.QComboBox()
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -27,6 +28,7 @@ class View(AuriScriptView):
 
     def refresh_view(self):
         self.side_cbbox.setCurrentText(self.model.side)
+        self.fk_ik_type_cbbox.setCurrentText(self.model.fk_ik_type)
         self.ctrl.look_for_parent()
 
     def setup_ui(self):
@@ -38,6 +40,9 @@ class View(AuriScriptView):
 
         self.side_cbbox.insertItems(0, ["Left", "Right"])
         self.side_cbbox.currentTextChanged.connect(self.ctrl.on_side_cbbox_changed)
+
+        self.fk_ik_type_cbbox.insertItems(0, ["one_chain", "three_chains"])
+        self.fk_ik_type_cbbox.currentTextChanged.connect(self.ctrl.on_fk_ik_type_changed)
 
         self.refresh_btn.clicked.connect(self.ctrl.look_for_parent)
         self.prebuild_btn.clicked.connect(self.ctrl.prebuild)
@@ -60,8 +65,13 @@ class View(AuriScriptView):
         side_grp = grpbox("Side", side_layout)
         side_layout.addWidget(self.side_cbbox)
 
+        chain_type_layout = QtWidgets.QVBoxLayout()
+        chain_type_grp = grpbox("Fk/Ik chain type", chain_type_layout)
+        chain_type_layout.addWidget(self.fk_ik_type_cbbox)
+
         main_layout.addLayout(select_parent_and_object_layout)
         main_layout.addWidget(side_grp)
+        main_layout.addWidget(chain_type_grp)
         main_layout.addWidget(self.prebuild_btn)
         self.setLayout(main_layout)
 
@@ -101,6 +111,7 @@ class Controller(RigController):
         if self.guide_check(self.guides_names):
             self.guides = pmc.ls(self.guides_names)
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
+            self.guides_grp.setAttr("visibility", 1)
             return
 
         ankle_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[0])
@@ -119,7 +130,6 @@ class Controller(RigController):
 
         self.guides = [ankle_guide, ball_guide, toe_guide, heel_guide, infoot_guide, outfoot_guide]
         self.guides_grp = self.group_guides(self.guides)
-        self.guides_grp.setAttr("visibility", 1)
         self.view.refresh_view()
         pmc.select(d=1)
 
@@ -132,10 +142,14 @@ class Controller(RigController):
         self.get_parent_ik_objects()
 
         self.create_skn_jnts_and_locs()
-        self.create_and_connect_fk_ik_jnts()
-        self.create_fk()
-        self.create_ik_and_roll()
+        if self.model.fk_ik_type == "three_chains":
+            self.create_and_connect_fk_ik_jnts()
+            self.create_fk()
+            self.create_ik_and_roll()
+        if self.model.fk_ik_type == "one_chain":
+            pass
         self.clean_rig()
+        pmc.select(d=1)
 
     def get_parent_ik_objects(self):
         self.leg_ik_ctrl = pmc.ls("{0}_ankle_ik_CTRL".format(self.model.selected_module))[0]
@@ -149,12 +163,16 @@ class Controller(RigController):
             duplicate = guide.duplicate(n="{0}_duplicate".format(guide))[0]
             duplicates_guides.append(duplicate)
 
+        duplicates_guides[0].setAttr("rotateOrder", 4)
+        duplicates_guides[1].setAttr("rotateOrder", 4)
+        duplicates_guides[2].setAttr("rotateOrder", 4)
+
         ankle_const = pmc.aimConstraint(duplicates_guides[1], duplicates_guides[0], maintainOffset=0,
-                                        aimVector=(1.0 * self.side_coef, 0.0, 0.0),
-                                        upVector=(0.0, -1.0 * self.side_coef, 0.0), worldUpType="scene")
+                                        aimVector=(0.0, 1.0 * self.side_coef, 0.0),
+                                        upVector=(0.0, 0.0, 1.0 * self.side_coef), worldUpType="scene")
         ball_cons = pmc.aimConstraint(duplicates_guides[2], duplicates_guides[1], maintainOffset=0,
-                                      aimVector=(1.0 * self.side_coef, 0.0, 0.0),
-                                      upVector=(0.0, -1.0 * self.side_coef, 0.0), worldUpType="scene")
+                                      aimVector=(0.0, 1.0 * self.side_coef, 0.0),
+                                      upVector=(0.0, 0.0, 1.0 * self.side_coef), worldUpType="scene")
 
         pmc.delete(ankle_const)
         pmc.delete(ball_cons)
@@ -163,22 +181,24 @@ class Controller(RigController):
 
         temp_guide_orient = pmc.group(em=1, n="temp_guide_orient_grp")
         temp_guide_orient.setAttr("translate", pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1))
-        temp_guide_orient.setAttr("rotate", 90 * (self.side_coef + 1), -90 * self.side_coef, 0)
+        temp_guide_orient.setAttr("rotateOrder", 4)
+        temp_guide_orient.setAttr("rotate", 0, 90 * (1 - self.side_coef), 90 * (1 + self.side_coef))
         pmc.parent(duplicates_guides[0], temp_guide_orient, r=0)
         pmc.select(d=1)
 
         ankle_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1)),
                               n="{0}_foot_JNT".format(self.model.module_name))
+        ankle_jnt.setAttr("rotateOrder", 4)
+        ankle_jnt.setAttr("jointOrient", 0, 90 * (1 - self.side_coef), 90 * (1 + self.side_coef))
         ankle_jnt.setAttr("rotate", pmc.xform(duplicates_guides[0], q=1, rotation=1))
-        ankle_jnt.setAttr("jointOrientX", 90 * (self.side_coef + 1))
-        ankle_jnt.setAttr("jointOrientY", -90 * self.side_coef)
-        ankle_jnt.setAttr("jointOrientZ", 0)
 
         ball_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1)),
                              n="{0}_ball_SKN".format(self.model.module_name))
+        ball_jnt.setAttr("rotateOrder", 4)
         ball_jnt.setAttr("rotate", pmc.xform(duplicates_guides[1], q=1, rotation=1))
         toe_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)),
                             n="{0}_toe_SKN".format(self.model.module_name))
+        toe_jnt.setAttr("rotateOrder", 4)
 
         pmc.parent(ankle_jnt, self.jnt_input_grp, r=0)
         self.created_skn_jnts = [ankle_jnt, ball_jnt, toe_jnt]
@@ -187,13 +207,18 @@ class Controller(RigController):
         toe_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_toe_LOC".format(self.model.module_name))
         heel_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_heel_LOC".format(self.model.module_name))
         infoot_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_infoot_LOC".format(self.model.module_name))
+        infoot_loc.setAttr("rotateOrder", 2)
         outfoot_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_outfoot_LOC".format(self.model.module_name))
+        outfoot_loc.setAttr("rotateOrder", 2)
 
         ball_loc.setAttr("translate", pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1))
         toe_loc.setAttr("translate", pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1))
         heel_loc.setAttr("translate", pmc.xform(duplicates_guides[3], q=1, ws=1, translation=1))
+        heel_loc.setAttr("rotateY", pmc.xform(duplicates_guides[3], q=1, ws=1, rotation=1)[1])
         infoot_loc.setAttr("translate", pmc.xform(duplicates_guides[4], q=1, ws=1, translation=1))
+        infoot_loc.setAttr("rotateY", pmc.xform(duplicates_guides[4], q=1, ws=1, rotation=1)[1])
         outfoot_loc.setAttr("translate", pmc.xform(duplicates_guides[5], q=1, ws=1, translation=1))
+        outfoot_loc.setAttr("rotateY", pmc.xform(duplicates_guides[5], q=1, ws=1, rotation=1)[1])
 
         pmc.parent(heel_loc, self.ctrl_input_grp)
         pmc.parent(outfoot_loc, heel_loc)
@@ -239,25 +264,26 @@ class Controller(RigController):
             self.leg_option_ctrl.fkIk >> blend_color.blender
 
     def create_fk(self):
-        self.toes_ctrl = pmc.circle(c=(0, 0, 0), nr=(1.5, 0, 0), sw=360, r=1, d=3, s=8,
-                               n="{0}_toes_fk_CTRL".format(self.model.module_name), ch=0)[0]
-        toes_ofs = pmc.group(self.toes_ctrl, n="{0}_toes_fk_ctrl_OFS".format(self.model.module_name))
-        toes_ofs.setAttr("translate", pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1))
-        toes_ofs.setAttr("rotateX", 90 * (self.side_coef+1))
-        toes_ofs.setAttr("rotateY", -90 * self.side_coef)
-        toes_ofs.setAttr("rotateZ", 0)
+        toes_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=1, d=3, s=8,
+                                n="{0}_toes_fk_CTRL_shape".format(self.model.module_name), ch=0)[0]
+        self.toes_ctrl = rig_lib.create_jnttype_ctrl("{0}_toes_fk_CTRL".format(self.model.module_name), toes_shape,
+                                                     drawstyle=2, rotateorder=4)
+        self.toes_ctrl.setAttr("translate", pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1))
+        self.toes_ctrl.setAttr("jointOrient", (90, 90 * (1 - self.side_coef), 90 * (1 + self.side_coef)))
+        pmc.parent(self.toes_ctrl, self.ctrl_input_grp, r=0)
 
-        toes_raz = pmc.group(self.toes_ctrl, n="{0}_toes_fk_ctrl_RAZ".format(self.model.module_name))
-        pmc.parent(toes_ofs, self.ctrl_input_grp, r=0)
-        pmc.parent(toes_raz, toes_ofs, r=0)
-        toes_raz.setAttr("rotate", pmc.xform(self.created_fk_jnts[1], q=1, rotation=1))
-        toes_ofs.setAttr("rotateX", toes_ofs.getAttr("rotateX") + (toes_raz.getAttr("rotateX")*-1))
-        toes_ofs.setAttr("rotateY", toes_ofs.getAttr("rotateY") + (toes_raz.getAttr("rotateY")*-1))
-        toes_ofs.setAttr("rotateZ", toes_ofs.getAttr("rotateZ") + (toes_raz.getAttr("rotateZ")*-1))
+        self.toes_ctrl.addAttr("jntRotateOffsetX", attributeType="float",
+                               defaultValue=self.created_fk_jnts[1].getAttr("rotateX"), hidden=0, keyable=0)
+        self.toes_ctrl.addAttr("jntRotateOffsetY", attributeType="float",
+                               defaultValue=self.created_fk_jnts[1].getAttr("rotateY"), hidden=0, keyable=0)
+        self.toes_ctrl.addAttr("jntRotateOffsetZ", attributeType="float",
+                               defaultValue=self.created_fk_jnts[1].getAttr("rotateZ"), hidden=0, keyable=0)
         jnt_offset = pmc.createNode("plusMinusAverage", n="{0}_ball_jnt_offset_PMA".format(self.created_fk_jnts[1]))
         jnt_offset.setAttr("operation", 1)
         self.toes_ctrl.rotate >> jnt_offset.input3D[0]
-        toes_raz.rotate >> jnt_offset.input3D[1]
+        self.toes_ctrl.jntRotateOffsetX >> jnt_offset.input3D[1].input3Dx
+        self.toes_ctrl.jntRotateOffsetY >> jnt_offset.input3D[1].input3Dy
+        self.toes_ctrl.jntRotateOffsetZ >> jnt_offset.input3D[1].input3Dz
         jnt_offset.output3D >> self.created_fk_jnts[1].rotate
 
     def create_ik_and_roll(self):
@@ -274,6 +300,7 @@ class Controller(RigController):
 
         locs_offset = pmc.group(em=1, n="{0}_roll_OFS".format(self.model.module_name))
         locs_offset.setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
+        locs_offset.setAttr("rotateOrder", 4)
         pmc.parent(locs_offset, self.leg_ik_ctrl, r=0)
         toe_bend_group = pmc.group(em=1, n="{0}_toe_bend_OFS".format(self.model.module_name))
         toe_bend_group.setAttr("translate", pmc.xform(self.created_locs[0], q=1, ws=1, translation=1))
@@ -347,8 +374,19 @@ class Controller(RigController):
         roll_ball_mult.outputX >> self.created_locs[0].rotateX
 
         self.leg_ik_ctrl.toeBend >> toe_bend_group.rotateX
-        self.leg_ik_ctrl.heelTwist >> self.created_locs[2].rotateY
-        self.leg_ik_ctrl.toeTwist >> self.created_locs[1].rotateY
+
+        heel_offset = pmc.createNode("plusMinusAverage", n="{0}_heeltwist_offset_PMA".format(self.created_locs[2]))
+        heel_offset.setAttr("operation", 1)
+        heel_offset.setAttr("input1D[0]", self.created_locs[2].getAttr("rotateY"))
+        self.leg_ik_ctrl.heelTwist >> heel_offset.input1D[1]
+        heel_offset.output1D >> self.created_locs[2].rotateY
+
+        toe_offset = pmc.createNode("plusMinusAverage", n="{0}_toetwist_offset_PMA".format(self.created_locs[1]))
+        toe_offset.setAttr("operation", 1)
+        toe_offset.setAttr("input1D[0]", self.created_locs[1].getAttr("rotateY"))
+        self.leg_ik_ctrl.toeTwist >> toe_offset.input1D[1]
+        toe_offset.output1D >> self.created_locs[1].rotateY
+
         self.leg_ik_ctrl.lean >> self.created_locs[0].rotateZ
 
         bank_in_limit = pmc.createNode("clamp", n="{0}_bank_in_CLAMP".format(self.model.module_name))
@@ -399,4 +437,5 @@ class Model(AuriScriptModel):
         self.selected_module = None
         self.selected_output = None
         self.side = "Left"
+        self.fk_ik_type = "one_chain"
         # self.how_many_toes = 1

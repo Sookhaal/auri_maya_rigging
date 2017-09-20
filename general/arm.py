@@ -184,8 +184,8 @@ class Controller(RigController):
         wrist_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[2])
 
         shoulder_guide.setAttr("translate", (3 * self.side_coef, 18, 0))
-        elbow_guide.setAttr("translate", (5 * self.side_coef, 16, 0))
-        wrist_guide.setAttr("translate", (7 * self.side_coef, 14, 0))
+        elbow_guide.setAttr("translate", (5 * self.side_coef, 16, -0.5))
+        wrist_guide.setAttr("translate", (7 * self.side_coef, 14, 1))
 
         self.plane = pmc.ls(pmc.polyCreateFacet(p=[(0, 0, 0), (0, 0, 0), (0, 0, 0)],
                                                 n="{0}_arm_plane".format(self.model.module_name), ch=0))[0]

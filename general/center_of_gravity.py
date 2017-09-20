@@ -95,7 +95,7 @@ class Controller(RigController):
 
         rig_lib.create_output(name="{0}_OUTPUT".format(self.model.module_name), parent=cog_ctrl)
 
-        rig_lib.clean_ctrl(cog_ctrl, 20, trs="")
+        rig_lib.clean_ctrl(cog_ctrl, 20, trs="s")
 
         self.jnt_input_grp.setAttr("visibility", 0)
         self.parts_grp.setAttr("visibility", 0)

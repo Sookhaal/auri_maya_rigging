@@ -22,7 +22,7 @@ class View(AuriScriptView):
         self.model = Model()
 
     def refresh_view(self):
-        self.character_name.setText(self.model.module_name)
+        self.character_name.setText(self.model.character_name)
 
     def setup_ui(self):
         text = QtWidgets.QLabel("Module de base")
