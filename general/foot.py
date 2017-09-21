@@ -187,7 +187,7 @@ class Controller(RigController):
         pmc.select(d=1)
 
         ankle_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1)),
-                              n="{0}_foot_JNT".format(self.model.module_name))
+                              n="{0}_foot_SKN".format(self.model.module_name))
         ankle_jnt.setAttr("rotateOrder", 4)
         ankle_jnt.setAttr("jointOrient", 0, 90 * (1 - self.side_coef), 90 * (1 + self.side_coef))
         ankle_jnt.setAttr("rotate", pmc.xform(duplicates_guides[0], q=1, rotation=1))
@@ -197,7 +197,7 @@ class Controller(RigController):
         ball_jnt.setAttr("rotateOrder", 4)
         ball_jnt.setAttr("rotate", pmc.xform(duplicates_guides[1], q=1, rotation=1))
         toe_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)),
-                            n="{0}_toe_SKN".format(self.model.module_name))
+                            n="{0}_toe_JNT".format(self.model.module_name))
         toe_jnt.setAttr("rotateOrder", 4)
 
         pmc.parent(ankle_jnt, self.jnt_input_grp, r=0)
@@ -235,14 +235,14 @@ class Controller(RigController):
         ankle_fk_jnt = \
             self.created_skn_jnts[0].duplicate(n="{0}_ankle_fk_JNT".format(self.model.module_name))[0]
         ball_fk_jnt = pmc.ls("{0}_ankle_fk_JNT|{0}_ball_SKN".format(self.model.module_name))[0]
-        toe_fk_jnt = pmc.ls("{0}_ankle_fk_JNT|{0}_ball_SKN|{0}_toe_SKN".format(self.model.module_name))[0]
+        toe_fk_jnt = pmc.ls("{0}_ankle_fk_JNT|{0}_ball_SKN|{0}_toe_JNT".format(self.model.module_name))[0]
         ball_fk_jnt.rename("{0}_ball_fk_JNT".format(self.model.module_name))
         toe_fk_jnt.rename("{0}_toe_fk_JNT".format(self.model.module_name))
         self.created_fk_jnts = [ankle_fk_jnt, ball_fk_jnt, toe_fk_jnt]
 
         ankle_ik_jnt = self.created_skn_jnts[0].duplicate(n="{0}_ankle_ik_JNT".format(self.model.module_name))[0]
         ball_ik_jnt = pmc.ls("{0}_ankle_ik_JNT|{0}_ball_SKN".format(self.model.module_name))[0]
-        toe_ik_jnt = pmc.ls("{0}_ankle_ik_JNT|{0}_ball_SKN|{0}_toe_SKN".format(self.model.module_name))[0]
+        toe_ik_jnt = pmc.ls("{0}_ankle_ik_JNT|{0}_ball_SKN|{0}_toe_JNT".format(self.model.module_name))[0]
         ball_ik_jnt.rename("{0}_ball_ik_JNT".format(self.model.module_name))
         toe_ik_jnt.rename("{0}_toe_ik_JNT".format(self.model.module_name))
         self.created_ik_jnts = [ankle_ik_jnt, ball_ik_jnt, toe_ik_jnt]
