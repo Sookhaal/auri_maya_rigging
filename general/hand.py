@@ -16,6 +16,7 @@ class View(AuriScriptView):
         self.refresh_btn = QtWidgets.QPushButton("Refresh")
         self.prebuild_btn = QtWidgets.QPushButton("Prebuild")
         self.side_cbbox = QtWidgets.QComboBox()
+        self.thumb_creation_switch = QtWidgets.QCheckBox()
         self.how_many_fingers = QtWidgets.QSpinBox()
         super(View, self).__init__(*args, **kwargs)
 
@@ -27,6 +28,7 @@ class View(AuriScriptView):
 
     def refresh_view(self):
         self.side_cbbox.setCurrentText(self.model.side)
+        self.thumb_creation_switch.setChecked(self.model.thumb_creation_switch)
         self.how_many_fingers.setValue(self.model.how_many_fingers)
         self.ctrl.look_for_parent()
 
@@ -36,6 +38,8 @@ class View(AuriScriptView):
 
         self.outputs_cbbox.setModel(self.ctrl.outputs_model)
         self.outputs_cbbox.currentTextChanged.connect(self.ctrl.on_outputs_cbbox_changed)
+
+        self.thumb_creation_switch.stateChanged.connect(self.ctrl.on_thumb_creation_switch_changed)
 
         self.side_cbbox.insertItems(0, ["Left", "Right"])
         self.side_cbbox.currentTextChanged.connect(self.ctrl.on_side_cbbox_changed)
@@ -67,11 +71,17 @@ class View(AuriScriptView):
         options_layout = QtWidgets.QVBoxLayout()
         options_grp = grpbox("Options", options_layout)
 
+        thumb_layout = QtWidgets.QHBoxLayout()
+        thumb_text = QtWidgets.QLabel("thumb :")
+        thumb_layout.addWidget(thumb_text)
+        thumb_layout.addWidget(self.thumb_creation_switch)
+
         fingers_layout = QtWidgets.QVBoxLayout()
         fingers_text = QtWidgets.QLabel("How many fingers :")
         fingers_layout.addWidget(fingers_text)
         fingers_layout.addWidget(self.how_many_fingers)
 
+        options_layout.addLayout(thumb_layout)
         options_layout.addLayout(fingers_layout)
 
         main_layout.addLayout(select_parent_and_object_layout)
@@ -105,11 +115,21 @@ class Controller(RigController):
     def on_how_many_fingers_changed(self, value):
         self.model.how_many_fingers = value
 
+    def on_thumb_creation_switch_changed(self, state):
+        self.model.thumb_creation_switch = is_checked(state)
+
     def prebuild(self):
         self.guides_names = []
         self.guides = []
-        first_jnt = "{0}_wrist_GUIDE".format(self.model.module_name)
+
+        if self.model.thumb_creation_switch:
+            thumb_first_jnt = "{0}_thumb_metacarpus_GUIDE".format(self.model.module_name)
+            thumb_curve = "{0}_thumb_phalanges_GUIDE".format(self.model.module_name)
+            thumb = [thumb_first_jnt, thumb_curve]
+            self.guides_names.append(thumb)
+
         for i in range(0, self.model.how_many_fingers):
+            first_jnt = "{0}_finger{1}_metacarpus_GUIDE".format(self.model.module_name, i+1)
             finger_curve = "{0}_finger{1}_phalanges_GUIDE".format(self.model.module_name, i+1)
             finger = [first_jnt, finger_curve]
             self.guides_names.append(finger)
@@ -120,21 +140,28 @@ class Controller(RigController):
         if self.guide_check(self.guides_names):
             self.guides = [pmc.ls(guide)[:] for guide in self.guides_names]
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
+            self.guides_grp.setAttr("visibility", 1)
             return
 
-        wrist_guide = pmc.spaceLocator(p=(0, 0, 0), n=first_jnt)
-        wrist_guide.setAttr("translate", (7 * self.side_coef, 14, 0))
+        if self.model.thumb_creation_switch:
+            thumb_wrist_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[0][0])
+            thumb_wrist_guide.setAttr("translate", (7.5 * self.side_coef, 14, 2))
+            thumb_guide = rig_lib.create_curve_guide(d=1, number_of_points=3, name=self.guides_names[0][1], hauteur_curve=2)
+            thumb_guide.setAttr("translate", (8 * self.side_coef, 14, 2))
+            thumb_guide.setAttr("rotate", (0, 0, -90 * self.side_coef))
+            thumb = [thumb_wrist_guide, thumb_guide]
+            self.guides.append(thumb)
+
         for i, finger in enumerate(self.guides_names):
-            finger_guide = rig_lib.create_curve_guide(d=1, number_of_points=4, name=finger[1], hauteur_curve=3)
-            if i == 0:
-                finger_guide.setAttr("translate", (8 * self.side_coef, 14, 1))
-            else:
-                finger_guide.setAttr("translate", (9 * self.side_coef, 14, 1 - (0.5 * i)))
-            finger_guide.setAttr("rotate", (0, 90 * (1 - self.side_coef), 0))
-            finger = [wrist_guide, finger_guide]
-            self.guides.append(finger)
+            if (self.model.thumb_creation_switch and i != 0) or not self.model.thumb_creation_switch:
+                wrist_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[i][0])
+                wrist_guide.setAttr("translate", (7.5 * self.side_coef, 14, 2 - (0.5 * i)))
+                finger_guide = rig_lib.create_curve_guide(d=1, number_of_points=4, name=finger[1], hauteur_curve=3)
+                finger_guide.setAttr("translate", (9 * self.side_coef, 14, 2 - (0.5 * i)))
+                finger_guide.setAttr("rotate", (0, 0, -90 * self.side_coef))
+                finger = [wrist_guide, finger_guide]
+                self.guides.append(finger)
         self.guides_grp = self.group_guides(self.guides)
-        self.guides_grp.setAttr("visibility", 1)
         self.view.refresh_view()
         pmc.select(d=1)
 
@@ -147,6 +174,7 @@ class Controller(RigController):
         self.get_parent_needed_objects()
 
         self.create_skn_jnts()
+        return
         self.create_ctrls()
         self.create_options_attributes()
         self.clean_rig()
@@ -161,13 +189,13 @@ class Controller(RigController):
         self.created_skn_jnts = []
         orient_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_wrist_LOC".format(self.model.module_name))
         orient_loc.setAttr("translate", pmc.xform(self.guides[0][0], q=1, ws=1, translation=1))
-        loc_const = pmc.aimConstraint(self.guides[len(self.guides)/2][1], orient_loc, maintainOffset=0,
+        loc_const = pmc.aimConstraint(self.guides[self.model.how_many_fingers/2][1], orient_loc, maintainOffset=0,
                                       aimVector=(1.0 * self.side_coef, 0.0, 0.0),
                                       upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="scene")
         pmc.xform(self.parent_wrist_fk_ctrl, ws=1, rotation=(pmc.xform(orient_loc, q=1, ws=1, rotation=1)))
-        pmc.xform(self.parent_wrist_ik_ctrl, ws=1, rotation=(pmc.xform(orient_loc, q=1, ws=1, rotation=1)))
-        if self.model.side == "Right":
-            self.parent_wrist_ik_ctrl.setAttr("rotateX", (self.parent_wrist_ik_ctrl.getAttr("rotateX") + 180))
+        # pmc.xform(self.parent_wrist_ik_ctrl, ws=1, rotation=(pmc.xform(orient_loc, q=1, ws=1, rotation=1)))
+        #TODO: trouver un moyen de recup l'orientation de la main, peut etre avec une face entre les 2premiers doigts
+        return
         pmc.delete(loc_const)
         for n, finger in enumerate(self.guides):
             created_finger_jnts = []
@@ -348,4 +376,5 @@ class Model(AuriScriptModel):
         self.selected_module = None
         self.selected_output = None
         self.side = "Left"
-        self.how_many_fingers = 5
+        self.how_many_fingers = 4
+        self.thumb_creation_switch = True
