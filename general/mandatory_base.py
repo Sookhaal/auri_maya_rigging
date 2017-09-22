@@ -63,7 +63,7 @@ class Controller(RigController):
     def execute(self):
         self.prebuild()
         check_list = ["{0}_RIG".format(self.model.character_name), "GEO_GRP", "CTRL_GRP", "JNT_GRP", "MESH_GRP", "PARTS_GRP",
-                      "{0}_global_CTRL".format(self.model.module_name), "{0}_global_OUTPUT".format(self.model.module_name),
+                      "global_CTRL", "{0}_global_OUTPUT".format(self.model.module_name),
                       "{0}_local_INPUT".format(self.model.module_name), "{0}_local_ctrl_OFS".format(self.model.module_name),
                       "{0}_local_CTRL".format(self.model.module_name), "{0}_local_ctrl_OUTPUT".format(self.model.module_name),
                       "{0}_global_scale_MDL".format(self.model.module_name)]
@@ -81,7 +81,7 @@ class Controller(RigController):
         mesh_grp = pmc.group(em=1, n="MESH_GRP")
         parts_grp = pmc.group(em=1, n="PARTS_GRP")
         global_shape = rig_lib.square_arrow_curve("{0}_global_CTRL_shape".format(self.model.module_name))
-        global_ctrl = rig_lib.create_jnttype_ctrl(name="{0}_global_CTRL".format(self.model.module_name), shape=global_shape,
+        global_ctrl = rig_lib.create_jnttype_ctrl(name="global_CTRL", shape=global_shape,
                                                   drawstyle=2)
         global_output = pmc.spaceLocator(p=(0, 0, 0), n="{0}_global_OUTPUT".format(self.model.module_name))
         global_output.visibility.set(0)
