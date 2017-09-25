@@ -118,7 +118,11 @@ class Controller(RigController):
         RigController.__init__(self,  model, view)
 
     def prebuild(self):
-        self.create_temporary_outputs(["start_OUTPUT", "end_OUTPUT"])
+        temp_outputs = ["start_OUTPUT", "end_OUTPUT"]
+        for i in xrange(self.model.how_many_jnts - 1):
+            temp_output = "jnt_{0}_OUTPUT".format(i)
+            temp_outputs.append(temp_output)
+        self.create_temporary_outputs(temp_outputs)
 
         self.guide_name = "{0}_GUIDE".format(self.model.module_name)
         d = 3
@@ -137,6 +141,8 @@ class Controller(RigController):
                 pmc.delete(self.guide.cv[1])
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
             self.guides_grp.setAttr("visibility", 1)
+            self.view.refresh_view()
+            pmc.select(d=1)
             return
         self.guide = rig_lib.create_curve_guide(d=d, number_of_points=nb_points, name=self.guide_name)
         self.guides_grp = self.group_guides(self.guide)
@@ -289,6 +295,11 @@ class Controller(RigController):
     def create_output(self):
         rig_lib.create_output(name="{0}_start_OUTPUT".format(self.model.module_name), parent=self.created_locs[0])
         rig_lib.create_output(name="{0}_end_OUTPUT".format(self.model.module_name), parent=self.created_locs[-1])
+
+        for i, jnt in enumerate(self.created_jnts):
+            if jnt != self.created_jnts[-1]:
+                name = "{0}_jnt_{1}_OUTPUT".format(self.model.module_name, i)
+                rig_lib.create_output(name=name, parent=jnt)
 
 
 class Model(AuriScriptModel):

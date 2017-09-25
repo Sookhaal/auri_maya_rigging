@@ -58,6 +58,7 @@ class Controller(RigController):
 
     def prebuild(self):
         self.create_temporary_outputs(["local_ctrl_OUTPUT"])
+        self.view.refresh_view()
         pmc.select(d=1)
 
     def execute(self):

@@ -79,6 +79,8 @@ class Controller(RigController):
             self.guides = pmc.ls(self.guides_names)
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
             self.guides_grp.setAttr("visibility", 1)
+            self.view.refresh_view()
+            pmc.select(d=1)
             return
 
         head_base_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[0])

@@ -13,6 +13,8 @@ class RigController(AuriScriptController):
         self.view = view
         self.modules_with_output = QtGui.QStringListModel()
         self.outputs_model = QtGui.QStringListModel()
+        self.modules_with_spaces = QtGui.QStringListModel()
+        self.spaces_model = QtGui.QStringListModel()
         self.has_updated_modules = False
         # self.current_module = None
         self.jnt_input_grp = None
@@ -20,7 +22,7 @@ class RigController(AuriScriptController):
         self.parts_grp = None
         AuriScriptController.__init__(self)
 
-    def look_for_parent(self, grp="temporary_output", l_cbbox_stringlist=None, l_cbbox_selection=None, l_cbbox=None,
+    def look_for_parent(self, grp="temporary_outputs", l_cbbox_stringlist=None, l_cbbox_selection=None, l_cbbox=None,
                         r_cbbox_stringlist=None, r_cbbox_selection=None, r_cbbox=None):
         if not pmc.objExists(grp):
             return
@@ -53,6 +55,32 @@ class RigController(AuriScriptController):
         r_cbbox_stringlist.setStringList(list_children(current_module))
         r_cbbox_selection = cbbox_set_selected(r_cbbox_selection, r_cbbox)
 
+    def look_for_spaces(self):
+        self.look_for_parent(l_cbbox_stringlist=self.modules_with_spaces,
+                             l_cbbox_selection=self.view.selected_space_module,
+                             l_cbbox=self.view.space_modules_cbbox, r_cbbox_stringlist=self.spaces_model,
+                             r_cbbox_selection=self.view.selected_space, r_cbbox=self.view.spaces_cbbox)
+
+    def add_space_to_list(self):
+        if self.view.selected_space_module != "No_parent":
+            item = "{0}_{1}".format(self.view.selected_space_module, self.view.selected_space)
+            self.model.space_list.append(item)
+            self.view.space_list.setStringList(self.model.space_list)
+
+    def remove_space_from_list(self):
+        indexes = self.view.space_list_view.selectedIndexes()
+        indexes_to_del = []
+        for index in indexes:
+            # item = index.data()
+            # self.model.space_list.remove(item)
+            space_index = index.row()
+            indexes_to_del.append(space_index)
+
+        indexes_to_del_set = set(indexes_to_del)
+        self.model.space_list = [self.model.space_list[i] for i in xrange(len(self.model.space_list)) if i not in indexes_to_del_set]
+
+        self.view.space_list.setStringList(self.model.space_list)
+
     def on_ik_creation_switch_changed(self, state):
         self.model.ik_creation_switch = is_checked(state)
 
@@ -82,31 +110,42 @@ class RigController(AuriScriptController):
     def on_outputs_cbbox_changed(self, text):
         self.model.selected_output = text
 
-    def create_temporary_outputs(self, outputs_names):
-        if not pmc.objExists("temporary_output"):
-            pmc.group(em=1, n="temporary_output")
-        temp_output_grp = pmc.ls("temporary_output")[0]
+    def on_space_modules_cbbox_changed(self, text):
+        self.view.selected_space_module = text
+        if self.has_updated_modules:
+            self.look_for_parent(l_cbbox_stringlist=self.modules_with_spaces,
+                                 l_cbbox_selection=self.view.selected_space_module,
+                                 l_cbbox=self.view.space_modules_cbbox, r_cbbox_stringlist=self.spaces_model,
+                                 r_cbbox_selection=self.view.selected_space, r_cbbox=self.view.spaces_cbbox)
 
-        if not pmc.objExists("temporary_output|{0}".format(self.model.module_name)):
+    def on_spaces_cbbox_changed(self, text):
+        self.view.selected_space = text
+
+    def create_temporary_outputs(self, outputs_names, grp_name="temporary_outputs"):
+        if not pmc.objExists(grp_name):
+            pmc.group(em=1, n=grp_name)
+        temp_output_grp = pmc.ls(grp_name)[0]
+
+        if not pmc.objExists("{0}|{1}".format(grp_name, self.model.module_name)):
             pmc.group(em=1, n="{0}".format(self.model.module_name), p=temp_output_grp)
-        module_grp = pmc.ls("{0}".format(self.model.module_name))[0]
+        module_grp = pmc.ls("{0}|{1}".format(grp_name, self.model.module_name))[0]
 
         for output in outputs_names:
-            if not pmc.objExists("temporary_output|{0}|{1}".format(self.model.module_name, output)):
+            if not pmc.objExists("{0}|{1}|{2}".format(grp_name, self.model.module_name, output)):
                 pmc.group(em=1, n="{0}".format(output), p=module_grp)
 
-    def create_out_objects(self, outputs_objects_names):
-        if not pmc.objExists("temporary_out_objects"):
-            pmc.group(em=1, n="temporary_out_objects")
-        temp_output_grp = pmc.ls("temporary_out_objects")[0]
-
-        if not pmc.objExists("temporary_out_objects|{0}".format(self.model.module_name)):
-            pmc.group(em=1, n="{0}".format(self.model.module_name), p=temp_output_grp)
-        module_grp = pmc.ls("{0}".format(self.model.module_name))[0]
-
-        for obj in outputs_objects_names:
-            if not pmc.objExists("temporary_out_objects|{0}|{1}".format(self.model.module_name, obj)):
-                pmc.group(em=1, n="{0}".format(obj), p=module_grp)
+    # def create_out_objects(self, outputs_objects_names):
+    #     if not pmc.objExists("temporary_out_objects"):
+    #         pmc.group(em=1, n="temporary_out_objects")
+    #     temp_output_grp = pmc.ls("temporary_out_objects")[0]
+    #
+    #     if not pmc.objExists("temporary_out_objects|{0}".format(self.model.module_name)):
+    #         pmc.group(em=1, n="{0}".format(self.model.module_name), p=temp_output_grp)
+    #     module_grp = pmc.ls("{0}".format(self.model.module_name))[0]
+    #
+    #     for obj in outputs_objects_names:
+    #         if not pmc.objExists("temporary_out_objects|{0}|{1}".format(self.model.module_name, obj)):
+    #             pmc.group(em=1, n="{0}".format(obj), p=module_grp)
 
     def guide_check(self, guides_names):
         if not pmc.objExists("guide_GRP"):
@@ -676,3 +715,13 @@ def create_jnttype_ctrl(name, shape, drawstyle=2, rotateorder=0):
     pmc.delete(shape)
     ctrl.setAttr("rotateOrder", rotateorder)
     return ctrl
+
+
+def connect_condition_to_constraint(const_attr_to_connect_entire_name, space_attr, space_number, condition_name):
+    condition = pmc.createNode("condition", n=condition_name)
+    condition.setAttr("operation", 0)
+    condition.setAttr("firstTerm", space_number)
+    space_attr >> condition.secondTerm
+    condition.setAttr("colorIfTrueR", 1)
+    condition.setAttr("colorIfFalseR", 0)
+    pmc.connectAttr("{0}.outColorR".format(condition), "{0}".format(const_attr_to_connect_entire_name))

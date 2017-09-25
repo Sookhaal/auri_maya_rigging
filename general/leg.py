@@ -21,6 +21,15 @@ class View(AuriScriptView):
         self.stretch_creation_switch = QtWidgets.QCheckBox()
         self.raz_ctrls = QtWidgets.QCheckBox()
         self.clavicle_creation_switch = QtWidgets.QCheckBox()
+        self.refresh_spaces_btn = QtWidgets.QPushButton("Refresh")
+        self.add_space_btn = QtWidgets.QPushButton("Add")
+        self.remove_space_btn = QtWidgets.QPushButton("Remove")
+        self.space_modules_cbbox = QtWidgets.QComboBox()
+        self.spaces_cbbox = QtWidgets.QComboBox()
+        self.selected_space_module = "No_space_module"
+        self.selected_space = "no_space"
+        self.space_list_view = QtWidgets.QListView()
+        self.space_list = QtGui.QStringListModel()
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -37,6 +46,11 @@ class View(AuriScriptView):
         self.side_cbbox.setCurrentText(self.model.side)
         self.fk_ik_type_cbbox.setCurrentText(self.model.fk_ik_type)
         self.ctrl.look_for_parent()
+        self.space_list.setStringList(self.model.space_list)
+        self.ctrl.look_for_parent(l_cbbox_stringlist=self.ctrl.modules_with_spaces,
+                                  l_cbbox_selection=self.selected_space_module,
+                                  l_cbbox=self.space_modules_cbbox, r_cbbox_stringlist=self.ctrl.spaces_model,
+                                  r_cbbox_selection=self.selected_space, r_cbbox=self.spaces_cbbox)
 
     def setup_ui(self):
         self.modules_cbbox.setModel(self.ctrl.modules_with_output)
@@ -44,6 +58,21 @@ class View(AuriScriptView):
 
         self.outputs_cbbox.setModel(self.ctrl.outputs_model)
         self.outputs_cbbox.currentTextChanged.connect(self.ctrl.on_outputs_cbbox_changed)
+
+        self.space_modules_cbbox.setModel(self.ctrl.modules_with_spaces)
+        self.space_modules_cbbox.currentTextChanged.connect(self.ctrl.on_space_modules_cbbox_changed)
+
+        self.spaces_cbbox.setModel(self.ctrl.spaces_model)
+        self.spaces_cbbox.currentTextChanged.connect(self.ctrl.on_spaces_cbbox_changed)
+
+        self.space_list_view.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.space_list.setStringList(self.model.space_list)
+        self.space_list_view.setModel(self.space_list)
+
+        self.add_space_btn.clicked.connect(self.ctrl.add_space_to_list)
+        self.remove_space_btn.clicked.connect(self.ctrl.remove_space_from_list)
+
+        self.refresh_spaces_btn.clicked.connect(self.ctrl.look_for_spaces)
 
         self.ik_creation_switch.stateChanged.connect(self.ctrl.on_ik_creation_switch_changed)
         self.ik_creation_switch.setEnabled(False)
@@ -69,6 +98,22 @@ class View(AuriScriptView):
         cbbox_layout.addWidget(self.outputs_cbbox)
         select_parent_layout.addLayout(cbbox_layout)
         select_parent_layout.addWidget(self.refresh_btn)
+
+        select_spaces_layout = QtWidgets.QVBoxLayout()
+        select_spaces_grp = grpbox("Select local spaces :", select_spaces_layout)
+        spaces_cbbox_layout = QtWidgets.QHBoxLayout()
+        spaces_cbbox_layout.addWidget(self.space_modules_cbbox)
+        spaces_cbbox_layout.addWidget(self.spaces_cbbox)
+        btn_layout = QtWidgets.QVBoxLayout()
+        btn_layout.addWidget(self.refresh_spaces_btn)
+        btn_layout.addWidget(self.add_space_btn)
+        select_spaces_layout.addLayout(spaces_cbbox_layout)
+        select_spaces_layout.addLayout(btn_layout)
+
+        space_list_layout = QtWidgets.QVBoxLayout()
+        space_list_grp = grpbox("local spaces :", space_list_layout)
+        space_list_layout.addWidget(self.space_list_view)
+        space_list_layout.addWidget(self.remove_space_btn)
 
         options_layout = QtWidgets.QVBoxLayout()
         options_grp = grpbox("Options", options_layout)
@@ -110,6 +155,8 @@ class View(AuriScriptView):
         main_layout.addWidget(side_grp)
         main_layout.addWidget(chain_type_grp)
         main_layout.addWidget(options_grp)
+        main_layout.addWidget(select_spaces_grp)
+        main_layout.addWidget(space_list_grp)
         main_layout.addWidget(self.prebuild_btn)
         self.setLayout(main_layout)
 
@@ -144,7 +191,7 @@ class Controller(RigController):
         self.model.raz_ctrls = is_checked(state)
 
     def prebuild(self):
-        self.create_temporary_outputs(["ankle_OUTPUT"])
+        self.create_temporary_outputs(["hip_clavicle_OUTPUT", "hip_OUTPUT", "knee_OUTPUT", "ankle_OUTPUT"])
 
         self.guides_names = ["{0}_hip_GUIDE".format(self.model.module_name),
                              "{0}_knee_GUIDE".format(self.model.module_name),
@@ -187,6 +234,7 @@ class Controller(RigController):
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
             pmc.parent(self.plane, self.guides_grp)
             self.guides_grp.setAttr("visibility", 1)
+            self.view.refresh_view()
             pmc.select(d=1)
             return
 
@@ -247,6 +295,7 @@ class Controller(RigController):
                 self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
                                         self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
                                         self.ankle_fk_pos_reader)
+            self.create_local_spaces()
         if self.model.fk_ik_type == "one_chain":
             self.create_one_chain_fk()
         self.clean_rig()
@@ -548,6 +597,35 @@ class Controller(RigController):
         pmc.xform(ik_ctrl, ws=1, translation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, translation=1)))
         pmc.xform(ik_ctrl, ws=1, rotation=(pmc.xform(self.ankle_fk_pos_reader, q=1, ws=1, rotation=1)))
 
+    def create_local_spaces(self):
+        spaces_names = []
+        space_locs = []
+        for space in self.model.space_list:
+            name = str(space).replace("_OUTPUT", "")
+            if "local_ctrl" in name:
+                name = "world"
+            spaces_names.append(name)
+
+            space_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_{1}_SPACELOC".format(self.model.module_name, name))
+            space_locs.append(space_loc)
+
+        self.created_fk_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
+        self.created_ik_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
+
+        for i, space in enumerate(self.model.space_list):
+            space_locs[i].setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
+            pmc.parent(space_locs[i], space)
+
+            fk_space_const = pmc.orientConstraint(space_locs[i], self.created_fk_ctrls[0].getParent(), maintainOffset=1)
+            ik_space_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[0].getParent(), maintainOffset=1)
+
+            rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(fk_space_const, space_locs[i], i),
+                                                    self.created_fk_ctrls[0].space, i,
+                                                    "{0}_{1}_COND".format(self.created_fk_ctrls[0], name))
+            rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(ik_space_const, space_locs[i], i),
+                                                    self.created_ik_ctrls[0].space, i,
+                                                    "{0}_{1}_COND".format(self.created_ik_ctrls[0], name))
+
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)
         self.parts_grp.setAttr("visibility", 0)
@@ -588,6 +666,9 @@ class Controller(RigController):
         rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
 
     def create_output(self):
+        rig_lib.create_output(name="{0}_hip_clavicle_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
+        rig_lib.create_output(name="{0}_hip_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
+        rig_lib.create_output(name="{0}_knee_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
         rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
 
     def create_one_chain_fk(self):
@@ -606,3 +687,4 @@ class Model(AuriScriptModel):
         self.clavicle_creation_switch = True
         self.fk_ik_type = "one_chain"
         # self.bend_creation_switch = False
+        self.space_list = []
