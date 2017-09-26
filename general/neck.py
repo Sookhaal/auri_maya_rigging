@@ -166,7 +166,7 @@ class Controller(RigController):
 
     def prebuild(self):
         temp_outputs = ["start_OUTPUT", "end_OUTPUT"]
-        for i in xrange(self.model.how_many_jnts - 1):
+        for i in xrange(self.model.how_many_jnts):
             temp_output = "jnt_{0}_OUTPUT".format(i)
             temp_outputs.append(temp_output)
         self.create_temporary_outputs(temp_outputs)
@@ -214,9 +214,9 @@ class Controller(RigController):
             self.connect_ik_spline_stretch(self.ik_spline, self.created_jnts)
         if self.model.ik_creation_switch == 1:
             self.create_ik()
+        self.create_output()
         self.create_local_spaces()
         self.clean_rig()
-        self.create_output()
         pmc.select(d=1)
 
     def create_jnts(self):
@@ -338,6 +338,8 @@ class Controller(RigController):
             space_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_{1}_SPACELOC".format(self.model.module_name, name))
             space_locs.append(space_loc)
 
+        spaces_names.append("local")
+
         if self.model.ik_creation_switch == 0:
             self.created_fk_ctrls[-1].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
             pmc.group(self.created_fk_ctrls[-1], p=self.created_fk_ctrls[-2],
@@ -357,7 +359,7 @@ class Controller(RigController):
                                                         self.created_fk_ctrls[-1].space, i,
                                                         "{0}_{1}_COND".format(self.created_fk_ctrls[-1], name))
             else:
-                ik_space_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[-1].getParent(), maintainOffset=1)
+                ik_space_const = pmc.orientConstraint(space_locs[i], self.created_ik_ctrls[-1].getParent(), maintainOffset=1)
 
                 rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(ik_space_const, space_locs[i], i),
                                                         self.created_ik_ctrls[-1].space, i,

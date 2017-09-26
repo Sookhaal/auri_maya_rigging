@@ -190,25 +190,38 @@ class Controller(RigController):
         duplicate_guides = []
         self.created_skn_jnts = []
         orient_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_wrist_LOC".format(self.model.module_name))
-        orient_loc.setAttr("translate", pmc.xform(self.guides[self.model.how_many_fingers/2][0], q=1, ws=1, translation=1))
-        # loc_const_list = []
-        # loc_list = []
-        # for i, finger in enumerate(self.guides):
-        #     if (self.model.thumb_creation_switch and i != 0) or not self.model.thumb_creation_switch:
-        #         loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_pos_temp_loc".format(finger[1]))
-        #         loc.setAttr("translate", pmc.xform(finger[1].cv[0], q=1, ws=1, translation=1))
-        #         loc_const = pmc.aimConstraint(loc, orient_loc, maintainOffset=0,
-        #                                       aimVector=(0.0, 1.0 * self.side_coef, 0.0),
-        #                                       upVector=(-1.0 * self.side_coef, 0.0, 0.0), worldUpType="scene")
-        #         loc_const_list.append(loc_const)
-        #         loc_list.append(loc)
-        # pmc.delete(loc_const_list[:])
-        # pmc.delete(loc_list[:])
-        return
+        orient_loc.setAttr("rotateOrder", 4)
+        orient_loc.setAttr("translate", pmc.xform(self.parent_wrist_fk_ctrl, q=1, ws=1, translation=1))
+
+        if self.model.thumb_creation_switch:
+            first_finger = self.guides[1]
+        else:
+            first_finger = self.guides[0]
+        hand_plane = pmc.ls(pmc.polyCreateFacet(p=[(0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0)],
+                                                name="{0}_palm_plane".format(self.model.module_name), ch=0))[0]
+        first_finger_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_temp_first_loc".format(self.model.module_name))
+        last_finger_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_temp_last_loc".format(self.model.module_name))
+        first_finger_loc.setAttr("translate", pmc.xform(first_finger[1].cv[0], q=1, ws=1, translation=1))
+        last_finger_loc.setAttr("translate", pmc.xform(self.guides[-1][1].cv[0], q=1, ws=1, translation=1))
+        first_finger[0].getShape().worldPosition[0] >> hand_plane.getShape().pnts[0]
+        first_finger_loc.getShape().worldPosition[0] >> hand_plane.getShape().pnts[1]
+        last_finger_loc.getShape().worldPosition[0] >> hand_plane.getShape().pnts[2]
+        self.guides[-1][0].getShape().worldPosition[0] >> hand_plane.getShape().pnts[3]
+
+        mid_finger_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_temp_mid_loc".format(self.model.module_name))
+        mid_finger_loc.setAttr("translate", pmc.xform(self.guides[self.model.how_many_fingers/2][1].cv[0], q=1, ws=1,
+                                                      translation=1))
+
+        orient_loc_const = pmc.normalConstraint(hand_plane, orient_loc, aimVector=(-1.0, 0.0, 0.0),
+                                                upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="object",
+                                                worldUpObject=mid_finger_loc)
+
 
         pmc.xform(self.parent_wrist_fk_ctrl, ws=1, rotation=(pmc.xform(orient_loc, q=1, ws=1, rotation=1)))
-        # pmc.xform(self.parent_wrist_ik_ctrl, ws=1, rotation=(pmc.xform(orient_loc, q=1, ws=1, rotation=1)))
-        #TODO: trouver un moyen de recup l'orientation de la main, peut etre avec une face entre les 2premiers doigts
+        pmc.xform(self.parent_wrist_ik_ctrl, ws=1,
+                  rotation=(pmc.xform(pmc.listRelatives(self.parent_wrist_fk_ctrl, children=1, type="transform")[0],
+                                      q=1, ws=1, rotation=1)))
+        return
         for n, finger in enumerate(self.guides):
             created_finger_jnts = []
             wrist_guide = finger[0].duplicate(n="{0}_duplicate".format(finger[0]))[0]

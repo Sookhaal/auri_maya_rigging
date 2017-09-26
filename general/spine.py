@@ -119,7 +119,7 @@ class Controller(RigController):
 
     def prebuild(self):
         temp_outputs = ["start_OUTPUT", "end_OUTPUT"]
-        for i in xrange(self.model.how_many_jnts - 1):
+        for i in xrange(self.model.how_many_jnts):
             temp_output = "jnt_{0}_OUTPUT".format(i)
             temp_outputs.append(temp_output)
         self.create_temporary_outputs(temp_outputs)
