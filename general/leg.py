@@ -185,13 +185,17 @@ class Controller(RigController):
         self.plane = None
         self.clavicle_ik_ctrl = None
         self.ankle_fk_pos_reader = None
+        self.jnt_const_group = None
         RigController.__init__(self, model, view)
 
     def on_raz_ctrls_changed(self, state):
         self.model.raz_ctrls = is_checked(state)
 
     def prebuild(self):
-        self.create_temporary_outputs(["hip_clavicle_OUTPUT", "hip_OUTPUT", "knee_OUTPUT", "ankle_OUTPUT"])
+        if self.model.clavicle_creation_switch:
+            self.create_temporary_outputs(["hip_clavicle_OUTPUT", "hip_OUTPUT", "knee_OUTPUT", "ankle_OUTPUT"])
+        else:
+            self.create_temporary_outputs(["hip_OUTPUT", "knee_OUTPUT", "ankle_OUTPUT"])
 
         self.guides_names = ["{0}_hip_GUIDE".format(self.model.module_name),
                              "{0}_knee_GUIDE".format(self.model.module_name),
@@ -282,6 +286,7 @@ class Controller(RigController):
         self.connect_to_parent()
 
         self.create_skn_jnts()
+        self.create_output()
         self.create_options_ctrl()
         if self.model.clavicle_creation_switch:
             self.create_clavicle_ctrl()
@@ -299,7 +304,6 @@ class Controller(RigController):
         if self.model.fk_ik_type == "one_chain":
             self.create_one_chain_fk()
         self.clean_rig()
-        self.create_output()
         pmc.select(d=1)
 
     def create_skn_jnts(self):
@@ -374,12 +378,14 @@ class Controller(RigController):
 
         pmc.parent(hip_jnt, self.jnt_input_grp, r=0)
 
+        self.jnt_const_group = pmc.group(em=1, n="{0}_jnts_const_GRP".format(self.model.module_name))
+        self.jnt_const_group.setAttr("translate", pmc.xform(hip_jnt, q=1, ws=1, translation=1))
+        pmc.parent(self.jnt_const_group, self.jnt_input_grp, r=0)
+
         if self.model.clavicle_creation_switch:
-            group = pmc.group(em=1, n="{0}_leg_to_hip_clav_const_GRP".format(self.model.module_name))
-            group.setAttr("translate", pmc.xform(hip_jnt, q=1, ws=1, translation=1))
-            pmc.parent(group, self.jnt_input_grp, r=0)
-            pmc.pointConstraint(pmc.listRelatives(self.clavicle_jnt, children=1)[0], group, maintainOffset=0)
-            pmc.parent(hip_jnt, group, r=0)
+            pmc.pointConstraint(pmc.listRelatives(self.clavicle_jnt, children=1)[0], self.jnt_const_group, maintainOffset=0)
+
+        pmc.parent(hip_jnt, self.jnt_const_group, r=0)
 
         self.created_skn_jnts = [hip_jnt, knee_jnt, ankle_jnt]
 
@@ -618,6 +624,8 @@ class Controller(RigController):
 
             fk_space_const = pmc.orientConstraint(space_locs[i], self.created_fk_ctrls[0].getParent(), maintainOffset=1)
             ik_space_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[0].getParent(), maintainOffset=1)
+            jnt_const_grp_const = pmc.orientConstraint(space_locs[i], self.jnt_const_group, maintainOffset=1)
+            pole_vector_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[1].getParent(), maintainOffset=1)
 
             rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(fk_space_const, space_locs[i], i),
                                                     self.created_fk_ctrls[0].space, i,
@@ -625,6 +633,12 @@ class Controller(RigController):
             rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(ik_space_const, space_locs[i], i),
                                                     self.created_ik_ctrls[0].space, i,
                                                     "{0}_{1}_COND".format(self.created_ik_ctrls[0], name))
+            rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(jnt_const_grp_const, space_locs[i], i),
+                                                    self.created_fk_ctrls[0].space, i,
+                                                    "{0}_{1}_COND".format(self.jnt_const_group, name))
+            rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(pole_vector_const, space_locs[i], i),
+                                                    self.created_ik_ctrls[0].space, i,
+                                                    "{0}_{1}_COND".format(self.created_ik_ctrls[1], name))
 
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)
@@ -666,9 +680,10 @@ class Controller(RigController):
         rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
 
     def create_output(self):
-        rig_lib.create_output(name="{0}_hip_clavicle_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
-        rig_lib.create_output(name="{0}_hip_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
-        rig_lib.create_output(name="{0}_knee_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
+        if self.model.clavicle_creation_switch:
+            rig_lib.create_output(name="{0}_hip_clavicle_OUTPUT".format(self.model.module_name), parent=self.clavicle_jnt)
+        rig_lib.create_output(name="{0}_hip_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[0])
+        rig_lib.create_output(name="{0}_knee_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[1])
         rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
 
     def create_one_chain_fk(self):

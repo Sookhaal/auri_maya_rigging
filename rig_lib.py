@@ -693,7 +693,7 @@ def raz_fk_ctrl_rotate(ctrl, jnt, stretch=False):
 
 
 def raz_ik_ctrl_translate_rotate(ctrl, jnt, side_coef):
-    const = pmc.listRelatives(jnt, children=1)[0]
+    const = pmc.listRelatives(jnt, children=1, type="parentConstraint")[0]
     const.setAttr("target[0].targetOffsetRotate", (const.getAttr("target[0].targetOffsetRotateX") -
                                                    (pmc.xform(ctrl, q=1, rotation=1)[0] * side_coef),
                                                    const.getAttr("target[0].targetOffsetRotateY") -
