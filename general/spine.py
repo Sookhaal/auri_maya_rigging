@@ -144,7 +144,7 @@ class Controller(RigController):
             self.view.refresh_view()
             pmc.select(d=1)
             return
-        self.guide = rig_lib.create_curve_guide(d=d, number_of_points=nb_points, name=self.guide_name)
+        self.guide = rig_lib.create_curve_guide(d=d, number_of_points=nb_points, name=self.guide_name, hauteur_curve=8)
         self.guides_grp = self.group_guides(self.guide)
         self.guide.setAttr("translate", (0, 8, 0))
         self.view.refresh_view()
@@ -208,6 +208,8 @@ class Controller(RigController):
         self.ik_spline.setAttr("translate", (0, 0, 0))
         self.ik_spline.setAttr("rotate", (0, 0, 0))
         self.ik_spline.setAttr("scale", (1, 1, 1))
+
+        pmc.parentConstraint(self.created_fk_ctrls[-1], self.created_jnts[-1], maintainOffset=1, skipTranslate=("x", "y", "z"))
 
     def create_locators(self, i, cv, ik_spline_controlpoints_for_ctrls):
         cv_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_{1}_pos".format(self.model.module_name, (i + 1)))
@@ -294,7 +296,7 @@ class Controller(RigController):
 
     def create_outputs(self):
         rig_lib.create_output(name="{0}_start_OUTPUT".format(self.model.module_name), parent=self.created_locs[0])
-        rig_lib.create_output(name="{0}_end_OUTPUT".format(self.model.module_name), parent=self.created_locs[-1])
+        rig_lib.create_output(name="{0}_end_OUTPUT".format(self.model.module_name), parent=self.created_jnts[-1])
 
         for i, jnt in enumerate(self.created_jnts):
             if jnt != self.created_jnts[-1]:
