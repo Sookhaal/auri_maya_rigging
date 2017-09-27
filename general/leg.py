@@ -286,7 +286,6 @@ class Controller(RigController):
         self.connect_to_parent()
 
         self.create_skn_jnts()
-        self.create_output()
         self.create_options_ctrl()
         if self.model.clavicle_creation_switch:
             self.create_clavicle_ctrl()
@@ -300,9 +299,10 @@ class Controller(RigController):
                 self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
                                         self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
                                         self.ankle_fk_pos_reader)
-            self.create_local_spaces()
         if self.model.fk_ik_type == "one_chain":
             self.create_one_chain_fk()
+        self.create_outputs()
+        self.create_local_spaces()
         self.clean_rig()
         pmc.select(d=1)
 
@@ -681,7 +681,7 @@ class Controller(RigController):
         rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
         rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
 
-    def create_output(self):
+    def create_outputs(self):
         if self.model.clavicle_creation_switch:
             rig_lib.create_output(name="{0}_hip_clavicle_OUTPUT".format(self.model.module_name), parent=self.clavicle_jnt)
         rig_lib.create_output(name="{0}_hip_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[0])

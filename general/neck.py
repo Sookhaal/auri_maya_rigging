@@ -214,7 +214,7 @@ class Controller(RigController):
             self.connect_ik_spline_stretch(self.ik_spline, self.created_jnts)
         if self.model.ik_creation_switch == 1:
             self.create_ik()
-        self.create_output()
+        self.create_outputs()
         self.create_local_spaces()
         self.clean_rig()
         pmc.select(d=1)
@@ -381,7 +381,7 @@ class Controller(RigController):
             rig_lib.clean_ctrl(self.created_ik_ctrls[0], 17, trs="s")
             rig_lib.clean_ctrl(self.created_ik_ctrls[1], 17, trs="")
 
-    def create_output(self):
+    def create_outputs(self):
         rig_lib.create_output(name="{0}_start_OUTPUT".format(self.model.module_name), parent=self.created_locs[0])
         rig_lib.create_output(name="{0}_end_OUTPUT".format(self.model.module_name), parent=self.created_locs[-1])
 

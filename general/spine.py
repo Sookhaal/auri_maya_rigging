@@ -167,7 +167,7 @@ class Controller(RigController):
         if self.model.ik_creation_switch == 1:
             self.create_ik()
         self.clean_rig()
-        self.create_output()
+        self.create_outputs()
         pmc.select(d=1)
 
     def create_jnts(self):
@@ -292,7 +292,7 @@ class Controller(RigController):
         for ctrl in self.created_ik_ctrls:
             rig_lib.clean_ctrl(ctrl, 17, trs="s")
 
-    def create_output(self):
+    def create_outputs(self):
         rig_lib.create_output(name="{0}_start_OUTPUT".format(self.model.module_name), parent=self.created_locs[0])
         rig_lib.create_output(name="{0}_end_OUTPUT".format(self.model.module_name), parent=self.created_locs[-1])
 
