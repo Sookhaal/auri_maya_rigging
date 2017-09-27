@@ -487,13 +487,23 @@ def stick_ball(name):
     return crv
 
 
-def oval_curve(name, side=1):
+def oval_curve_x(name, side=1):
     crv = pmc.curve(d=3, p=[(0, 1 * side, 0), (0.0624626 * side, 1 * side, -0.0470694),
                             (0.187388 * side, 1 * side, -0.141208), (1.007808 * side, 1 * side, -0.199698),
                             (1.781381 * side, 1 * side, -0.141208), (2 * side, 1 * side, 0),
                             (1.781381 * side, 1 * side, 0.141208), (1.007808 * side, 1 * side, 0.199698),
                             (0.187388 * side, 1 * side, 0.141208), (0.0624626 * side, 1 * side, 0.0470694),
                             (0 * side, 1 * side, 0)], n=name)
+    return crv
+
+
+def oval_curve_y(name, side=1):
+    crv = pmc.curve(d=3, p=[(-1 * side, 0 * side, 0), (-1 * side, 0.0624626 * side, -0.0470694),
+                            (-1 * side, 0.187388 * side, -0.141208), (-1 * side, 1.007808 * side, -0.199698),
+                            (-1 * side, 1.781381 * side, -0.141208), (-1 * side, 2 * side, 0),
+                            (-1 * side, 1.781381 * side, 0.141208), (-1 * side, 1.007808 * side, 0.199698),
+                            (-1 * side, 0.187388 * side, 0.141208), (-1 * side, 0.0624626 * side, 0.0470694),
+                            (-1 * side, 0 * side, 0)], n=name)
     return crv
 
 
@@ -570,8 +580,13 @@ def cbbox_set_selected(selected, cbbox):
 
 def create_curve_guide(d, number_of_points, name, hauteur_curve=10):
     crv = pmc.curve(d=1, p=[(0, 0, 0), (0, hauteur_curve/2, 0), (0, hauteur_curve, 0)], k=[0, 1, 2])
-    if d == 2 or (d == 1 and number_of_points == 3):
+    if d == 1 and number_of_points == 3:
         crv_rebuilded = crv
+    elif d == 2:
+        crv_rebuilded = pmc.rebuildCurve(crv, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
+                                         s=3, d=d, ch=0, replaceOriginal=1)[0]
+        pmc.delete(crv_rebuilded.cv[-2])
+        pmc.delete(crv_rebuilded.cv[1])
     else:
         crv_rebuilded = pmc.rebuildCurve(crv, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0, s=(number_of_points - 1),
                                          d=d, ch=0, replaceOriginal=1)[0]
