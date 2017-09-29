@@ -185,6 +185,7 @@ class Controller(RigController):
                 finger_guide.setAttr("rotate", (0, 0, -90 * self.side_coef))
                 finger = [wrist_guide, finger_guide]
                 self.guides.append(finger)
+
         self.guides_grp = self.group_guides(self.guides)
         self.view.refresh_view()
         pmc.select(d=1)
