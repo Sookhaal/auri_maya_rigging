@@ -150,7 +150,8 @@ class Controller(RigController):
         if self.guide_check(self.guides_names):
             self.guides = [pmc.ls(guide)[:] for guide in self.guides_names]
             for i, guide in enumerate(self.guides):
-                if (self.model.thumb_creation_switch and i != 0) or not self.model.thumb_creation_switch:
+                if ((self.model.thumb_creation_switch and i != 0) or not self.model.thumb_creation_switch) and \
+                                guide[1].getShape().getAttr("spans") != self.model.how_many_phalanges:
                     if self.model.how_many_phalanges > 2:
                         guide[1] = pmc.rebuildCurve(guide[1], rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
                                                     s=self.model.how_many_phalanges, d=1, ch=0, replaceOriginal=1)[0]
