@@ -178,10 +178,12 @@ class Controller(RigController):
             d = 3 + self.model.how_many_ctrls - 4
             nb_points = 2
         if self.guide_check(self.guide_name):
-            if d != 2:
+            self.guide = pmc.ls(self.guide_name)[0]
+            if d != 2 and (self.guide.getShape().getAttr("spans") != nb_points - 1 or
+                           self.guide.getShape().getAttr("degree") != d):
                 self.guide = pmc.rebuildCurve(self.guide_name, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
                                               s=(nb_points - 1), d=d, ch=0, replaceOriginal=1)[0]
-            else:
+            elif self.guide.getShape().getAttr("spans") != nb_points - 1 or self.guide.getShape().getAttr("degree") != d:
                 self.guide = pmc.rebuildCurve(self.guide_name, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
                                               s=3, d=d, ch=0, replaceOriginal=1)[0]
                 pmc.delete(self.guide.cv[-2])
@@ -272,7 +274,14 @@ class Controller(RigController):
         ctrl = rig_lib.create_jnttype_ctrl(name="{0}_{1}_fk_CTRL".format(self.model.module_name, (i + 1)), shape=ctrl_shape,
                                            drawstyle=2, rotateorder=2)
 
-        ctrl.setAttr("translate", pmc.xform(cv_loc, q=1, ws=1, translation=1))
+        nearest_point_on_curve = pmc.createNode("nearestPointOnCurve", n="temp_NPOC")
+        self.guide.worldSpace >> nearest_point_on_curve.inputCurve
+        cv_loc.getShape().worldPosition >> nearest_point_on_curve.inPosition
+        ctrl.setAttr("translate", nearest_point_on_curve.getAttr("position"))
+        # nearest_point_on_curve.position >> ctrl.translate
+        pmc.delete(nearest_point_on_curve)
+
+        # ctrl.setAttr("translate", pmc.xform(cv_loc, q=1, ws=1, translation=1))
         if i == 0:
             pmc.parent(ctrl, self.ctrl_input_grp, r=0)
         else:
