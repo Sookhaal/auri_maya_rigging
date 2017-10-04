@@ -459,13 +459,13 @@ class Controller(RigController):
 
     def create_and_connect_ctrl_jnts(self):
         hip_ctrl_jnt = \
-            self.created_skn_jnts[0].duplicate(n="{0}_hip_CTRL".format(self.model.module_name))[0]
-        knee_ctrl_jnt = pmc.ls("{0}_hip_CTRL|{0}_knee_SKN".format(self.model.module_name))[0]
-        knee_02_ctrl_jnt = pmc.ls("{0}_hip_CTRL|{0}_knee_SKN|{0}_knee_02_SKN".format(self.model.module_name))[0]
-        ankle_ctrl_jnt = pmc.ls("{0}_hip_CTRL|{0}_knee_SKN|{0}_knee_02_SKN|{0}_ankle_SKN".format(self.model.module_name))[0]
-        knee_ctrl_jnt.rename("{0}_knee_CTRL".format(self.model.module_name))
-        knee_02_ctrl_jnt.rename("{0}_knee_02_CTRL".format(self.model.module_name))
-        ankle_ctrl_jnt.rename("{0}_ankle_CTRL".format(self.model.module_name))
+            self.created_skn_jnts[0].duplicate(n="{0}_hip_fk_CTRL".format(self.model.module_name))[0]
+        knee_ctrl_jnt = pmc.ls("{0}_hip_fk_CTRL|{0}_knee_SKN".format(self.model.module_name))[0]
+        knee_02_ctrl_jnt = pmc.ls("{0}_hip_fk_CTRL|{0}_knee_SKN|{0}_knee_02_SKN".format(self.model.module_name))[0]
+        ankle_ctrl_jnt = pmc.ls("{0}_hip_fk_CTRL|{0}_knee_SKN|{0}_knee_02_SKN|{0}_ankle_SKN".format(self.model.module_name))[0]
+        knee_ctrl_jnt.rename("{0}_knee_fk_CTRL".format(self.model.module_name))
+        knee_02_ctrl_jnt.rename("{0}_knee_02_fk_CTRL".format(self.model.module_name))
+        ankle_ctrl_jnt.rename("{0}_ankle_fk_CTRL".format(self.model.module_name))
 
         self.created_ctrtl_jnts = [hip_ctrl_jnt, knee_ctrl_jnt, knee_02_ctrl_jnt, ankle_ctrl_jnt]
 
