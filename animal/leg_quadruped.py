@@ -265,7 +265,7 @@ class Controller(RigController):
         self.guides = [hip_guide, knee_guide, knee_02_guide, ankle_guide]
 
         if self.model.clavicle_creation_switch:
-            clavicle_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[3])
+            clavicle_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[-1])
             clavicle_guide.setAttr("translate", (1 * self.side_coef, 7.5, 0.5))
             self.guides.append(clavicle_guide)
 
@@ -293,12 +293,12 @@ class Controller(RigController):
         #     self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
         #                             self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
         #                             self.ankle_fk_pos_reader)
-        # self.create_one_chain_fk()
         self.create_outputs()
         self.create_local_spaces()
         self.clean_rig()
         pmc.select(d=1)
-#TODO: find a way to put a stretch, and find out how to constrain the last jnt to both ik and fk ctrl
+#TODO: find a way to put a stretch
+#TODO: use the raz ctrl
     def create_skn_jnts(self):
         duplicates_guides = []
         for guide in self.guides:
@@ -673,6 +673,21 @@ class Controller(RigController):
         self.option_ctrl.fkIk >> knee_ik_handle.ikBlend
         self.option_ctrl.fkIk >> ankle_ik_handle.ikBlend
 
+        const = pmc.parentConstraint(ik_ctrl, self.created_ctrtl_jnts[-1], self.created_skn_jnts[-1],
+                                        maintainOffset=1, skipTranslate=["x", "y", "z"])
+        const.setAttr("target[0].targetOffsetRotate", (0, 90 * (1 - self.side_coef), 90 * (1 + self.side_coef)))
+        const.setAttr("target[0].targetOffsetTranslate", (0, 0, 0))
+        const.setAttr("target[1].targetOffsetRotate", (0, 0, 0))
+        const.setAttr("target[1].targetOffsetTranslate", (0, 0, 0))
+
+        invert_value = pmc.createNode("plusMinusAverage", n="{0}_fk_const_switch_MDL".format(self.model.module_name))
+        invert_value.setAttr("input1D[0]", 1)
+        invert_value.setAttr("operation", 2)
+        self.option_ctrl.fkIk >> invert_value.input1D[1]
+
+        self.option_ctrl.connectAttr("fkIk", "{0}.{1}W0".format(const, ik_ctrl))
+        invert_value.connectAttr("output1D", "{0}.{1}W1".format(const, self.created_ctrtl_jnts[-1]))
+
     def create_local_spaces(self):
         spaces_names = []
         space_locs = []
@@ -752,6 +767,9 @@ class Controller(RigController):
         rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
         rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
 
+        pmc.evalDeferred("pmc.move(\"{0}\", [0.1, 0, 0], relative=1)".format(self.created_ik_ctrls[0]))
+        pmc.evalDeferred("pmc.move(\"{0}\", [-0.1, 0, 0], relative=1)".format(self.created_ik_ctrls[0]))
+
     def create_outputs(self):
         if self.model.clavicle_creation_switch:
             rig_lib.create_output(name="{0}_hip_clavicle_OUTPUT".format(self.model.module_name), parent=self.clavicle_jnt)
@@ -759,9 +777,6 @@ class Controller(RigController):
         rig_lib.create_output(name="{0}_knee_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[1])
         rig_lib.create_output(name="{0}_knee_02_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[2])
         rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
-
-    def create_one_chain_fk(self):
-        pass
 
 
 class Model(AuriScriptModel):

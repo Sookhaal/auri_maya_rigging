@@ -287,8 +287,10 @@ class Controller(RigController):
 
         self.create_skn_jnts()
         self.create_options_ctrl()
+
         if self.model.clavicle_creation_switch:
             self.create_clavicle_ctrl()
+
         if self.model.fk_ik_type == "three_chains":
             self.create_and_connect_fk_ik_jnts()
             self.create_fk()
@@ -299,10 +301,21 @@ class Controller(RigController):
                 self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
                                         self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
                                         self.ankle_fk_pos_reader)
+
         if self.model.fk_ik_type == "one_chain":
             self.create_one_chain_fk()
+
         self.create_outputs()
+
+        if self.model.raz_ctrls:
+            rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0], self.created_ik_jnts[-1], self.side_coef)
+
         self.create_local_spaces()
+
+        if self.model.raz_ctrls:
+            for i, ctrl in enumerate(self.created_fk_ctrls):
+                rig_lib.raz_fk_ctrl_rotate(ctrl, self.created_fk_jnts[i], self.model.stretch_creation_switch)
+
         self.clean_rig()
         pmc.select(d=1)
 
@@ -655,11 +668,11 @@ class Controller(RigController):
         rig_lib.clean_ctrl(self.option_ctrl, 9, trs="trs")
         self.option_ctrl.setAttr("fkIk", 1)
 
-        if self.model.raz_ctrls:
-            for i, ctrl in enumerate(self.created_fk_ctrls):
-                rig_lib.raz_fk_ctrl_rotate(ctrl, self.created_fk_jnts[i], self.model.stretch_creation_switch)
-
-            rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0], self.created_ik_jnts[-1], self.side_coef)
+        # if self.model.raz_ctrls:
+        #     for i, ctrl in enumerate(self.created_fk_ctrls):
+        #         rig_lib.raz_fk_ctrl_rotate(ctrl, self.created_fk_jnts[i], self.model.stretch_creation_switch)
+        #
+        #     rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0], self.created_ik_jnts[-1], self.side_coef)
 
         invert_value = pmc.createNode("plusMinusAverage", n="{0}_fk_visibility_MDL".format(self.model.module_name))
         invert_value.setAttr("input1D[0]", 1)
