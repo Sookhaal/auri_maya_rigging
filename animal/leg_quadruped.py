@@ -740,11 +740,11 @@ class Controller(RigController):
         rig_lib.clean_ctrl(self.option_ctrl, 9, trs="trs")
         self.option_ctrl.setAttr("fkIk", 1)
 
-        if self.model.raz_ctrls:
-            for i, ctrl in enumerate(self.created_ctrtl_jnts):
-                rig_lib.raz_fk_ctrl_rotate(ctrl, self.created_ctrtl_jnts[i], self.model.stretch_creation_switch)
-
-            rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0], self.created_ctrtl_jnts[-1], self.side_coef)
+        # if self.model.raz_ctrls:
+        #     for i, ctrl in enumerate(self.created_ctrtl_jnts):
+        #         rig_lib.raz_fk_ctrl_rotate(ctrl, self.created_ctrtl_jnts[i], self.model.stretch_creation_switch)
+        #
+        #     rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0], self.created_ctrtl_jnts[-1], self.side_coef)
 
         invert_value = pmc.createNode("plusMinusAverage", n="{0}_fk_visibility_MDL".format(self.model.module_name))
         invert_value.setAttr("input1D[0]", 1)
@@ -769,6 +769,9 @@ class Controller(RigController):
 
         pmc.evalDeferred("pmc.move(\"{0}\", [0.1, 0, 0], relative=1)".format(self.created_ik_ctrls[0]))
         pmc.evalDeferred("pmc.move(\"{0}\", [-0.1, 0, 0], relative=1)".format(self.created_ik_ctrls[0]))
+        pmc.evalDeferred(
+            "pmc.xform(\"{0}\", ws=1, rotation=(pmc.xform(\"{1}\", q=1, ws=1, rotation=1)))".format(
+                self.created_ik_ctrls[0], self.ankle_fk_pos_reader))
 
     def create_outputs(self):
         if self.model.clavicle_creation_switch:
