@@ -214,8 +214,8 @@ class Controller(RigController):
                                                     n="{0}_leg_plane".format(self.model.module_name), ch=0))[0]
             self.guides[0].getShape().worldPosition[0] >> self.plane.getShape().pnts[0]
             self.guides[1].getShape().worldPosition[0] >> self.plane.getShape().pnts[1]
-            self.guides[3].getShape().worldPosition[0] >> self.plane.getShape().pnts[2]
-            self.guides[2].getShape().worldPosition[0] >> self.plane.getShape().pnts[3]
+            self.guides[2].getShape().worldPosition[0] >> self.plane.getShape().pnts[2]
+            self.guides[3].getShape().worldPosition[0] >> self.plane.getShape().pnts[3]
 
             self.plane.setAttr("translateX", lock=True, keyable=False, channelBox=False)
             self.plane.setAttr("translateY", lock=True, keyable=False, channelBox=False)
@@ -239,18 +239,18 @@ class Controller(RigController):
         knee_02_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[2])
         ankle_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[3])
 
-        hip_guide.setAttr("translate", (2 * self.side_coef, 7, 0))
+        hip_guide.setAttr("translate", (2 * self.side_coef, 7, 2))
         knee_guide.setAttr("translate", (2 * self.side_coef, 4.5, 1))
-        knee_02_guide.setAttr("translate", (2 * self.side_coef, 3, -1))
-        ankle_guide.setAttr("translate", (2 * self.side_coef, 1, 0))
+        knee_02_guide.setAttr("translate", (2 * self.side_coef, 3, 1))
+        ankle_guide.setAttr("translate", (2 * self.side_coef, 1, 2))
 
         self.plane = pmc.ls(pmc.polyCreateFacet(p=[(0, 0, 0), (0, 0, 0), (0, 0, 0), (0, 0, 0)],
                                                 n="{0}_leg_plane".format(self.model.module_name), ch=0))[0]
 
         hip_guide.getShape().worldPosition[0] >> self.plane.getShape().pnts[0]
         knee_guide.getShape().worldPosition[0] >> self.plane.getShape().pnts[1]
-        ankle_guide.getShape().worldPosition[0] >> self.plane.getShape().pnts[2]
-        knee_02_guide.getShape().worldPosition[0] >> self.plane.getShape().pnts[3]
+        knee_02_guide.getShape().worldPosition[0] >> self.plane.getShape().pnts[2]
+        ankle_guide.getShape().worldPosition[0] >> self.plane.getShape().pnts[3]
 
         self.plane.setAttr("translateX", lock=True, keyable=False, channelBox=False)
         self.plane.setAttr("translateY", lock=True, keyable=False, channelBox=False)
@@ -266,7 +266,7 @@ class Controller(RigController):
 
         if self.model.clavicle_creation_switch:
             clavicle_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[-1])
-            clavicle_guide.setAttr("translate", (1 * self.side_coef, 7.5, 0.5))
+            clavicle_guide.setAttr("translate", (1 * self.side_coef, 7.5, 1))
             self.guides.append(clavicle_guide)
 
         self.guides_grp = self.group_guides(self.guides)
@@ -307,8 +307,8 @@ class Controller(RigController):
 
         leg_plane = pmc.polyCreateFacet(p=[pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1),
                                            pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1),
-                                           pmc.xform(duplicates_guides[3], q=1, ws=1, translation=1),
-                                           pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)],
+                                           pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1),
+                                           pmc.xform(duplicates_guides[3], q=1, ws=1, translation=1)],
                                         n="{0}_temporary_leg_plane".format(self.model.module_name), ch=1)[0]
         leg_plane_face = pmc.ls(leg_plane)[0].f[0]
 
@@ -322,13 +322,13 @@ class Controller(RigController):
                                            worldUpVector=(0.0, 0.0, 1.0))
             pmc.delete(clav_const)
 
-        hip_const = pmc.normalConstraint(leg_plane_face, duplicates_guides[0], aimVector=(-1.0, 0.0, 0.0),
+        hip_const = pmc.normalConstraint(leg_plane_face, duplicates_guides[0], aimVector=(1.0, 0.0, 0.0),
                                          upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="object",
                                          worldUpObject=duplicates_guides[1])
-        knee_cons = pmc.normalConstraint(leg_plane_face, duplicates_guides[1], aimVector=(-1.0, 0.0, 0.0),
+        knee_cons = pmc.normalConstraint(leg_plane_face, duplicates_guides[1], aimVector=(1.0, 0.0, 0.0),
                                          upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="object",
                                          worldUpObject=duplicates_guides[2])
-        knee_02_cons = pmc.normalConstraint(leg_plane_face, duplicates_guides[2], aimVector=(-1.0, 0.0, 0.0),
+        knee_02_cons = pmc.normalConstraint(leg_plane_face, duplicates_guides[2], aimVector=(1.0, 0.0, 0.0),
                                             upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="object",
                                             worldUpObject=duplicates_guides[3])
         pmc.delete(hip_const)
@@ -628,7 +628,7 @@ class Controller(RigController):
         pv_ofs = pmc.group(pole_vector, n="{0}_poleVector_ctrl_OFS".format(self.model.module_name))
         pv_ofs.setAttr("translate", (pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[0],
                                      pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[1],
-                                     pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[2] + (
+                                     pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[2] - (
                                          (pmc.xform(self.created_ctrtl_jnts[1], q=1, translation=1)[1]) * self.side_coef)))
         pmc.poleVectorConstraint(pole_vector, global_ik_handle)
         pmc.poleVectorConstraint(pole_vector, knee_ik_handle)
