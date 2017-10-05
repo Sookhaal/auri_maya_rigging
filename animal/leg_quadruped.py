@@ -767,11 +767,11 @@ class Controller(RigController):
         rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
         rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
 
-        pmc.evalDeferred("pmc.move(\"{0}\", [0.1, 0, 0], relative=1)".format(self.created_ik_ctrls[0]))
-        pmc.evalDeferred("pmc.move(\"{0}\", [-0.1, 0, 0], relative=1)".format(self.created_ik_ctrls[0]))
-        pmc.evalDeferred(
-            "pmc.xform(\"{0}\", ws=1, rotation=(pmc.xform(\"{1}\", q=1, ws=1, rotation=1)))".format(
-                self.created_ik_ctrls[0], self.ankle_fk_pos_reader))
+        pmc.refresh()
+
+        pmc.move(self.created_ik_ctrls[0],  [0.1, 0, 0], relative=1)
+        pmc.move(self.created_ik_ctrls[0],  [-0.1, 0, 0], relative=1)
+        pmc.xform(self.created_ik_ctrls[0], ws=1, rotation=(pmc.xform(self.ankle_fk_pos_reader, q=1, ws=1, rotation=1)))
 
     def create_outputs(self):
         if self.model.clavicle_creation_switch:
