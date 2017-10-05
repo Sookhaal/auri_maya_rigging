@@ -300,6 +300,7 @@ class Controller(RigController):
         ik_effector = pmc.listRelatives(self.created_ik_jnts[0], children=1)[1]
         ik_effector.rename("{0}_ball_ik_EFF".format(self.model.module_name))
 
+        #TODO: find a way to delete all the locs, without deleteing the ik_leg_hdl when rebuilding a foot
         locs_offset = pmc.group(em=1, n="{0}_roll_OFS".format(self.model.module_name))
         locs_offset.setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
         locs_offset.setAttr("rotateOrder", 4)
@@ -313,13 +314,29 @@ class Controller(RigController):
         pmc.parent(self.leg_ik_handle, self.created_locs[0], r=0)
         pmc.parent(self.leg_ik_length_end_loc, self.created_locs[0], r=0)
 
+        if "roll" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("roll")
         self.leg_ik_ctrl.addAttr("roll", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        if "bendLimitAngle" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("bendLimitAngle")
         self.leg_ik_ctrl.addAttr("bendLimitAngle", attributeType="float", defaultValue=45, hidden=0, keyable=1)
+        if "toeStraightAngle" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("toeStraightAngle")
         self.leg_ik_ctrl.addAttr("toeStraightAngle", attributeType="float", defaultValue=70, hidden=0, keyable=1)
+        if "bank" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("bank")
         self.leg_ik_ctrl.addAttr("bank", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        if "lean" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("lean")
         self.leg_ik_ctrl.addAttr("lean", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        if "heelTwist" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("heelTwist")
         self.leg_ik_ctrl.addAttr("heelTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        if "toeTwist" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("toeTwist")
         self.leg_ik_ctrl.addAttr("toeTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        if "toeBend" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("toeBend")
         self.leg_ik_ctrl.addAttr("toeBend", attributeType="float", defaultValue=0, hidden=0, keyable=1)
 
         roll_heel_limit = pmc.createNode("clamp", n="{0}_heel_CLAMP".format(self.model.module_name))

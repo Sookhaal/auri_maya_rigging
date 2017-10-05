@@ -393,12 +393,14 @@ class Controller(RigController):
 
     def create_options_attributes(self):
         if self.model.how_many_fingers > 1:
-            if "spread" not in pmc.listAttr(self.parent_option_ctrl, keyable=1):
-                self.parent_option_ctrl.addAttr("spread", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+            if "spread" in pmc.listAttr(self.parent_option_ctrl, keyable=1):
+                self.parent_option_ctrl.deleteAttr("spread")
+            self.parent_option_ctrl.addAttr("spread", attributeType="float", defaultValue=0, hidden=0, keyable=1)
         for n, finger in enumerate(self.created_fk_ctrls):
-            if "finger{0}Curl".format(n + 1) not in pmc.listAttr(self.parent_option_ctrl, keyable=1):
-                self.parent_option_ctrl.addAttr("finger{0}Curl".format(n + 1), attributeType="float", defaultValue=0,
-                                                hidden=0, keyable=1)
+            if "finger{0}Curl".format(n + 1) in pmc.listAttr(self.parent_option_ctrl, keyable=1):
+                self.parent_option_ctrl.deleteAttr("finger{0}Curl".format(n + 1))
+            self.parent_option_ctrl.addAttr("finger{0}Curl".format(n + 1), attributeType="float", defaultValue=0,
+                                            hidden=0, keyable=1)
 
             if self.model.how_many_fingers == 2:
                 center_finger = 0.5
