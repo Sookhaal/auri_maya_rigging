@@ -337,6 +337,12 @@ class Controller(RigController):
         pmc.parent(duplicates_guides[1], duplicates_guides[0])
         pmc.parent(duplicates_guides[2], duplicates_guides[1])
         pmc.parent(duplicates_guides[3], duplicates_guides[2])
+        if duplicates_guides[1].getAttr("rotateY") == 180 or duplicates_guides[1].getAttr("rotateY") == -180 or \
+                    duplicates_guides[1].getAttr("rotateZ") == 180 or duplicates_guides[1].getAttr("rotateZ") == -180:
+            duplicates_guides[1].setAttr("rotate", (-180 - duplicates_guides[1].getAttr("rotate")[0], 0, 0))
+        if duplicates_guides[2].getAttr("rotateY") == 180 or duplicates_guides[2].getAttr("rotateY") == -180 or \
+                    duplicates_guides[2].getAttr("rotateZ") == 180 or duplicates_guides[2].getAttr("rotateZ") == -180:
+            duplicates_guides[2].setAttr("rotate", (180 - duplicates_guides[2].getAttr("rotate")[0], 0, 0))
 
         temp_guide_orient = pmc.group(em=1, n="temp_guide_orient_grp")
         temp_guide_orient.setAttr("translate", pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1))
