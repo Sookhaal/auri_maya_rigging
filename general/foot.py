@@ -300,7 +300,10 @@ class Controller(RigController):
         ik_effector = pmc.listRelatives(self.created_ik_jnts[0], children=1)[1]
         ik_effector.rename("{0}_ball_ik_EFF".format(self.model.module_name))
 
-        #TODO: find a way to delete all the locs, without deleteing the ik_leg_hdl when rebuilding a foot
+        pmc.parent(self.leg_ik_handle, world=1)
+        pmc.parent(self.leg_ik_length_end_loc, world=1)
+        if pmc.objExists("{0}_roll_OFS".format(self.model.module_name)):
+            pmc.delete("{0}_roll_OFS".format(self.model.module_name))
         locs_offset = pmc.group(em=1, n="{0}_roll_OFS".format(self.model.module_name))
         locs_offset.setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
         locs_offset.setAttr("rotateOrder", 4)
