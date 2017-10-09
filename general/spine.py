@@ -108,54 +108,59 @@ class Controller(RigController):
             view (View):
         """
         self.guides_grp = None
-        self.guide = None
-        self.guide_name = "None"
-        self.created_jnts = []
+        self.guides = []
+        self.guide_names = []
+        self.created_spine_jnts = []
+        self.created_pelvis_jnt = None
         self.ik_spline = None
         self.created_locs = []
         self.created_fk_ctrls = []
+        self.created_pelvis_ctrl = None
         self.created_ik_ctrls = []
         RigController.__init__(self,  model, view)
 
     def prebuild(self):
-        temp_outputs = ["start_OUTPUT", "end_OUTPUT"]
+        temp_outputs = ["pelvis_OUTPUT", "start_OUTPUT", "end_OUTPUT"]
         for i in xrange(self.model.how_many_jnts):
             temp_output = "jnt_{0}_OUTPUT".format(i)
             temp_outputs.append(temp_output)
         self.create_temporary_outputs(temp_outputs)
 
-        self.guide_name = "{0}_GUIDE".format(self.model.module_name)
+        self.guide_names = ["{0}_pelvis_GUIDE".format(self.model.module_name),
+                            "{0}_spine_GUIDE".format(self.model.module_name)]
         d = 3
         nb_points = self.model.how_many_ctrls - 2
         if self.model.how_many_ctrls < 4:
             d = 3 + self.model.how_many_ctrls - 4
             nb_points = 2
-        if self.guide_check(self.guide_name):
-            self.guide = pmc.ls(self.guide_name)[0]
-            if d != 2 and (self.guide.getShape().getAttr("spans") != nb_points - 1 or
-                           self.guide.getShape().getAttr("degree") != d):
-                self.guide = pmc.rebuildCurve(self.guide_name, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
-                                              s=(nb_points - 1), d=d, ch=0, replaceOriginal=1)[0]
-            elif self.guide.getShape().getAttr("spans") != nb_points - 1 or self.guide.getShape().getAttr("degree") != d:
-                self.guide = pmc.rebuildCurve(self.guide_name, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
-                                              s=3, d=d, ch=0, replaceOriginal=1)[0]
-                pmc.delete(self.guide.cv[-2])
-                pmc.delete(self.guide.cv[1])
+        if self.guide_check(self.guide_names):
+            self.guides = pmc.ls(self.guide_names)
+            if d != 2 and (self.guides[1].getShape().getAttr("spans") != nb_points - 1 or
+                           self.guides[1].getShape().getAttr("degree") != d):
+                self.guides[1] = pmc.rebuildCurve(self.guide_names[1], rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
+                                                  s=(nb_points - 1), d=d, ch=0, replaceOriginal=1)[0]
+            elif self.guides[1].getShape().getAttr("spans") != nb_points - 1 or self.guides[1].getShape().getAttr("degree") != d:
+                self.guides[1] = pmc.rebuildCurve(self.guide_names[1], rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
+                                                  s=3, d=d, ch=0, replaceOriginal=1)[0]
+                pmc.delete(self.guides[1].cv[-2])
+                pmc.delete(self.guides[1].cv[1])
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
             self.guides_grp.setAttr("visibility", 1)
             self.view.refresh_view()
             pmc.select(d=1)
             return
-        self.guide = rig_lib.create_curve_guide(d=d, number_of_points=nb_points, name=self.guide_name, hauteur_curve=8)
-        self.guides_grp = self.group_guides(self.guide)
-        self.guide.setAttr("translate", (0, 8, 0))
+        pelvis_guides = pmc.spaceLocator(p=(0, 0, 0), n=self.guide_names[0])
+        spine_guide = rig_lib.create_curve_guide(d=d, number_of_points=nb_points, name=self.guide_names[1], hauteur_curve=8)
+        self.guides = [pelvis_guides, spine_guide]
+        self.guides_grp = self.group_guides(self.guides)
+        self.guides[0].setAttr("translate", (0, 6.5, 0))
+        self.guides[1].setAttr("translate", (0, 8, 0))
         self.view.refresh_view()
         pmc.select(d=1)
 
     def execute(self):
         self.created_locs = []
         self.created_fk_ctrls = []
-        self.created_ik_ctrls = []
         self.prebuild()
 
         self.delete_existing_objects()
@@ -165,7 +170,7 @@ class Controller(RigController):
         self.create_fk()
         self.activate_twist()
         if self.model.stretch_creation_switch == 1:
-            self.connect_ik_spline_stretch(self.ik_spline, self.created_jnts)
+            self.connect_ik_spline_stretch(self.ik_spline, self.created_spine_jnts)
         if self.model.ik_creation_switch == 1:
             self.create_ik()
         self.clean_rig()
@@ -173,33 +178,39 @@ class Controller(RigController):
         pmc.select(d=1)
 
     def create_jnts(self):
-        guide_rebuilded = pmc.rebuildCurve(self.guide, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
+        guide_rebuilded = pmc.rebuildCurve(self.guides[1], rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
                                            s=self.model.how_many_jnts, d=1, ch=0, replaceOriginal=0)[0]
         if self.model.how_many_jnts == 2:
             pmc.delete(guide_rebuilded.cv[-2])
             pmc.delete(guide_rebuilded.cv[1])
         guide_rebuilded.rename("{0}_temp_rebuilded_GUIDE".format(self.model.module_name))
         vertex_list = guide_rebuilded.cv[:]
-        self.created_jnts = rig_lib.create_jnts_from_cv_list_and_return_jnts_list(vertex_list, self.model.module_name)
-        pmc.parent(self.created_jnts[0], self.jnt_input_grp, r=0)
+        self.created_spine_jnts = rig_lib.create_jnts_from_cv_list_and_return_jnts_list(vertex_list, self.model.module_name)
+        pmc.parent(self.created_spine_jnts[0], self.jnt_input_grp, r=0)
 
-        rig_lib.change_jnt_chain_suffix(self.created_jnts, new_suffix="SKN")
+        rig_lib.change_jnt_chain_suffix(self.created_spine_jnts, new_suffix="SKN")
 
         pmc.delete(guide_rebuilded)
 
+        pmc.select(d=1)
+        self.created_pelvis_jnt = pmc.joint(p=(pmc.xform(self.guides[0], q=1, ws=1, translation=1)),
+                                            n="{0}_pelvis_SKN".format(self.model.module_name))
+        self.created_pelvis_jnt.setAttr("rotateOrder", 2)
+        pmc.parent(self.created_pelvis_jnt, self.jnt_input_grp)
+
     def create_ikspline(self):
-        self.ik_spline = pmc.duplicate(self.guide, n="{0}_ik_CRV".format(self.model.module_name))[0]
-        ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)), startJoint=self.created_jnts[0],
-                                 endEffector=self.created_jnts[-1], solver="ikSplineSolver", curve=self.ik_spline,
+        self.ik_spline = pmc.duplicate(self.guides[1], n="{0}_ik_CRV".format(self.model.module_name))[0]
+        ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)), startJoint=self.created_spine_jnts[0],
+                                 endEffector=self.created_spine_jnts[-1], solver="ikSplineSolver", curve=self.ik_spline,
                                  createCurve=False, parentCurve=False)[0]
         pmc.parent(self.ik_spline, self.parts_grp, r=1)
         pmc.parent(ik_handle, self.parts_grp, r=1)
-        ik_effector = pmc.listRelatives(self.created_jnts[-2], children=1)[1]
+        ik_effector = pmc.listRelatives(self.created_spine_jnts[-2], children=1)[1]
         ik_effector.rename("{0}_ik_EFF".format(self.model.module_name))
 
     def create_fk(self):
         ik_spline_cv_list = []
-        for i, cv in enumerate(self.guide.cv):
+        for i, cv in enumerate(self.guides[1].cv):
             ik_spline_cv_list.append(cv)
 
         ik_spline_controlpoints_list = []
@@ -213,7 +224,18 @@ class Controller(RigController):
         self.ik_spline.setAttr("translate", (0, 0, 0))
         self.ik_spline.setAttr("rotate", (0, 0, 0))
         self.ik_spline.setAttr("scale", (1, 1, 1))
-        pmc.parentConstraint(self.created_fk_ctrls[-1], self.created_jnts[-1], maintainOffset=1, skipTranslate=("x", "y", "z"))
+        pmc.parentConstraint(self.created_fk_ctrls[-1], self.created_spine_jnts[-1], maintainOffset=1, skipTranslate=("x", "y", "z"))
+
+        pmc.select(d=1)
+        pelvis_ctrl_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=2.5, d=3, s=8,
+                                       n="{0}_pelvis_CTRL_shape".format(self.model.module_name), ch=0)[0]
+        self.created_pelvis_ctrl = rig_lib.create_jnttype_ctrl(name="{0}_pelvis_CTRL".format(self.model.module_name),
+                                                               shape=pelvis_ctrl_shape, drawstyle=2, rotateorder=2)
+        self.created_pelvis_ctrl.setAttr("translate", pmc.xform(self.created_pelvis_jnt, q=1, ws=1, translation=1))
+        pmc.parent(self.created_pelvis_ctrl, self.ctrl_input_grp)
+        pmc.pointConstraint(self.created_pelvis_ctrl, self.created_pelvis_jnt, maintainOffset=1)
+        self.created_pelvis_ctrl.rotate >> self.created_pelvis_jnt.rotate
+        self.created_pelvis_ctrl.scale >> self.created_pelvis_jnt.scale
 
     def create_locators(self, i, cv, ik_spline_controlpoints_for_ctrls):
         cv_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_{1}_pos".format(self.model.module_name, (i + 1)))
@@ -230,7 +252,7 @@ class Controller(RigController):
                                            drawstyle=2, rotateorder=2)
 
         nearest_point_on_curve = pmc.createNode("nearestPointOnCurve", n="temp_NPOC")
-        self.guide.worldSpace >> nearest_point_on_curve.inputCurve
+        self.guides[1].worldSpace >> nearest_point_on_curve.inputCurve
         cv_loc.getShape().worldPosition >> nearest_point_on_curve.inPosition
         ctrl.setAttr("translate", nearest_point_on_curve.getAttr("position"))
         # nearest_point_on_curve.position >> ctrl.translate
@@ -272,12 +294,9 @@ class Controller(RigController):
 
         self.created_fk_ctrls[-1].setAttr("visibility", 0)
 
-        self.created_ik_ctrls.append(start_ctrl)
-        self.created_ik_ctrls.append(end_ctrl)
+        self.created_ik_ctrls = [start_ctrl, end_ctrl]
 
-        if self.model.how_many_ctrls == 2:
-            pass
-        else:
+        if not self.model.how_many_ctrls == 2:
             center_ctrl = (self.model.how_many_ctrls / 2.0) - 0.5
             for i, loc in enumerate(self.created_locs):
                 if i == center_ctrl:
@@ -296,6 +315,8 @@ class Controller(RigController):
                     const.setAttr("{0}W0".format(start_ctrl), ((1 / (self.model.how_many_ctrls / 2.0)) *
                                                                (((len(self.created_locs)-1) - i) / 2.0)))
                     const.setAttr("{0}W1".format(end_ctrl), 1)
+
+        pmc.parent(self.created_pelvis_ctrl, start_ctrl)
 
     def activate_twist(self):
         ik_handle = pmc.ls("{0}_ik_HDL".format(self.model.module_name))[0]
@@ -327,12 +348,15 @@ class Controller(RigController):
         for ctrl in self.created_ik_ctrls:
             rig_lib.clean_ctrl(ctrl, 17, trs="s")
 
-    def create_outputs(self):
-        rig_lib.create_output(name="{0}_start_OUTPUT".format(self.model.module_name), parent=self.created_locs[0])
-        rig_lib.create_output(name="{0}_end_OUTPUT".format(self.model.module_name), parent=self.created_jnts[-1])
+        rig_lib.clean_ctrl(self.created_pelvis_ctrl, 14, trs="t")
 
-        for i, jnt in enumerate(self.created_jnts):
-            if jnt != self.created_jnts[-1]:
+    def create_outputs(self):
+        rig_lib.create_output(name="{0}_pelvis_OUTPUT".format(self.model.module_name), parent=self.created_pelvis_jnt)
+        rig_lib.create_output(name="{0}_start_OUTPUT".format(self.model.module_name), parent=self.created_locs[0])
+        rig_lib.create_output(name="{0}_end_OUTPUT".format(self.model.module_name), parent=self.created_spine_jnts[-1])
+
+        for i, jnt in enumerate(self.created_spine_jnts):
+            if jnt != self.created_spine_jnts[-1]:
                 name = "{0}_jnt_{1}_OUTPUT".format(self.model.module_name, i)
                 rig_lib.create_output(name=name, parent=jnt)
 
