@@ -170,7 +170,7 @@ class Controller(RigController):
         self.create_fk()
         self.activate_twist()
         if self.model.stretch_creation_switch == 1:
-            self.connect_ik_spline_stretch(self.ik_spline, self.created_spine_jnts)
+            self.connect_ik_spline_stretch(self.ik_spline, self.created_spine_jnts, measure_type="accurate")
         if self.model.ik_creation_switch == 1:
             self.create_ik()
         self.clean_rig()

@@ -213,7 +213,7 @@ class Controller(RigController):
         self.create_fk()
         self.activate_twist()
         if self.model.stretch_creation_switch == 1:
-            self.connect_ik_spline_stretch(self.ik_spline, self.created_jnts)
+            self.connect_ik_spline_stretch(self.ik_spline, self.created_jnts, measure_type="accurate")
         if self.model.ik_creation_switch == 1:
             self.create_ik()
         self.create_outputs()
@@ -319,6 +319,26 @@ class Controller(RigController):
 
         self.created_ik_ctrls.append(start_ctrl)
         self.created_ik_ctrls.append(end_ctrl)
+
+        if not self.model.how_many_ctrls == 2:
+            center_ctrl = (self.model.how_many_ctrls / 2.0) - 0.5
+            for i, loc in enumerate(self.created_locs):
+                if i == center_ctrl:
+                    const = pmc.parentConstraint(start_ctrl, end_ctrl, loc, maintainOffset=1,
+                                                 skipRotate=["x", "y", "z"])
+                    const.setAttr("{0}W0".format(start_ctrl), 1)
+                    const.setAttr("{0}W1".format(end_ctrl), 1)
+                elif i < center_ctrl:
+                    const = pmc.parentConstraint(start_ctrl, end_ctrl, loc, maintainOffset=1,
+                                                 skipRotate=["x", "y", "z"])
+                    const.setAttr("{0}W0".format(start_ctrl), 1)
+                    const.setAttr("{0}W1".format(end_ctrl), ((1 / (self.model.how_many_ctrls / 2.0)) * (i / 2.0)))
+                elif i > center_ctrl:
+                    const = pmc.parentConstraint(start_ctrl, end_ctrl, loc, maintainOffset=1,
+                                                 skipRotate=["x", "y", "z"])
+                    const.setAttr("{0}W0".format(start_ctrl), ((1 / (self.model.how_many_ctrls / 2.0)) *
+                                                               (((len(self.created_locs) - 1) - i) / 2.0)))
+                    const.setAttr("{0}W1".format(end_ctrl), 1)
 
     def activate_twist(self):
         ik_handle = pmc.ls("{0}_ik_HDL".format(self.model.module_name))[0]
