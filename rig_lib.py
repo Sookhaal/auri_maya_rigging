@@ -381,7 +381,7 @@ class RigController(AuriScriptController):
         pmc.xform(created_ik_ctrls[0], ws=1, translation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, translation=1)))
         pmc.xform(created_ik_ctrls[0], ws=1, rotation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, rotation=1)))
 
-    def connect_one_chain_fk_ik_stretch(self, fk_ctrls, ik_ctrl, option_ctrl):
+    def connect_one_chain_fk_ik_stretch(self, fk_ctrls, ik_ctrl, option_ctrl, side_coef):
         #TODO: verifier que ca fonctionne sur une jambe ou un bras normal.
         ik_ctrl_translate = ik_ctrl.getAttr("translate")
         ik_ctrl_rotate = ik_ctrl.getAttr("rotate")
@@ -438,7 +438,7 @@ class RigController(AuriScriptController):
                 ctrl.baseTranslateY >> jnt_lenght.input1Y
                 fk_ctrls[i - 1].stretch >> jnt_lenght.input2Y
                 jnt_lenght.outputY >> base_lenght.input1D[i-1]
-
+# TODO: find a way to invert translate value for right limb
                 jnt_ik_stretch = pmc.createNode("multiplyDivide", n="{0}_jnt_ik_{1}_stretch_MDV".format(self.model.module_name, i-1))
                 jnt_lenght.outputY >> jnt_ik_stretch.input1Y
                 stretch_condition.outColorR >> jnt_ik_stretch.input2Y
