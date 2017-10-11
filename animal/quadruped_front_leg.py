@@ -168,6 +168,7 @@ class Controller(RigController):
         self.clavicle_jnt = None
         self.created_ctrtl_jnts = []
         self.created_fk_shapes = []
+        self.created_ik_setup_chain = []
         self.created_ik_ctrls = []
         self.clavicle_ctrl = None
         self.option_ctrl = None
@@ -288,7 +289,10 @@ class Controller(RigController):
         self.create_fk()
         if self.model.ik_creation_switch:
             self.create_ik()
-        # if self.model.stretch_creation_switch == 1:
+        if self.model.stretch_creation_switch == 1:
+            self.connect_quadruped_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0],
+                                                           self.option_ctrl,
+                                                           self.created_ik_setup_chain, self.side_coef)
         #     self.connect_fk_stretch(self.created_fk_jnts, self.created_fk_ctrls)
         #     self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
         #                             self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
@@ -559,7 +563,7 @@ class Controller(RigController):
         knee_02_ik_setup_jnt.rename("{0}_knee_02_ik_setup_JNT".format(self.model.module_name))
         ankle_ik_setup_jnt.rename("{0}_ankle_ik_setup_JNT".format(self.model.module_name))
 
-        ik_setup_jnts = [hip_ik_setup_jnt, knee_ik_setup_jnt, knee_02_ik_setup_jnt, ankle_ik_setup_jnt]
+        self.created_ik_setup_chain = [hip_ik_setup_jnt, knee_ik_setup_jnt, knee_02_ik_setup_jnt, ankle_ik_setup_jnt]
 
         pmc.parent(hip_ik_setup_jnt, self.ctrl_input_grp)
         hip_ik_setup_jnt.setAttr("visibility", 0)
