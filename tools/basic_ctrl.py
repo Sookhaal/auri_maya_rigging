@@ -111,7 +111,11 @@ class Controller(RigController):
             ctrl_ofs.setAttr("drawStyle", 2)
             pmc.parent(ctrl, ctrl_ofs)
 
-            pmc.xform(ctrl_ofs, ws=1, matrix=pmc.xform(obj, q=1, ws=1, matrix=1))
+            if pmc.objectType(obj) == "joint" or pmc.xform(obj, q=1, rotatePivot=1) == [0, 0, 0]:
+                pmc.xform(ctrl_ofs, ws=1, matrix=pmc.xform(obj, q=1, ws=1, matrix=1))
+            else:
+                pmc.xform(ctrl_ofs, ws=1, translation=pmc.xform(obj, q=1, ws=1, rotatePivot=1))
+                pmc.xform(ctrl_ofs, ws=1, rotation=pmc.xform(obj, q=1, ws=1, rotation=1))
 
         pmc.select(self.selection)
 

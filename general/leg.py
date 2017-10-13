@@ -303,14 +303,14 @@ class Controller(RigController):
                                         self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
                                         self.ankle_fk_pos_reader)
 
-        if self.model.fk_ik_type == "one_chain":
-            self.create_and_connect_ctrl_jnts()
-            self.create_one_chain_fk()
-            self.create_one_chain_ik()
-            if self.model.stretch_creation_switch == 1:
-                self.connect_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0],
-                                                     self.option_ctrl, self.side_coef)
-        return
+        # if self.model.fk_ik_type == "one_chain":
+        #     self.create_and_connect_ctrl_jnts()
+        #     self.create_one_chain_fk()
+        #     self.create_one_chain_ik()
+        #     if self.model.stretch_creation_switch == 1:
+        #         self.connect_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0],
+        #                                              self.option_ctrl, self.side_coef)
+        # return
         self.create_outputs()
 
         if self.model.raz_ctrls:
