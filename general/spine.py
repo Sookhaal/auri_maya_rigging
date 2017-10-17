@@ -235,8 +235,9 @@ class Controller(RigController):
                                                                shape=pelvis_ctrl_shape, drawstyle=2, rotateorder=2)
         self.created_pelvis_ctrl.setAttr("translate", pmc.xform(self.created_pelvis_jnt, q=1, ws=1, translation=1))
         pmc.parent(self.created_pelvis_ctrl, self.ctrl_input_grp)
-        pmc.pointConstraint(self.created_pelvis_ctrl, self.created_pelvis_jnt, maintainOffset=1)
-        self.created_pelvis_ctrl.rotate >> self.created_pelvis_jnt.rotate
+        # pmc.pointConstraint(self.created_pelvis_ctrl, self.created_pelvis_jnt, maintainOffset=1)
+        # self.created_pelvis_ctrl.rotate >> self.created_pelvis_jnt.rotate
+        pmc.parentConstraint(self.created_pelvis_ctrl, self.created_pelvis_jnt, maintainOffset=1)
         self.created_pelvis_ctrl.scale >> self.created_pelvis_jnt.scale
 
     def create_locators(self, i, cv, ik_spline_controlpoints_for_ctrls):

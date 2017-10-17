@@ -303,25 +303,36 @@ class Controller(RigController):
                                         self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
                                         self.ankle_fk_pos_reader)
 
-        # if self.model.fk_ik_type == "one_chain":
-        #     self.create_and_connect_ctrl_jnts()
-        #     self.create_one_chain_fk()
-        #     self.create_one_chain_ik()
-        #     if self.model.stretch_creation_switch == 1:
-        #         self.connect_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0],
-        #                                              self.option_ctrl, self.side_coef)
-        # return
-        self.create_outputs()
+            self.create_outputs()
 
-        if self.model.raz_ctrls:
-            rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0], self.created_ik_jnts[-1], self.side_coef)
+            if self.model.raz_ctrls:
+                rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0], self.created_ik_jnts[-1], self.side_coef)
 
-        self.create_local_spaces()
+            self.create_local_spaces()
 
-        if self.model.raz_ctrls:
-            for i, ctrl in enumerate(self.created_fk_ctrls):
-                rig_lib.raz_fk_ctrl_rotate(ctrl, self.created_fk_jnts[i], self.model.stretch_creation_switch)
+            if self.model.raz_ctrls:
+                for i, ctrl in enumerate(self.created_fk_ctrls):
+                    rig_lib.raz_fk_ctrl_rotate(ctrl, self.created_fk_jnts[i], self.model.stretch_creation_switch)
 
+        if self.model.fk_ik_type == "one_chain":
+            self.create_and_connect_ctrl_jnts()
+            self.create_one_chain_fk()
+            self.create_one_chain_ik()
+            if self.model.stretch_creation_switch == 1:
+                self.connect_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0],
+                                                     self.option_ctrl, self.created_skn_jnts)
+
+            self.create_outputs()
+
+            # if self.model.raz_ctrls:
+            #     rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0], self.created_ik_jnts[-1], self.side_coef)
+
+            self.create_local_spaces()
+
+            # if self.model.raz_ctrls:
+            #     for i, ctrl in enumerate(self.created_ctrtl_jnts):
+            #         rig_lib.raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, self.created_skn_jnts[i], self.model.stretch_creation_switch)
+#TODO: find a way to raz one_chain_ik_fk ctrls
         self.clean_rig()
         pmc.select(d=1)
 
@@ -637,26 +648,31 @@ class Controller(RigController):
 
         spaces_names.append("local")
 
-        self.created_fk_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
+        if self.model.fk_ik_type == "three_chains":
+            fk_ctrls = self.created_fk_ctrls
+        else:
+            fk_ctrls = self.created_ctrtl_jnts
+
+        fk_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
         self.created_ik_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
 
         for i, space in enumerate(self.model.space_list):
             space_locs[i].setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
             pmc.parent(space_locs[i], space)
 
-            fk_space_const = pmc.orientConstraint(space_locs[i], self.created_fk_ctrls[0].getParent(), maintainOffset=1)
+            fk_space_const = pmc.orientConstraint(space_locs[i], fk_ctrls[0].getParent(), maintainOffset=1)
             ik_space_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[0].getParent(), maintainOffset=1)
             jnt_const_grp_const = pmc.orientConstraint(space_locs[i], self.jnt_const_group, maintainOffset=1)
             pole_vector_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[1].getParent(), maintainOffset=1)
 
             rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(fk_space_const, space_locs[i], i),
-                                                    self.created_fk_ctrls[0].space, i,
-                                                    "{0}_{1}_COND".format(self.created_fk_ctrls[0], name))
+                                                    fk_ctrls[0].space, i,
+                                                    "{0}_{1}_COND".format(fk_ctrls[0], name))
             rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(ik_space_const, space_locs[i], i),
                                                     self.created_ik_ctrls[0].space, i,
                                                     "{0}_{1}_COND".format(self.created_ik_ctrls[0], name))
             rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(jnt_const_grp_const, space_locs[i], i),
-                                                    self.created_fk_ctrls[0].space, i,
+                                                    fk_ctrls[0].space, i,
                                                     "{0}_{1}_COND".format(self.jnt_const_group, name))
             rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(pole_vector_const, space_locs[i], i),
                                                     self.created_ik_ctrls[0].space, i,
@@ -675,12 +691,6 @@ class Controller(RigController):
         rig_lib.clean_ctrl(self.option_ctrl, 9, trs="trs")
         self.option_ctrl.setAttr("fkIk", 1)
 
-        # if self.model.raz_ctrls:
-        #     for i, ctrl in enumerate(self.created_fk_ctrls):
-        #         rig_lib.raz_fk_ctrl_rotate(ctrl, self.created_fk_jnts[i], self.model.stretch_creation_switch)
-        #
-        #     rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0], self.created_ik_jnts[-1], self.side_coef)
-
         invert_value = pmc.createNode("plusMinusAverage", n="{0}_fk_visibility_MDL".format(self.model.module_name))
         invert_value.setAttr("input1D[0]", 1)
         invert_value.setAttr("operation", 2)
@@ -691,11 +701,16 @@ class Controller(RigController):
             rig_lib.clean_ctrl(self.clavicle_ik_ctrl, color_value, trs="rs",
                                visibility_dependence=self.option_ctrl.hipClavicleIkCtrl)
 
-        rig_lib.clean_ctrl(self.created_fk_ctrls[0], color_value, trs="ts",
+        if self.model.fk_ik_type == "three_chains":
+            fk_ctrls = self.created_fk_ctrls
+        else:
+            fk_ctrls = self.created_ctrtl_jnts
+
+        rig_lib.clean_ctrl(fk_ctrls[0], color_value, trs="ts",
                            visibility_dependence=invert_value.output1D)
-        rig_lib.clean_ctrl(self.created_fk_ctrls[0].getParent(), color_value, trs="trs")
-        rig_lib.clean_ctrl(self.created_fk_ctrls[1], color_value, trs="ts", visibility_dependence=invert_value.output1D)
-        rig_lib.clean_ctrl(self.created_fk_ctrls[2], color_value, trs="t", visibility_dependence=invert_value.output1D)
+        rig_lib.clean_ctrl(fk_ctrls[0].getParent(), color_value, trs="trs")
+        rig_lib.clean_ctrl(fk_ctrls[1], color_value, trs="ts", visibility_dependence=invert_value.output1D)
+        rig_lib.clean_ctrl(fk_ctrls[2], color_value, trs="t", visibility_dependence=invert_value.output1D)
 
         rig_lib.clean_ctrl(self.created_ik_ctrls[0], color_value, trs="", visibility_dependence=self.option_ctrl.fkIk)
         rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
@@ -719,7 +734,9 @@ class Controller(RigController):
         self.created_ctrtl_jnts = [hip_ctrl_jnt, knee_ctrl_jnt, ankle_ctrl_jnt]
 
         for i, skn_jnt in enumerate(self.created_skn_jnts):
-            self.created_ctrtl_jnts[i].translate >> skn_jnt.translate
+            if not self.model.ik_creation_switch:
+                self.created_ctrtl_jnts[i].translate >> skn_jnt.translate
+
             self.created_ctrtl_jnts[i].rotate >> skn_jnt.rotate
             self.created_ctrtl_jnts[i].scale >> skn_jnt.scale
 

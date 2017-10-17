@@ -381,7 +381,7 @@ class RigController(AuriScriptController):
         pmc.xform(created_ik_ctrls[0], ws=1, translation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, translation=1)))
         pmc.xform(created_ik_ctrls[0], ws=1, rotation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, rotation=1)))
 
-    def connect_one_chain_fk_ik_stretch(self, fk_ctrls, ik_ctrl, option_ctrl, side_coef):
+    def connect_one_chain_fk_ik_stretch(self, fk_ctrls, ik_ctrl, option_ctrl, skn_jnts):
         ik_ctrl_translate = ik_ctrl.getAttr("translate")
         ik_ctrl_rotate = ik_ctrl.getAttr("rotate")
         ik_ctrl.setAttr("translate", (0, 0, 0))
@@ -421,11 +421,6 @@ class RigController(AuriScriptController):
         ik_global_scale.outputX >> stretch_condition.firstTerm
         ik_stretch_value.outputX >> stretch_condition.colorIfFalseR
 
-        if pmc.objExists("{0}_fk_ik_stretch_merge_EXP".format(self.model.module_name)):
-            pmc.delete("{0}_fk_ik_stretch_merge_EXP".format(self.model.module_name))
-        exp = pmc.createNode("expression", n="{0}_fk_ik_stretch_merge_EXP".format(self.model.module_name))
-        exp_text = ""
-
         for i, ctrl in enumerate(fk_ctrls):
             if i > 0:
                 ctrl.addAttr("baseTranslateY", attributeType="float",
@@ -449,10 +444,12 @@ class RigController(AuriScriptController):
                 jnt_lenght.outputY >> jnt_ik_stretch.input1Y
                 stretch_condition.outColorR >> jnt_ik_stretch.input2Y
 
-                exp_text += "\n{0}.translateY = ((1-{1}.fkIk) * {2}.outputY) + ({1}.fkIk * {3}.outputY);".format(
-                                                                         ctrl, option_ctrl, jnt_lenght, jnt_ik_stretch)
-
-        exp.setExpression(exp_text)
+                blend = pmc.createNode("blendColors", n="{0}_jnt_{1}_fk_ik_stretch_merge_BLENDCOLOR".format(self.model.module_name, i-1))
+                option_ctrl.fkIk >> blend.blender
+                jnt_ik_stretch.outputY >> blend.color1R
+                jnt_lenght.outputY >> blend.color2R
+                blend.outputR >> ctrl.translateY
+                blend.outputR >> skn_jnts[i].translateY
 
         ik_ctrl.setAttr("translate", ik_ctrl_translate)
         ik_ctrl.setAttr("rotate", ik_ctrl_rotate)
@@ -904,7 +901,8 @@ def raz_fk_ctrl_rotate(ctrl, jnt, stretch=False):
     ctrl_cvs = ctrl.cv[:]
     for i, cv in enumerate(ctrl_cvs):
         pmc.xform(ctrl.getShape().controlPoints[i], ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0],
-                  pmc.xform(ctrl, q=1, ws=1, translation=1)[1], pmc.xform(cv, q=1, ws=1, translation=1)[2]))
+                                                                       pmc.xform(ctrl, q=1, ws=1, translation=1)[1],
+                                                                       pmc.xform(cv, q=1, ws=1, translation=1)[2]))
 
     clean_ctrl(jnt_ofs, 0, trs="trs")
 
