@@ -382,7 +382,6 @@ class RigController(AuriScriptController):
         pmc.xform(created_ik_ctrls[0], ws=1, rotation=(pmc.xform(ik_ctrl_object_to_snap_to, q=1, ws=1, rotation=1)))
 
     def connect_one_chain_fk_ik_stretch(self, fk_ctrls, ik_ctrl, option_ctrl, side_coef):
-        #TODO: verifier que ca fonctionne sur une jambe ou un bras normal.
         ik_ctrl_translate = ik_ctrl.getAttr("translate")
         ik_ctrl_rotate = ik_ctrl.getAttr("rotate")
         ik_ctrl.setAttr("translate", (0, 0, 0))
@@ -437,8 +436,15 @@ class RigController(AuriScriptController):
                 jnt_lenght = pmc.createNode("multiplyDivide", n="{0}_jnt_{1}_length_MDV".format(self.model.module_name, i-1))
                 ctrl.baseTranslateY >> jnt_lenght.input1Y
                 fk_ctrls[i - 1].stretch >> jnt_lenght.input2Y
-                jnt_lenght.outputY >> base_lenght.input1D[i-1]
-# TODO: find a way to invert translate value for right limb
+                if ctrl.getAttr("baseTranslateY") < 0:
+                    absolute_base_length_value = pmc.createNode("multDoubleLinear",
+                                                                n="{0}_jnt_{1}_invertLengthValue_MDL".format(self.model.module_name, i-1))
+                    jnt_lenght.outputY >> absolute_base_length_value.input1
+                    absolute_base_length_value.setAttr("input2", -1)
+                    absolute_base_length_value.output >> base_lenght.input1D[i-1]
+                else:
+                    jnt_lenght.outputY >> base_lenght.input1D[i-1]
+
                 jnt_ik_stretch = pmc.createNode("multiplyDivide", n="{0}_jnt_ik_{1}_stretch_MDV".format(self.model.module_name, i-1))
                 jnt_lenght.outputY >> jnt_ik_stretch.input1Y
                 stretch_condition.outColorR >> jnt_ik_stretch.input2Y
@@ -829,13 +835,12 @@ def create_jnts_from_cv_list_and_return_jnts_list(vertex_list, module_name):
 
 def change_jnt_chain_suffix(jnts_chain, new_suffix):
     for jnt in jnts_chain:
-        if jnt != jnts_chain[-1]:
-            jnt_name = jnt.name().rsplit("|")[-1]
-            split_name = jnt_name.rsplit("_")
-            split_name.pop(-1)
-            new_suffix_list = [new_suffix]
-            new_name = "_".join(split_name + new_suffix_list)
-            jnt.rename(new_name)
+        jnt_name = jnt.name().rsplit("|")[-1]
+        split_name = jnt_name.rsplit("_")
+        split_name.pop(-1)
+        new_suffix_list = [new_suffix]
+        new_name = "_".join(split_name + new_suffix_list)
+        jnt.rename(new_name)
 
 
 def clean_ctrl(ctrl, color_value, trs="trs", visibility_dependence=None):

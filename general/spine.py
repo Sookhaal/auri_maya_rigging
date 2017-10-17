@@ -208,6 +208,8 @@ class Controller(RigController):
         ik_effector = pmc.listRelatives(self.created_spine_jnts[-2], children=1)[1]
         ik_effector.rename("{0}_ik_EFF".format(self.model.module_name))
 
+        pmc.parent(ik_effector, self.created_spine_jnts[-1])
+
     def create_fk(self):
         ik_spline_cv_list = []
         for i, cv in enumerate(self.guides[1].cv):
@@ -224,7 +226,7 @@ class Controller(RigController):
         self.ik_spline.setAttr("translate", (0, 0, 0))
         self.ik_spline.setAttr("rotate", (0, 0, 0))
         self.ik_spline.setAttr("scale", (1, 1, 1))
-        pmc.parentConstraint(self.created_fk_ctrls[-1], self.created_spine_jnts[-1], maintainOffset=1, skipTranslate=("x", "y", "z"))
+        # pmc.parentConstraint(self.created_fk_ctrls[-1], self.created_spine_jnts[-1], maintainOffset=1, skipTranslate=("x", "y", "z"))
 
         pmc.select(d=1)
         pelvis_ctrl_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=2.5, d=3, s=8,

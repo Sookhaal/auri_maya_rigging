@@ -229,7 +229,7 @@ class Controller(RigController):
         self.created_jnts = rig_lib.create_jnts_from_cv_list_and_return_jnts_list(vertex_list, self.model.module_name)
         pmc.parent(self.created_jnts[0], self.jnt_input_grp, r=0)
 
-        rig_lib.change_jnt_chain_suffix(self.created_jnts, new_suffix="SKN")
+        rig_lib.change_jnt_chain_suffix(self.created_jnts[0:-1], new_suffix="SKN")
 
         pmc.delete(guide_rebuilded)
 
