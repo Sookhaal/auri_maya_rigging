@@ -224,6 +224,9 @@ class Controller(RigController):
     def create_jnts(self):
         guide_rebuilded = pmc.rebuildCurve(self.guide, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
                                            s=self.model.how_many_jnts, d=1, ch=0, replaceOriginal=0)[0]
+        if self.model.how_many_jnts == 2:
+            pmc.delete(guide_rebuilded.cv[-2])
+            pmc.delete(guide_rebuilded.cv[1])
         guide_rebuilded.rename("{0}_temp_rebuilded_GUIDE".format(self.model.module_name))
         vertex_list = guide_rebuilded.cv[:]
         self.created_jnts = rig_lib.create_jnts_from_cv_list_and_return_jnts_list(vertex_list, self.model.module_name)
