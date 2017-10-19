@@ -172,6 +172,8 @@ class Controller(RigController):
         self.created_ik_jnts = []
         self.created_fk_ctrls = []
         self.created_ik_ctrls = []
+        self.created_ctrtl_jnts = []
+        self.created_fk_shapes = []
         self.clavicle_ctrl = None
         self.option_ctrl = None
         self.plane = None
@@ -276,8 +278,10 @@ class Controller(RigController):
 
         self.create_skn_jnts()
         self.create_options_ctrl()
+
         if self.model.clavicle_creation_switch:
             self.create_clavicle_ctrl()
+
         if self.model.fk_ik_type == "three_chains":
             self.create_and_connect_fk_ik_jnts()
             self.create_fk()
@@ -288,8 +292,15 @@ class Controller(RigController):
                 self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
                                         self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
                                         self.wrist_fk_pos_reader)
+
         if self.model.fk_ik_type == "one_chain":
+            self.create_and_connect_ctrl_jnts()
             self.create_one_chain_fk()
+            self.create_one_chain_ik()
+            if self.model.stretch_creation_switch == 1:
+                self.connect_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0],
+                                                     self.option_ctrl, self.created_skn_jnts)
+
         self.create_outputs()
         self.create_local_spaces()
         self.clean_rig()
@@ -606,26 +617,31 @@ class Controller(RigController):
 
         spaces_names.append("local")
 
-        self.created_fk_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
+        if self.model.fk_ik_type == "three_chains":
+            fk_ctrls = self.created_fk_ctrls
+        else:
+            fk_ctrls = self.created_ctrtl_jnts
+
+        fk_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
         self.created_ik_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
 
         for i, space in enumerate(self.model.space_list):
             space_locs[i].setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
             pmc.parent(space_locs[i], space)
 
-            fk_space_const = pmc.orientConstraint(space_locs[i], self.created_fk_ctrls[0].getParent(), maintainOffset=1)
+            fk_space_const = pmc.orientConstraint(space_locs[i], fk_ctrls[0].getParent(), maintainOffset=1)
             ik_space_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[0].getParent(), maintainOffset=1)
             jnt_const_grp_const = pmc.orientConstraint(space_locs[i], self.jnt_const_group, maintainOffset=1)
             pole_vector_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[1].getParent(), maintainOffset=1)
 
             rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(fk_space_const, space_locs[i], i),
-                                                    self.created_fk_ctrls[0].space, i,
-                                                    "{0}_{1}_COND".format(self.created_fk_ctrls[0], name))
+                                                    fk_ctrls[0].space, i,
+                                                    "{0}_{1}_COND".format(fk_ctrls[0], name))
             rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(ik_space_const, space_locs[i], i),
                                                     self.created_ik_ctrls[0].space, i,
                                                     "{0}_{1}_COND".format(self.created_ik_ctrls[0], name))
             rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(jnt_const_grp_const, space_locs[i], i),
-                                                    self.created_fk_ctrls[0].space, i,
+                                                    fk_ctrls[0].space, i,
                                                     "{0}_{1}_COND".format(self.jnt_const_group, name))
             rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(pole_vector_const, space_locs[i], i),
                                                     self.created_ik_ctrls[0].space, i,
@@ -653,11 +669,16 @@ class Controller(RigController):
             rig_lib.clean_ctrl(self.clavicle_ik_ctrl, color_value, trs="rs",
                                visibility_dependence=self.option_ctrl.clavicleIkCtrl)
 
-        rig_lib.clean_ctrl(self.created_fk_ctrls[0], color_value, trs="ts",
+        if self.model.fk_ik_type == "three_chains":
+            fk_ctrls = self.created_fk_ctrls
+        else:
+            fk_ctrls = self.created_ctrtl_jnts
+
+        rig_lib.clean_ctrl(fk_ctrls[0], color_value, trs="ts",
                            visibility_dependence=invert_value.output1D)
-        rig_lib.clean_ctrl(self.created_fk_ctrls[0].getParent(), color_value, trs="trs")
-        rig_lib.clean_ctrl(self.created_fk_ctrls[1], color_value, trs="ts", visibility_dependence=invert_value.output1D)
-        rig_lib.clean_ctrl(self.created_fk_ctrls[2], color_value, trs="t", visibility_dependence=invert_value.output1D)
+        rig_lib.clean_ctrl(fk_ctrls[0].getParent(), color_value, trs="trs")
+        rig_lib.clean_ctrl(fk_ctrls[1], color_value, trs="ts", visibility_dependence=invert_value.output1D)
+        rig_lib.clean_ctrl(fk_ctrls[2], color_value, trs="t", visibility_dependence=invert_value.output1D)
 
         rig_lib.clean_ctrl(self.created_ik_ctrls[0], color_value, trs="", visibility_dependence=self.option_ctrl.fkIk)
         rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
@@ -670,8 +691,146 @@ class Controller(RigController):
         rig_lib.create_output(name="{0}_elbow_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[1])
         rig_lib.create_output(name="{0}_wrist_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
 
+    def create_and_connect_ctrl_jnts(self):
+        shoulder_ctrl_jnt = \
+            self.created_skn_jnts[0].duplicate(n="{0}_shoulder_fk_CTRL".format(self.model.module_name))[0]
+        elbow_ctrl_jnt = pmc.ls("{0}_shoulder_fk_CTRL|{0}_elbow_SKN".format(self.model.module_name))[0]
+        wrist_ctrl_jnt = pmc.ls("{0}_shoulder_fk_CTRL|{0}_elbow_SKN|{0}_wrist_SKN".format(self.model.module_name))[0]
+        elbow_ctrl_jnt.rename("{0}_elbow_fk_CTRL".format(self.model.module_name))
+        wrist_ctrl_jnt.rename("{0}_wrist_fk_CTRL".format(self.model.module_name))
+
+        self.created_ctrtl_jnts = [shoulder_ctrl_jnt, elbow_ctrl_jnt, wrist_ctrl_jnt]
+
+        for i, skn_jnt in enumerate(self.created_skn_jnts):
+            if not self.model.ik_creation_switch:
+                self.created_ctrtl_jnts[i].translate >> skn_jnt.translate
+
+            self.created_ctrtl_jnts[i].rotate >> skn_jnt.rotate
+            self.created_ctrtl_jnts[i].scale >> skn_jnt.scale
+
     def create_one_chain_fk(self):
-        pass
+        shoulder_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=2, d=3, s=8,
+                                    n="{0}_shoulder_fk_CTRL_shape".format(self.model.module_name), ch=0)[0]
+
+        pmc.parent(shoulder_shape.getShape(), self.created_ctrtl_jnts[0], r=1, s=1)
+        self.created_ctrtl_jnts[0].getShape().rename("{0}Shape".format(self.created_ctrtl_jnts[0]))
+        self.created_ctrtl_jnts[0].setAttr("radius", 0)
+        pmc.delete(shoulder_shape)
+
+        pmc.select(d=1)
+        shoulder_ofs = pmc.joint(p=(0, 0, 0), n="{0}_ctrl_jnts_OFS".format(self.model.module_name))
+        shoulder_ofs.setAttr("rotateOrder", 4)
+        shoulder_ofs.setAttr("drawStyle", 2)
+        shoulder_ofs.setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
+        pmc.parent(self.created_ctrtl_jnts[0], shoulder_ofs)
+
+        pmc.parent(shoulder_ofs, self.ctrl_input_grp, r=0)
+
+        elbow_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=2, d=3, s=8,
+                                 n="{0}_elbow_fk_CTRL_shape".format(self.model.module_name), ch=0)[0]
+        pmc.parent(elbow_shape.getShape(), self.created_ctrtl_jnts[1], r=1, s=1)
+        self.created_ctrtl_jnts[1].getShape().rename("{0}Shape".format(self.created_ctrtl_jnts[1]))
+        self.created_ctrtl_jnts[1].setAttr("radius", 0)
+        pmc.delete(elbow_shape)
+
+        wrist_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=2, d=3, s=8,
+                                 n="{0}_wrist_fk_CTRL_shape".format(self.model.module_name), ch=0)[0]
+        pmc.parent(wrist_shape.getShape(), self.created_ctrtl_jnts[2], r=1, s=1)
+        self.created_ctrtl_jnts[2].getShape().rename("{0}Shape".format(self.created_ctrtl_jnts[2]))
+        self.created_ctrtl_jnts[2].setAttr("radius", 0)
+        pmc.delete(wrist_shape)
+
+        self.created_fk_shapes = [self.created_ctrtl_jnts[0].getShape(), self.created_ctrtl_jnts[1].getShape(),
+                                  self.created_ctrtl_jnts[2].getShape()]
+
+        if self.model.clavicle_creation_switch:
+            pmc.pointConstraint(pmc.listRelatives(self.clavicle_jnt, children=1)[0], shoulder_ofs, maintainOffset=1)
+
+    def create_one_chain_ik(self):
+        fk_ctrl_01_value = pmc.xform(self.created_ctrtl_jnts[0], q=1, rotation=1)
+        fk_ctrl_02_value = pmc.xform(self.created_ctrtl_jnts[1], q=1, rotation=1)
+        fk_ctrl_03_value = pmc.xform(self.created_ctrtl_jnts[2], q=1, rotation=1)
+
+        ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)),
+                                 startJoint=self.created_ctrtl_jnts[0], endEffector=self.created_ctrtl_jnts[-1],
+                                 solver="ikRPsolver")[0]
+        ik_effector = pmc.listRelatives(self.created_ctrtl_jnts[-2], children=1)[1]
+        ik_effector.rename("{0}_ik_EFF".format(self.model.module_name))
+        ik_handle.setAttr("snapEnable", 0)
+        ik_handle.setAttr("ikBlend", 0)
+
+        ik_shape = rig_lib.medium_cube("{0}_wrist_ik_CTRL_shape".format(self.model.module_name))
+        ik_ctrl = rig_lib.create_jnttype_ctrl("{0}_wrist_ik_CTRL".format(self.model.module_name), ik_shape, drawstyle=2,
+                                              rotateorder=4)
+        pmc.select(d=1)
+        ik_ctrl_ofs = pmc.joint(p=(0, 0, 0), n="{0}_wrist_ik_ctrl_OFS".format(self.model.module_name))
+        ik_ctrl_ofs.setAttr("rotateOrder", 4)
+        ik_ctrl_ofs.setAttr("drawStyle", 2)
+        pmc.parent(ik_ctrl, ik_ctrl_ofs)
+        self.created_ctrtl_jnts[0].setAttr("rotate", (0, 0, 0))
+        self.created_ctrtl_jnts[1].setAttr("rotate", (0, 0, 0))
+        self.created_ctrtl_jnts[2].setAttr("rotate", (0, 0, 0))
+
+        ik_ctrl_ofs.setAttr("translate", pmc.xform(self.created_ctrtl_jnts[2], q=1, ws=1, translation=1))
+        pmc.parent(ik_handle, ik_ctrl_ofs, r=0)
+        ik_ctrl.setAttr("translate", pmc.xform(ik_handle, q=1, translation=1))
+        pmc.parent(ik_handle, ik_ctrl, r=0)
+        pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
+
+        ik_ctrl.setAttr("translate", (0, 0, 0))
+
+        pole_vector_shape = rig_lib.jnt_shape_curve("{0}_poleVector_CTRL_shape".format(self.model.module_name))
+        pole_vector = rig_lib.create_jnttype_ctrl("{0}_poleVector_CTRL".format(self.model.module_name),
+                                                  pole_vector_shape,
+                                                  drawstyle=2)
+        pv_ofs = pmc.group(pole_vector, n="{0}_poleVector_ctrl_OFS".format(self.model.module_name))
+        pv_ofs.setAttr("translate", (pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[0],
+                                     pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[1],
+                                     pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[2] - (
+                                         (pmc.xform(self.created_ctrtl_jnts[1], q=1, translation=1)[
+                                              1]) * self.side_coef)))
+        pmc.poleVectorConstraint(pole_vector, ik_handle)
+        pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
+
+        self.created_ctrtl_jnts[1].setAttr("preferredAngleX", 90)
+
+        self.created_ik_ctrls = [ik_ctrl, pole_vector]
+
+        self.created_ctrtl_jnts[0].setAttr("rotate", fk_ctrl_01_value)
+        self.created_ctrtl_jnts[1].setAttr("rotate", fk_ctrl_02_value)
+        self.created_ctrtl_jnts[2].setAttr("rotate", fk_ctrl_03_value)
+
+        pmc.xform(pole_vector, ws=1, translation=(pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)))
+
+        ik_handle.setAttr("visibility", 0)
+
+        self.wrist_fk_pos_reader = pmc.spaceLocator(p=(0, 0, 0),
+                                                    n="{0}_wrist_fk_pos_reader_LOC".format(self.model.module_name))
+        self.wrist_fk_pos_reader.setAttr("rotateOrder", 4)
+        self.wrist_fk_pos_reader.setAttr("visibility", 0)
+        pmc.parent(self.wrist_fk_pos_reader, self.created_ctrtl_jnts[-1], r=1)
+        self.wrist_fk_pos_reader.setAttr("rotate", (90 * (1 - self.side_coef), 0, 90))
+        rig_lib.clean_ctrl(self.wrist_fk_pos_reader, 0, trs="trs")
+
+        pmc.xform(ik_ctrl, ws=1, translation=(pmc.xform(self.created_ctrtl_jnts[-1], q=1, ws=1, translation=1)))
+        pmc.xform(ik_ctrl, ws=1, rotation=(pmc.xform(self.wrist_fk_pos_reader, q=1, ws=1, rotation=1)))
+
+        self.option_ctrl.fkIk >> ik_handle.ikBlend
+
+        const = pmc.parentConstraint(ik_ctrl, self.created_ctrtl_jnts[-1], self.created_skn_jnts[-1],
+                                     maintainOffset=1, skipTranslate=["x", "y", "z"])
+        const.setAttr("target[0].targetOffsetRotate", (90 * (1 - self.side_coef), 0, 90 * -self.side_coef))
+        const.setAttr("target[0].targetOffsetTranslate", (0, 0, 0))
+        const.setAttr("target[1].targetOffsetRotate", (0, 0, 0))
+        const.setAttr("target[1].targetOffsetTranslate", (0, 0, 0))
+
+        invert_value = pmc.createNode("plusMinusAverage", n="{0}_fk_const_switch_MDL".format(self.model.module_name))
+        invert_value.setAttr("input1D[0]", 1)
+        invert_value.setAttr("operation", 2)
+        self.option_ctrl.fkIk >> invert_value.input1D[1]
+
+        self.option_ctrl.connectAttr("fkIk", "{0}.{1}W0".format(const, ik_ctrl))
+        invert_value.connectAttr("output1D", "{0}.{1}W1".format(const, self.created_ctrtl_jnts[-1]))
 
 
 class Model(AuriScriptModel):

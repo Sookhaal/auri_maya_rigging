@@ -19,7 +19,8 @@ class View(AuriScriptView):
         self.fk_ik_type_cbbox = QtWidgets.QComboBox()
         self.ik_creation_switch = QtWidgets.QCheckBox()
         self.stretch_creation_switch = QtWidgets.QCheckBox()
-        self.raz_ctrls = QtWidgets.QCheckBox()
+        self.raz_ik_ctrls = QtWidgets.QCheckBox()
+        self.raz_fk_ctrls = QtWidgets.QCheckBox()
         self.clavicle_creation_switch = QtWidgets.QCheckBox()
         self.refresh_spaces_btn = QtWidgets.QPushButton("Refresh")
         self.add_space_btn = QtWidgets.QPushButton("Add")
@@ -42,7 +43,8 @@ class View(AuriScriptView):
         self.ik_creation_switch.setChecked(self.model.ik_creation_switch)
         self.stretch_creation_switch.setChecked(self.model.stretch_creation_switch)
         self.clavicle_creation_switch.setChecked(self.model.clavicle_creation_switch)
-        self.raz_ctrls.setChecked(self.model.raz_ctrls)
+        self.raz_ik_ctrls.setChecked(self.model.raz_ik_ctrls)
+        self.raz_fk_ctrls.setChecked(self.model.raz_fk_ctrls)
         self.side_cbbox.setCurrentText(self.model.side)
         self.fk_ik_type_cbbox.setCurrentText(self.model.fk_ik_type)
         self.ctrl.look_for_parent()
@@ -77,7 +79,8 @@ class View(AuriScriptView):
         self.ik_creation_switch.stateChanged.connect(self.ctrl.on_ik_creation_switch_changed)
         self.ik_creation_switch.setEnabled(False)
         self.stretch_creation_switch.stateChanged.connect(self.ctrl.on_stretch_creation_switch_changed)
-        self.raz_ctrls.stateChanged.connect(self.ctrl.on_raz_ctrls_changed)
+        self.raz_ik_ctrls.stateChanged.connect(self.ctrl.on_raz_ik_ctrls_changed)
+        self.raz_fk_ctrls.stateChanged.connect(self.ctrl.on_raz_fk_ctrls_changed)
         self.clavicle_creation_switch.stateChanged.connect(self.ctrl.on_clavicle_creation_switch_changed)
 
         self.side_cbbox.insertItems(0, ["Left", "Right"])
@@ -139,15 +142,20 @@ class View(AuriScriptView):
         clavicle_text = QtWidgets.QLabel("clavicle :")
         clavicle_layout.addWidget(clavicle_text)
         clavicle_layout.addWidget(self.clavicle_creation_switch)
-        raz_ctrls_layout = QtWidgets.QHBoxLayout()
-        raz_ctrls_text = QtWidgets.QLabel("\"Freez\" ctrls :")
-        raz_ctrls_layout.addWidget(raz_ctrls_text)
-        raz_ctrls_layout.addWidget(self.raz_ctrls)
+        raz_ik_ctrls_layout = QtWidgets.QHBoxLayout()
+        raz_ik_ctrls_text = QtWidgets.QLabel("\"Freez\" ik ctrls :")
+        raz_ik_ctrls_layout.addWidget(raz_ik_ctrls_text)
+        raz_ik_ctrls_layout.addWidget(self.raz_ik_ctrls)
+        raz_fk_ctrls_layout = QtWidgets.QHBoxLayout()
+        raz_fk_ctrls_text = QtWidgets.QLabel("\"Freez\" fk ctrls :")
+        raz_fk_ctrls_layout.addWidget(raz_fk_ctrls_text)
+        raz_fk_ctrls_layout.addWidget(self.raz_fk_ctrls)
 
         checkbox_layout.addLayout(ik_layout)
         checkbox_layout.addLayout(stretch_layout)
         checkbox_layout.addLayout(clavicle_layout)
-        checkbox_layout.addLayout(raz_ctrls_layout)
+        checkbox_layout.addLayout(raz_ik_ctrls_layout)
+        checkbox_layout.addLayout(raz_fk_ctrls_layout)
 
         options_layout.addLayout(checkbox_layout)
 
@@ -181,6 +189,7 @@ class Controller(RigController):
         self.created_fk_ctrls = []
         self.created_ik_ctrls = []
         self.created_ctrtl_jnts = []
+        self.created_fk_shapes = []
         self.clavicle_ctrl = None
         self.option_ctrl = None
         self.plane = None
@@ -189,8 +198,11 @@ class Controller(RigController):
         self.jnt_const_group = None
         RigController.__init__(self, model, view)
 
-    def on_raz_ctrls_changed(self, state):
-        self.model.raz_ctrls = is_checked(state)
+    def on_raz_ik_ctrls_changed(self, state):
+        self.model.raz_ik_ctrls = is_checked(state)
+
+    def on_raz_fk_ctrls_changed(self, state):
+        self.model.raz_fk_ctrls = is_checked(state)
 
     def prebuild(self):
         if self.model.clavicle_creation_switch:
@@ -305,12 +317,12 @@ class Controller(RigController):
 
             self.create_outputs()
 
-            if self.model.raz_ctrls:
+            if self.model.raz_ik_ctrls:
                 rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0], self.created_ik_jnts[-1], self.side_coef)
 
             self.create_local_spaces()
 
-            if self.model.raz_ctrls:
+            if self.model.raz_fk_ctrls:
                 for i, ctrl in enumerate(self.created_fk_ctrls):
                     rig_lib.raz_fk_ctrl_rotate(ctrl, self.created_fk_jnts[i], self.model.stretch_creation_switch)
 
@@ -324,15 +336,15 @@ class Controller(RigController):
 
             self.create_outputs()
 
-            # if self.model.raz_ctrls:
-            #     rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0], self.created_ik_jnts[-1], self.side_coef)
+            if self.model.raz_ik_ctrls:
+                rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0], self.created_skn_jnts[-1], self.side_coef)
 
             self.create_local_spaces()
 
-            # if self.model.raz_ctrls:
-            #     for i, ctrl in enumerate(self.created_ctrtl_jnts):
-            #         rig_lib.raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, self.created_skn_jnts[i], self.model.stretch_creation_switch)
-#TODO: find a way to raz one_chain_ik_fk ctrls
+            if self.model.raz_fk_ctrls:
+                for i, ctrl in enumerate(self.created_ctrtl_jnts):
+                    rig_lib.raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, self.created_skn_jnts[i])
+
         self.clean_rig()
         pmc.select(d=1)
 
@@ -823,8 +835,6 @@ class Controller(RigController):
 
         self.created_ctrtl_jnts[1].setAttr("preferredAngleX", -90)
 
-        # ik_ctrl.scale >> self.created_ik_jnts[-1].scale
-
         self.created_ik_ctrls = [ik_ctrl, pole_vector]
 
         self.created_ctrtl_jnts[0].setAttr("rotate", fk_ctrl_01_value)
@@ -863,7 +873,7 @@ class Controller(RigController):
         self.option_ctrl.connectAttr("fkIk", "{0}.{1}W0".format(const, ik_ctrl))
         invert_value.connectAttr("output1D", "{0}.{1}W1".format(const, self.created_ctrtl_jnts[-1]))
 
-
+# TODO: find a way to scale wrist_SKN
 class Model(AuriScriptModel):
     def __init__(self):
         AuriScriptModel.__init__(self)
@@ -872,7 +882,8 @@ class Model(AuriScriptModel):
         self.side = "Left"
         self.ik_creation_switch = True
         self.stretch_creation_switch = True
-        self.raz_ctrls = True
+        self.raz_ik_ctrls = True
+        self.raz_fk_ctrls = False
         self.clavicle_creation_switch = True
         self.fk_ik_type = "one_chain"
         # self.bend_creation_switch = False

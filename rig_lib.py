@@ -929,6 +929,27 @@ def raz_ik_ctrl_translate_rotate(ctrl, jnt, side_coef):
     ctrl.setAttr("jointOrient", (0, 0, 0))
 
 
+def raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, skn_jnt):
+    loc = pmc.spaceLocator(p=(0, 0, 0), n="get_xyz_orient_temp_loc")
+
+    pmc.parent(loc, ctrl, r=1)
+    pmc.parent(loc, ctrl.getParent(), r=0)
+
+    ctrl.setAttr("jointOrient", (loc.getAttr("rotateX"), loc.getAttr("rotateY"), loc.getAttr("rotateZ")))
+
+    ctrl.jointOrient >> skn_jnt.jointOrient
+
+    ctrl.setAttr("rotate", (0, 0, 0))
+
+    ctrl_cvs = ctrl.cv[:]
+    for i, cv in enumerate(ctrl_cvs):
+        pmc.xform(ctrl.getShape().controlPoints[i], ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0],
+                                                                       pmc.xform(ctrl, q=1, ws=1, translation=1)[1],
+                                                                       pmc.xform(cv, q=1, ws=1, translation=1)[2]))
+
+    pmc.delete(loc)
+
+
 def create_jnttype_ctrl(name, shape, drawstyle=2, rotateorder=0):
     pmc.select(d=1)
     ctrl = pmc.joint(p=(0, 0, 0), n=name)
