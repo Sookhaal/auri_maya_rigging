@@ -754,7 +754,7 @@ class Controller(RigController):
         ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)),
                                  startJoint=self.created_ctrtl_jnts[0], endEffector=self.created_ctrtl_jnts[-1],
                                  solver="ikRPsolver")[0]
-        ik_effector = pmc.listRelatives(self.created_ctrtl_jnts[-2], children=1)[1]
+        ik_effector = pmc.listRelatives(self.created_ctrtl_jnts[-2], children=1)[-1]
         ik_effector.rename("{0}_ik_EFF".format(self.model.module_name))
         ik_handle.setAttr("snapEnable", 0)
         ik_handle.setAttr("ikBlend", 0)
@@ -778,6 +778,24 @@ class Controller(RigController):
         pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
 
         ik_ctrl.setAttr("translate", (0, 0, 0))
+
+        pmc.select(self.created_ctrtl_jnts[2])
+        fk_rotation_jnt = pmc.joint(p=(0, 0, 0), n="{0}_wrist_fk_end_JNT".format(self.model.module_name))
+        fk_rotation_jnt.setAttr("translate", (0, self.side_coef, 0))
+        fk_rotation_jnt.setAttr("rotate", (0, 0, 0))
+        fk_rotation_jnt.setAttr("jointOrient", (0, 0, 0))
+
+        fk_rotation_hdl = pmc.ikHandle(n="{0}_wrist_rotation_ik_HDL".format(self.model.module_name),
+                                       startJoint=self.created_ctrtl_jnts[2], endEffector=fk_rotation_jnt,
+                                       solver="ikSCsolver")[0]
+        fk_rotation_effector = pmc.listRelatives(self.created_ctrtl_jnts[2], children=1)[-1]
+        fk_rotation_effector.rename("{0}_wrist_rotation_ik_EFF".format(self.model.module_name))
+        fk_rotation_hdl.setAttr("snapEnable", 0)
+        fk_rotation_hdl.setAttr("ikBlend", 0)
+        pmc.parent(fk_rotation_hdl, ik_ctrl, r=0)
+        self.option_ctrl.fkIk >> fk_rotation_hdl.ikBlend
+        fk_rotation_hdl.setAttr("visibility", 0)
+        fk_rotation_jnt.setAttr("visibility", 0)
 
         pole_vector_shape = rig_lib.jnt_shape_curve("{0}_poleVector_CTRL_shape".format(self.model.module_name))
         pole_vector = rig_lib.create_jnttype_ctrl("{0}_poleVector_CTRL".format(self.model.module_name),
@@ -832,7 +850,7 @@ class Controller(RigController):
         self.option_ctrl.connectAttr("fkIk", "{0}.{1}W0".format(const, ik_ctrl))
         invert_value.connectAttr("output1D", "{0}.{1}W1".format(const, self.created_ctrtl_jnts[-1]))
 
-
+# TODO: find a way to scale wrist_SKN
 class Model(AuriScriptModel):
     def __init__(self):
         AuriScriptModel.__init__(self)

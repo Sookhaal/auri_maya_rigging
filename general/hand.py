@@ -241,7 +241,7 @@ class Controller(RigController):
 
         pmc.xform(self.parent_wrist_fk_ctrl, ws=1, rotation=(pmc.xform(orient_loc, q=1, ws=1, rotation=1)))
         pmc.xform(self.parent_wrist_ik_ctrl, ws=1,
-                  rotation=(pmc.xform(pmc.listRelatives(self.parent_wrist_fk_ctrl, children=1, type="transform")[0],
+                  rotation=(pmc.xform(pmc.listRelatives(self.parent_wrist_fk_ctrl, children=1, type="transform")[-1],
                                       q=1, ws=1, rotation=1)))
 
         for n, finger in enumerate(self.guides):

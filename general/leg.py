@@ -873,7 +873,7 @@ class Controller(RigController):
         self.option_ctrl.connectAttr("fkIk", "{0}.{1}W0".format(const, ik_ctrl))
         invert_value.connectAttr("output1D", "{0}.{1}W1".format(const, self.created_ctrtl_jnts[-1]))
 
-# TODO: find a way to scale wrist_SKN
+# TODO: find a way to scale ankle_SKN
 class Model(AuriScriptModel):
     def __init__(self):
         AuriScriptModel.__init__(self)
