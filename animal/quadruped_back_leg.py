@@ -300,8 +300,8 @@ class Controller(RigController):
         self.create_local_spaces()
         self.clean_rig()
         pmc.select(d=1)
-#TODO: find a way to put a stretch
-#TODO: use the raz ctrl
+# TODO: find a way to make a better stretch
+# TODO: use the raz ctrl
     def create_skn_jnts(self):
         duplicates_guides = []
         for guide in self.guides:
@@ -568,8 +568,26 @@ class Controller(RigController):
         knee_02_ik_setup_jnt.rename("{0}_knee_02_ik_setup_JNT".format(self.model.module_name))
         ankle_ik_setup_jnt.rename("{0}_ankle_ik_setup_JNT".format(self.model.module_name))
 
-        self.created_ik_setup_chain = [hip_ik_setup_jnt, knee_ik_setup_jnt, knee_02_ik_setup_jnt, ankle_ik_setup_jnt]
+            # knee_ik_setup_jnt.setAttr("preferredAngleX", fk_ctrl_02_value[0])
+            #
+            # knee_twist_ik = pmc.ikHandle(n=("{0}_knee_twist_ik_HDL".format(self.model.module_name)),
+            #                               startJoint=hip_ik_setup_jnt, endEffector=knee_02_ik_setup_jnt,
+            #                               solver="ikRPsolver")[0]
+            # ankle_twist_ik = pmc.ikHandle(n=("{0}_ankle_twist_ik_HDL".format(self.model.module_name)),
+            #                               startJoint=knee_02_ik_setup_jnt, endEffector=ankle_ik_setup_jnt,
+            #                               solver="ikRPsolver")[0]
+            # knee_twist_ik.setAttr("twist", 180)
+            # pmc.xform(ankle_twist_ik, ws=1, translation=pmc.xform(self.created_ctrtl_jnts[3], q=1, ws=1, translation=1))
+            # pmc.refresh()
+            #
+            # pmc.delete(knee_twist_ik)
+            # pmc.delete(ankle_twist_ik)
+            # knee_ik_setup_jnt.setAttr("preferredAngle", pmc.xform(knee_ik_setup_jnt, q=1, rotation=1))
+            # knee_02_ik_setup_jnt.setAttr("preferredAngle", pmc.xform(knee_02_ik_setup_jnt, q=1, rotation=1))
+            # self.created_ctrtl_jnts[1].setAttr("preferredAngleX", fk_ctrl_02_value[0])
+            # self.created_ctrtl_jnts[2].setAttr("preferredAngleX", fk_ctrl_03_value[0])
 
+        self.created_ik_setup_chain = [hip_ik_setup_jnt, knee_ik_setup_jnt, knee_02_ik_setup_jnt, ankle_ik_setup_jnt]
         pmc.parent(hip_ik_setup_jnt, self.ctrl_input_grp)
         hip_ik_setup_jnt.setAttr("visibility", 0)
 
@@ -635,13 +653,26 @@ class Controller(RigController):
         pole_vector = rig_lib.create_jnttype_ctrl("{0}_poleVector_CTRL".format(self.model.module_name), pole_vector_shape,
                                                   drawstyle=2)
         pv_ofs = pmc.group(pole_vector, n="{0}_poleVector_ctrl_OFS".format(self.model.module_name))
-        pv_ofs.setAttr("translate", (pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[0],
-                                     pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[1],
-                                     pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[2] + (
+        pv_ofs.setAttr("translate", (pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[0],
+                                     pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[1],
+                                     pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[2] + (
                                          (pmc.xform(self.created_ctrtl_jnts[1], q=1, translation=1)[1]) * self.side_coef)))
+        # pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
+        pmc.parent(pv_ofs, self.created_ctrtl_jnts[0].getParent(), r=0)
+
+            # invert_pv_ofs = pmc.duplicate(pv_ofs, n="{0}_invert_poleVector_jnt_OFS".format(self.model.module_name))[0]
+            # invert_group = pmc.group(em=1, n="{0}_invert_poleVector_invert_GRP".format(self.model.module_name))
+            # pmc.parent(invert_group, self.created_ctrtl_jnts[0].getParent(), r=1)
+            # pmc.parent(invert_pv_ofs, invert_group)
+            # invert_group.setAttr("scale", (-1, -1, -1))
+            # invert_pole_vector = pmc.listRelatives(invert_pv_ofs, children=1)[0]
+            # invert_pole_vector.rename("{0}_invert_poleVector_JNT".format(self.model.module_name))
+            # pole_vector.translate >> invert_pole_vector.translate
+            # invert_pv_ofs.setAttr("visibility", 0)
+
+            # pmc.poleVectorConstraint(invert_pole_vector, global_ik_handle)
         pmc.poleVectorConstraint(pole_vector, global_ik_handle)
         pmc.poleVectorConstraint(pole_vector, knee_ik_handle)
-        pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
 
         # self.created_ik_jnts[1].setAttr("preferredAngleX", -90)
         knee_ik_setup_jnt.setAttr("preferredAngleX", fk_ctrl_02_value[0])
