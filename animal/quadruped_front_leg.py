@@ -301,8 +301,8 @@ class Controller(RigController):
         self.create_local_spaces()
         self.clean_rig()
         pmc.select(d=1)
-#TODO: find a way to put a stretch
-#TODO: use the raz ctrl
+# TODO: find a way to make a better stretch
+# TODO: use the raz ctrl
     def create_skn_jnts(self):
         duplicates_guides = []
         for guide in self.guides:
@@ -634,9 +634,11 @@ class Controller(RigController):
                                      pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[1],
                                      pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[2] - (
                                          (pmc.xform(self.created_ctrtl_jnts[1], q=1, translation=1)[1]) * self.side_coef)))
+        # pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
+        pmc.parent(pv_ofs, self.created_ctrtl_jnts[0].getParent(), r=0)
+
         pmc.poleVectorConstraint(pole_vector, global_ik_handle)
         pmc.poleVectorConstraint(pole_vector, knee_ik_handle)
-        pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
 
         # self.created_ik_jnts[1].setAttr("preferredAngleX", -90)
         knee_ik_setup_jnt.setAttr("preferredAngleX", fk_ctrl_02_value[0])
