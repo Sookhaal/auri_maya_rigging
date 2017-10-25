@@ -114,6 +114,7 @@ class Controller(RigController):
         self.created_pelvis_jnt = None
         self.ik_spline = None
         self.created_locs = []
+        # self.tangent_locs = []
         self.created_fk_ctrls = []
         self.created_pelvis_ctrl = None
         self.created_ik_ctrls = []
@@ -199,7 +200,15 @@ class Controller(RigController):
         pmc.parent(self.created_pelvis_jnt, self.jnt_input_grp)
 
     def create_ikspline(self):
+        # if self.model.ik_creation_switch:
+        #     self.ik_spline = pmc.rebuildCurve(self.guides[1], rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
+        #                                       s=self.model.how_many_ctrls - 1, d=3, ch=0, replaceOriginal=0,
+        #                                       n="{0}_ik_CRV".format(self.model.module_name))[0]
+        # else:
+        #     self.ik_spline = pmc.duplicate(self.guides[1], n="{0}_ik_CRV".format(self.model.module_name))[0]
+        #
         self.ik_spline = pmc.duplicate(self.guides[1], n="{0}_ik_CRV".format(self.model.module_name))[0]
+
         ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)), startJoint=self.created_spine_jnts[0],
                                  endEffector=self.created_spine_jnts[-1], solver="ikSplineSolver", curve=self.ik_spline,
                                  createCurve=False, parentCurve=False)[0]
@@ -212,17 +221,48 @@ class Controller(RigController):
 
     def create_fk(self):
         ik_spline_cv_list = []
+        ik_spline_controlpoints_list = []
+
         for i, cv in enumerate(self.guides[1].cv):
             ik_spline_cv_list.append(cv)
 
-        ik_spline_controlpoints_list = []
-        for i, cv in enumerate(self.ik_spline.controlPoints):
-            ik_spline_controlpoints_list.append(cv)
+        for i, cp in enumerate(self.ik_spline.controlPoints):
+            ik_spline_controlpoints_list.append(cp)
 
         for i, cv in enumerate(ik_spline_cv_list):
             cv_loc = self.create_locators(i, cv, ik_spline_controlpoints_list)
             self.create_ctrls(i, cv_loc)
             self.created_locs.append(cv_loc)
+
+        # for i, cv in enumerate(self.ik_spline.cv):
+        #     ik_spline_cv_list.append(cv)
+        #
+        # for i, cp in enumerate(self.ik_spline.controlPoints):
+        #     ik_spline_controlpoints_list.append(cp)
+        #
+        # if not self.model.ik_creation_switch:
+        #     for i, cv in enumerate(ik_spline_cv_list):
+        #         cv_loc = self.create_locators(i, cv, ik_spline_controlpoints_list)
+        #         self.create_ctrls(i, cv_loc)
+        #         self.created_locs.append(cv_loc)
+        # else:
+        #     ik_spline_none_tangent_cv_list = [cv for cv in ik_spline_cv_list if cv != ik_spline_cv_list[1] and cv != ik_spline_cv_list[-2]]
+        #
+        #     ik_spline_none_tangent_controlpoints_list = [cp for cp in ik_spline_controlpoints_list if cp != ik_spline_controlpoints_list[1] and cp != ik_spline_controlpoints_list[-2]]
+        #
+        #     for i, cv in enumerate(ik_spline_none_tangent_cv_list):
+        #         cv_loc = self.create_locators(i, cv, ik_spline_none_tangent_controlpoints_list)
+        #         self.create_ctrls(i, cv_loc)
+        #         self.created_locs.append(cv_loc)
+        #
+        #     start_tangent_loc = self.create_locators(i=1, cv=ik_spline_cv_list[1],
+        #                                              ik_spline_controlpoints=ik_spline_controlpoints_list)
+        #     end_tangent_loc = self.create_locators(i=-2, cv=ik_spline_cv_list[-2],
+        #                                            ik_spline_controlpoints=ik_spline_controlpoints_list)
+        #     start_tangent_loc.rename("{0}_start_tangent_pos".format(self.model.module_name))
+        #     end_tangent_loc.rename("{0}_end_tangent_pos".format(self.model.module_name))
+        #     self.tangent_locs = [start_tangent_loc, end_tangent_loc]
+
         self.ik_spline.setAttr("translate", (0, 0, 0))
         self.ik_spline.setAttr("rotate", (0, 0, 0))
         self.ik_spline.setAttr("scale", (1, 1, 1))
@@ -240,11 +280,11 @@ class Controller(RigController):
         pmc.parentConstraint(self.created_pelvis_ctrl, self.created_pelvis_jnt, maintainOffset=1)
         self.created_pelvis_ctrl.scale >> self.created_pelvis_jnt.scale
 
-    def create_locators(self, i, cv, ik_spline_controlpoints_for_ctrls):
+    def create_locators(self, i, cv, ik_spline_controlpoints):
         cv_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_{1}_pos".format(self.model.module_name, (i + 1)))
         cv_loc.setAttr("translate", pmc.xform(cv, q=1, ws=1, translation=1))
         cv_loc_shape = cv_loc.getShape()
-        cv_loc_shape.worldPosition >> ik_spline_controlpoints_for_ctrls[i]
+        cv_loc_shape.worldPosition >> ik_spline_controlpoints[i]
         return cv_loc
 
     def create_ctrls(self, i, cv_loc):

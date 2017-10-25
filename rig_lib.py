@@ -270,12 +270,17 @@ class RigController(AuriScriptController):
                 pmc.xform(pos_loc, ws=1, matrix=(pmc.xform(jnt, q=1, ws=1, matrix=1)))
 
                 jnt_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_jnt_{1}_LOC".format(self.model.module_name, i))
-                point_on_curve = pmc.createNode("pointOnCurveInfo", n="{0}_pos_POCI".format(jnt_loc))
-                ik_spline.getShape().worldSpace[0] >> point_on_curve.inputCurve
+                # point_on_curve = pmc.createNode("pointOnCurveInfo", n="{0}_pos_POCI".format(jnt_loc))
+                point_on_curve = pmc.createNode("motionPath", n="{0}_pos_POCI".format(jnt_loc))
+                point_on_curve.setAttr("fractionMode", 1)
+                # ik_spline.getShape().worldSpace[0] >> point_on_curve.inputCurve
+                ik_spline.getShape().worldSpace[0] >> point_on_curve.geometryPath
                 pmc.refresh()
 
-                point_on_curve.setAttr("parameter", nearest_point.getAttr("parameter"))
-                point_on_curve.position >> jnt_loc.translate
+                # point_on_curve.setAttr("parameter", nearest_point.getAttr("parameter"))
+                point_on_curve.setAttr("uValue", nearest_point.getAttr("parameter"))
+                # point_on_curve.position >> jnt_loc.translate
+                point_on_curve.allCoordinates >> jnt_loc.translate
 
                 jnt_locs.append(jnt_loc)
                 pmc.parent(jnt_loc, loc_group)

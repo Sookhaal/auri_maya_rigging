@@ -124,7 +124,7 @@ class Controller(RigController):
                                        aimVector=(0.0, 1.0, 0.0), upVector=(1.0, 0.0, 0.0), worldUpType="vector",
                                        worldUpVector=(1, 0, 0))
         jaw_const = pmc.aimConstraint(duplicates_guides[3], duplicates_guides[2], maintainOffset=0,
-                                      aimVector=(0.0, 1.0, 0.0), upVector=(0.0, 0.0, -1.0), worldUpType="scene")
+                                      aimVector=(0.0, 0.0, 1.0), upVector=(0.0, 1.0, 0.0), worldUpType="scene")
         pmc.delete(head_const)
         pmc.delete(jaw_const)
         pmc.parent(duplicates_guides[1], duplicates_guides[0])
@@ -159,18 +159,24 @@ class Controller(RigController):
         pmc.delete(duplicates_guides[:])
 
     def create_ctrls(self):
-        jaw_shape = pmc.circle(c=(0, 0, 0), nr=(0, 0, 1), sw=360, r=3, d=3, s=8,
+        jaw_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=3, d=3, s=8,
                                n="{0}_jaw_CTRL_shape".format(self.model.module_name), ch=0)[0]
-        jaw_ctrl = rig_lib.create_jnttype_ctrl(name="{0}_jaw_CTRL".format(self.model.module_name), shape=jaw_shape, drawstyle=2)
+        jaw_ctrl = rig_lib.create_jnttype_ctrl(name="{0}_jaw_CTRL".format(self.model.module_name), shape=jaw_shape,
+                                               drawstyle=2)
         # jaw_ofs = pmc.group(jaw_ctrl, n="{0}_jaw_ctrl_OFS".format(self.model.module_name))
         jaw_cvs = jaw_ctrl.getShape().cv[:]
         for cv in jaw_cvs:
             pmc.xform(cv, ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0],
-                                             pmc.xform(cv, q=1, ws=1, translation=1)[1] + 2,
-                                             pmc.xform(cv, q=1, ws=1, translation=1)[2]))
-        jaw_ctrl.setAttr("translate", pmc.xform(self.created_skn_jnts[2], q=1, ws=1, translation=1))
-        jaw_ctrl.setAttr("jointOrient", pmc.xform(self.created_skn_jnts[2], q=1, ws=1, rotation=1))
-        pmc.parent(jaw_ctrl, self.ctrl_input_grp)
+                                             pmc.xform(cv, q=1, ws=1, translation=1)[1],
+                                             pmc.xform(cv, q=1, ws=1, translation=1)[2] + 2))
+
+        pmc.select(d=1)
+        jaw_ofs = pmc.joint(p=(0, 0, 0), n="{0}__jaw_ctrl_OFS".format(self.model.module_name))
+        jaw_ofs.setAttr("drawStyle", 2)
+        pmc.parent(jaw_ctrl, jaw_ofs)
+        jaw_ofs.setAttr("translate", pmc.xform(self.created_skn_jnts[2], q=1, ws=1, translation=1))
+        jaw_ofs.setAttr("jointOrient", pmc.xform(self.created_skn_jnts[2], q=1, ws=1, rotation=1))
+        pmc.parent(jaw_ofs, self.ctrl_input_grp)
         jaw_ctrl.rotate >> self.created_skn_jnts[2].rotate
 
         l_eye_shape = pmc.circle(c=(0, 0, 0), nr=(0, 0, 1), sw=360, r=1, d=3, s=8,
@@ -208,7 +214,8 @@ class Controller(RigController):
         self.parts_grp.setAttr("visibility", 0)
         self.guides_grp.setAttr("visibility", 0)
 
-        rig_lib.clean_ctrl(self.created_ctrls[0], 18, trs="ts")
+        rig_lib.clean_ctrl(self.created_ctrls[0], 18, trs="s")
+        rig_lib.clean_ctrl(self.created_ctrls[0].getParent(), 18, trs="trs")
         rig_lib.clean_ctrl(self.created_ctrls[1], 6, trs="ts")
         rig_lib.clean_ctrl(self.created_ctrls[2], 13, trs="ts")
 
