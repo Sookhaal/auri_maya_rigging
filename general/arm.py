@@ -225,6 +225,8 @@ class Controller(RigController):
             self.plane.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
             self.plane.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
             self.plane.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+            self.plane.setAttr("overrideEnabled", 1)
+            self.plane.setAttr("overrideDisplayType", 2)
 
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
             pmc.parent(self.plane, self.guides_grp)
@@ -257,6 +259,8 @@ class Controller(RigController):
         self.plane.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
         self.plane.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
         self.plane.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+        self.plane.setAttr("overrideEnabled", 1)
+        self.plane.setAttr("overrideDisplayType", 2)
 
         self.guides = [shoulder_guide, elbow_guide, wrist_guide]
 
