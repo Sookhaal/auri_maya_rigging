@@ -311,9 +311,10 @@ class Controller(RigController):
                 self.create_ik()
             if self.model.stretch_creation_switch == 1:
                 self.connect_fk_stretch(self.created_fk_jnts, self.created_fk_ctrls)
-                self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
-                                        self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
-                                        self.ankle_fk_pos_reader)
+                if self.model.ik_creation_switch:
+                    self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
+                                            self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
+                                            self.ankle_fk_pos_reader)
 
             self.create_outputs()
 
@@ -724,9 +725,10 @@ class Controller(RigController):
         rig_lib.clean_ctrl(fk_ctrls[1], color_value, trs="ts", visibility_dependence=invert_value.output1D)
         rig_lib.clean_ctrl(fk_ctrls[2], color_value, trs="t", visibility_dependence=invert_value.output1D)
 
-        rig_lib.clean_ctrl(self.created_ik_ctrls[0], color_value, trs="", visibility_dependence=self.option_ctrl.fkIk)
-        rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
-        rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
+        if self.model.ik_creation_switch:
+            rig_lib.clean_ctrl(self.created_ik_ctrls[0], color_value, trs="", visibility_dependence=self.option_ctrl.fkIk)
+            rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
+            rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
 
     def create_outputs(self):
         if self.model.clavicle_creation_switch:
@@ -746,7 +748,7 @@ class Controller(RigController):
         self.created_ctrtl_jnts = [hip_ctrl_jnt, knee_ctrl_jnt, ankle_ctrl_jnt]
 
         for i, skn_jnt in enumerate(self.created_skn_jnts):
-            if not self.model.ik_creation_switch:
+            if not self.model.stretch_creation_switch:
                 self.created_ctrtl_jnts[i].translate >> skn_jnt.translate
 
             self.created_ctrtl_jnts[i].rotate >> skn_jnt.rotate
@@ -821,6 +823,24 @@ class Controller(RigController):
         pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
 
         ik_ctrl.setAttr("translate", (0, 0, 0))
+
+        pmc.select(self.created_ctrtl_jnts[2])
+        fk_rotation_jnt = pmc.joint(p=(0, 0, 0), n="{0}_ankle_fk_end_JNT".format(self.model.module_name))
+        fk_rotation_jnt.setAttr("translate", (0, self.side_coef, 0))
+        fk_rotation_jnt.setAttr("rotate", (0, 0, 0))
+        fk_rotation_jnt.setAttr("jointOrient", (0, 0, 0))
+
+        fk_rotation_hdl = pmc.ikHandle(n="{0}_ankle_rotation_ik_HDL".format(self.model.module_name),
+                                       startJoint=self.created_ctrtl_jnts[2], endEffector=fk_rotation_jnt,
+                                       solver="ikSCsolver")[0]
+        fk_rotation_effector = pmc.listRelatives(self.created_ctrtl_jnts[2], children=1)[-1]
+        fk_rotation_effector.rename("{0}_ankle_rotation_ik_EFF".format(self.model.module_name))
+        fk_rotation_hdl.setAttr("snapEnable", 0)
+        fk_rotation_hdl.setAttr("ikBlend", 0)
+        pmc.parent(fk_rotation_hdl, ik_ctrl, r=0)
+        self.option_ctrl.fkIk >> fk_rotation_hdl.ikBlend
+        fk_rotation_hdl.setAttr("visibility", 0)
+        fk_rotation_jnt.setAttr("visibility", 0)
 
         pole_vector_shape = rig_lib.jnt_shape_curve("{0}_poleVector_CTRL_shape".format(self.model.module_name))
         pole_vector = rig_lib.create_jnttype_ctrl("{0}_poleVector_CTRL".format(self.model.module_name), pole_vector_shape,

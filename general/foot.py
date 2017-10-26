@@ -91,12 +91,14 @@ class Controller(RigController):
         self.side_coef = 0
         self.leg_ik_ctrl = None
         self.leg_ik_handle = None
+        self.leg_ankle_rotation_handle = None
         self.leg_ik_length_end_loc = None
         self.leg_option_ctrl = None
         self.created_skn_jnts = []
         self.created_locs = []
         self.created_fk_jnts = []
         self.created_ik_jnts = []
+        self.created_ctrtl_jnts = []
         self.toes_ctrl = None
         RigController.__init__(self, model, view)
 
@@ -144,18 +146,24 @@ class Controller(RigController):
         self.get_parent_ik_objects()
 
         self.create_skn_jnts_and_locs()
+
         if self.model.fk_ik_type == "three_chains":
             self.create_and_connect_fk_ik_jnts()
             self.create_fk()
             self.create_ik_and_roll()
+
         if self.model.fk_ik_type == "one_chain":
-            pass
+            self.create_and_connect_ctrl_jnts()
+            self.create_one_chain_fk()
+            self.create_one_chain_ik_and_roll()
+
         self.clean_rig()
         pmc.select(d=1)
 
     def get_parent_ik_objects(self):
         self.leg_ik_ctrl = pmc.ls("{0}_ankle_ik_CTRL".format(self.model.selected_module))[0]
         self.leg_ik_handle = pmc.ls("{0}_ik_HDL".format(self.model.selected_module))[0]
+        self.leg_ankle_rotation_handle = pmc.ls("{0}_ankle_rotation_ik_HDL".format(self.model.selected_module))[0]
         self.leg_option_ctrl = pmc.ls("{0}_option_CTRL".format(self.model.selected_module))[0]
         self.leg_ik_length_end_loc = pmc.ls("{0}_ik_length_end_LOC".format(self.model.selected_module))[0]
 
@@ -195,11 +203,11 @@ class Controller(RigController):
         ankle_jnt.setAttr("rotate", pmc.xform(duplicates_guides[0], q=1, rotation=1))
 
         ball_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1)),
-                             n="{0}_ball_SKN".format(self.model.module_name))
+                             n="{0}_toes_SKN".format(self.model.module_name))
         ball_jnt.setAttr("rotateOrder", 4)
         ball_jnt.setAttr("rotate", pmc.xform(duplicates_guides[1], q=1, rotation=1))
         toe_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)),
-                            n="{0}_toe_JNT".format(self.model.module_name))
+                            n="{0}_toes_end_JNT".format(self.model.module_name))
         toe_jnt.setAttr("rotateOrder", 4)
 
         pmc.parent(ankle_jnt, self.jnt_input_grp, r=0)
@@ -234,19 +242,18 @@ class Controller(RigController):
         pmc.delete(temp_guide_orient)
 
     def create_and_connect_fk_ik_jnts(self):
-        ankle_fk_jnt = \
-            self.created_skn_jnts[0].duplicate(n="{0}_ankle_fk_JNT".format(self.model.module_name))[0]
-        ball_fk_jnt = pmc.ls("{0}_ankle_fk_JNT|{0}_ball_SKN".format(self.model.module_name))[0]
-        toe_fk_jnt = pmc.ls("{0}_ankle_fk_JNT|{0}_ball_SKN|{0}_toe_JNT".format(self.model.module_name))[0]
-        ball_fk_jnt.rename("{0}_ball_fk_JNT".format(self.model.module_name))
-        toe_fk_jnt.rename("{0}_toe_fk_JNT".format(self.model.module_name))
+        ankle_fk_jnt = self.created_skn_jnts[0].duplicate(n="{0}_ankle_fk_JNT".format(self.model.module_name))[0]
+        ball_fk_jnt = pmc.ls("{0}_ankle_fk_JNT|{0}_toes_SKN".format(self.model.module_name))[0]
+        toe_fk_jnt = pmc.ls("{0}_ankle_fk_JNT|{0}_toes_SKN|{0}_toes_end_JNT".format(self.model.module_name))[0]
+        ball_fk_jnt.rename("{0}_toes_fk_JNT".format(self.model.module_name))
+        toe_fk_jnt.rename("{0}_toes_end_fk_JNT".format(self.model.module_name))
         self.created_fk_jnts = [ankle_fk_jnt, ball_fk_jnt, toe_fk_jnt]
 
         ankle_ik_jnt = self.created_skn_jnts[0].duplicate(n="{0}_ankle_ik_JNT".format(self.model.module_name))[0]
-        ball_ik_jnt = pmc.ls("{0}_ankle_ik_JNT|{0}_ball_SKN".format(self.model.module_name))[0]
-        toe_ik_jnt = pmc.ls("{0}_ankle_ik_JNT|{0}_ball_SKN|{0}_toe_JNT".format(self.model.module_name))[0]
-        ball_ik_jnt.rename("{0}_ball_ik_JNT".format(self.model.module_name))
-        toe_ik_jnt.rename("{0}_toe_ik_JNT".format(self.model.module_name))
+        ball_ik_jnt = pmc.ls("{0}_ankle_ik_JNT|{0}_toes_SKN".format(self.model.module_name))[0]
+        toe_ik_jnt = pmc.ls("{0}_ankle_ik_JNT|{0}_toes_SKN|{0}_toes_end_JNT".format(self.model.module_name))[0]
+        ball_ik_jnt.rename("{0}_toes_ik_JNT".format(self.model.module_name))
+        toe_ik_jnt.rename("{0}_toes_end_ik_JNT".format(self.model.module_name))
         self.created_ik_jnts = [ankle_ik_jnt, ball_ik_jnt, toe_ik_jnt]
 
         for i, skn_jnt in enumerate(self.created_skn_jnts):
@@ -301,6 +308,7 @@ class Controller(RigController):
         ik_effector.rename("{0}_ball_ik_EFF".format(self.model.module_name))
 
         pmc.parent(self.leg_ik_handle, world=1)
+        pmc.parent(self.leg_ankle_rotation_handle, world=1)
         pmc.parent(self.leg_ik_length_end_loc, world=1)
         if pmc.objExists("{0}_roll_OFS".format(self.model.module_name)):
             pmc.delete("{0}_roll_OFS".format(self.model.module_name))
@@ -315,6 +323,7 @@ class Controller(RigController):
         pmc.parent(toe_ik_handle, toe_bend_group, r=0)
         pmc.parent(self.created_locs[2], locs_offset, r=0)
         pmc.parent(self.leg_ik_handle, self.created_locs[0], r=0)
+        pmc.parent(self.leg_ankle_rotation_handle, self.created_locs[0], r=0)
         pmc.parent(self.leg_ik_length_end_loc, self.created_locs[0], r=0)
 
         if "roll" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
@@ -446,11 +455,217 @@ class Controller(RigController):
         else:
             color_value = 13
 
-        fk_visibility_ctrl = pmc.ls("{0}_fk_visibility_MDL".format(self.model.selected_module))[0]
+        if self.model.fk_ik_type == "three_chains":
+            fk_visibility_ctrl = pmc.ls("{0}_fk_visibility_MDL".format(self.model.selected_module))[0]
+            rig_lib.clean_ctrl(self.toes_ctrl, color_value, trs="t", visibility_dependence=fk_visibility_ctrl.output1D)
 
-        rig_lib.clean_ctrl(self.toes_ctrl, color_value, trs="t", visibility_dependence=fk_visibility_ctrl.output1D)
+        if self.model.fk_ik_type == "one_chain":
+            fk_visibility_ctrl = pmc.ls("{0}_fk_visibility_MDL".format(self.model.selected_module))[0]
+            rig_lib.clean_ctrl(self.created_ctrtl_jnts[1], color_value, trs="t",
+                               visibility_dependence=fk_visibility_ctrl.output1D)
+
+            self.created_ctrtl_jnts[0].setAttr("drawStyle", 2)
+            self.created_ctrtl_jnts[2].setAttr("drawStyle", 2)
 
         self.created_locs[2].setAttr("visibility", 0)
+
+    def create_and_connect_ctrl_jnts(self):
+        ankle_ctrl_jnt = self.created_skn_jnts[0].duplicate(n="{0}_ankle_ctrl_JNT".format(self.model.module_name))[0]
+        ball_ctrl_jnt = pmc.ls("{0}_ankle_ctrl_JNT|{0}_toes_SKN".format(self.model.module_name))[0]
+        toe_ctrl_jnt = pmc.ls("{0}_ankle_ctrl_JNT|{0}_toes_SKN|{0}_toes_end_JNT".format(self.model.module_name))[0]
+        ball_ctrl_jnt.rename("{0}_toes_ctrl_JNT".format(self.model.module_name))
+        toe_ctrl_jnt.rename("{0}_toes_end_ctrl_JNT".format(self.model.module_name))
+
+        self.created_ctrtl_jnts = [ankle_ctrl_jnt, ball_ctrl_jnt, toe_ctrl_jnt]
+
+        pmc.parent(ankle_ctrl_jnt, self.ctrl_input_grp, r=0)
+
+        for i, skn_jnt in enumerate(self.created_skn_jnts):
+            self.created_ctrtl_jnts[i].translate >> skn_jnt.translate
+            self.created_ctrtl_jnts[i].jointOrient >> skn_jnt.jointOrient
+            self.created_ctrtl_jnts[i].rotate >> skn_jnt.rotate
+            self.created_ctrtl_jnts[i].scale >> skn_jnt.scale
+
+    def create_one_chain_fk(self):
+        toes_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=1, d=3, s=8,
+                                n="{0}_toes_fk_CTRL_shape".format(self.model.module_name), ch=0)[0]
+        pmc.parent(toes_shape.getShape(), self.created_ctrtl_jnts[1], r=1, s=1)
+        self.created_ctrtl_jnts[1].rename("{0}_toes_fk_CTRL".format(self.model.module_name))
+        self.created_ctrtl_jnts[1].getShape().rename("{0}Shape".format(self.created_ctrtl_jnts[1]))
+        self.created_ctrtl_jnts[1].setAttr("radius", 0)
+        pmc.delete(toes_shape)
+
+        loc = pmc.spaceLocator(p=(0, 0, 0), n="toe_jnt_rotation_temp_loc")
+        pmc.parent(loc, self.created_ctrtl_jnts[1], r=1)
+        pmc.parent(loc, self.created_ctrtl_jnts[0], r=0)
+        self.created_ctrtl_jnts[1].setAttr("jointOrient", loc.getAttr("rotate"))
+        self.created_ctrtl_jnts[1].setAttr("rotate", (0, 0, 0))
+        pmc.delete(loc)
+
+        ctrl_cvs = self.created_ctrtl_jnts[1].getShape().cv[:]
+        for i, cv in enumerate(ctrl_cvs):
+            pmc.xform(self.created_ctrtl_jnts[1].getShape().controlPoints[i], ws=1,
+                      translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0],
+                      pmc.xform(cv, q=1, ws=1, translation=1)[1],
+                      pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[2]))
+
+    def create_one_chain_ik_and_roll(self):
+        toe_ik_handle = pmc.ikHandle(n=("{0}_toe_ik_HDL".format(self.model.module_name)),
+                                     startJoint=self.created_ctrtl_jnts[1], endEffector=self.created_ctrtl_jnts[2],
+                                     solver="ikSCsolver")[0]
+
+        ik_effector = pmc.listRelatives(self.created_ctrtl_jnts[1], children=1)[1]
+        ik_effector.rename("{0}_toe_ik_EFF".format(self.model.module_name))
+        ball_ik_handle = pmc.ikHandle(n=("{0}_ball_ik_HDL".format(self.model.module_name)),
+                                      startJoint=self.created_ctrtl_jnts[0], endEffector=self.created_ctrtl_jnts[1],
+                                      solver="ikSCsolver")[0]
+        ik_effector = pmc.listRelatives(self.created_ctrtl_jnts[0], children=1)[1]
+        ik_effector.rename("{0}_ball_ik_EFF".format(self.model.module_name))
+
+        self.leg_option_ctrl.fkIk >> ball_ik_handle.ikBlend
+        self.leg_option_ctrl.fkIk >> toe_ik_handle.ikBlend
+
+        pmc.parent(self.leg_ik_handle, world=1)
+        pmc.parent(self.leg_ik_length_end_loc, world=1)
+        if pmc.objExists("{0}_roll_OFS".format(self.model.module_name)):
+            pmc.delete("{0}_roll_OFS".format(self.model.module_name))
+        locs_offset = pmc.group(em=1, n="{0}_roll_OFS".format(self.model.module_name))
+        locs_offset.setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
+        locs_offset.setAttr("rotateOrder", 4)
+        pmc.parent(locs_offset, self.leg_ik_ctrl, r=0)
+        toe_bend_group = pmc.group(em=1, n="{0}_toe_bend_OFS".format(self.model.module_name))
+        toe_bend_group.setAttr("translate", pmc.xform(self.created_locs[0], q=1, ws=1, translation=1))
+        pmc.parent(ball_ik_handle, self.created_locs[0], r=0)
+        pmc.parent(toe_bend_group, self.created_locs[1], r=0)
+        pmc.parent(toe_ik_handle, toe_bend_group, r=0)
+        pmc.parent(self.created_locs[2], locs_offset, r=0)
+        pmc.parent(self.leg_ik_handle, self.created_locs[0], r=0)
+        pmc.parent(self.leg_ik_length_end_loc, self.created_locs[0], r=0)
+
+        pmc.pointConstraint(self.leg_ik_handle, self.leg_ankle_rotation_handle, maintainOffset=1)
+
+        if "roll" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("roll")
+        self.leg_ik_ctrl.addAttr("roll", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        if "bendLimitAngle" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("bendLimitAngle")
+        self.leg_ik_ctrl.addAttr("bendLimitAngle", attributeType="float", defaultValue=45, hidden=0, keyable=1)
+        if "toeStraightAngle" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("toeStraightAngle")
+        self.leg_ik_ctrl.addAttr("toeStraightAngle", attributeType="float", defaultValue=70, hidden=0, keyable=1)
+        if "bank" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("bank")
+        self.leg_ik_ctrl.addAttr("bank", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        if "lean" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("lean")
+        self.leg_ik_ctrl.addAttr("lean", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        if "heelTwist" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("heelTwist")
+        self.leg_ik_ctrl.addAttr("heelTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        if "toeTwist" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("toeTwist")
+        self.leg_ik_ctrl.addAttr("toeTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        if "toeBend" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
+            self.leg_ik_ctrl.deleteAttr("toeBend")
+        self.leg_ik_ctrl.addAttr("toeBend", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+
+        roll_heel_limit = pmc.createNode("clamp", n="{0}_heel_CLAMP".format(self.model.module_name))
+        roll_zerotobend_limit = pmc.createNode("clamp", n="{0}_zero_to_bend_CLAMP".format(self.model.module_name))
+        roll_zerotobend_percent = pmc.createNode("setRange",
+                                                 n="{0}_zero_to_bend_percent_RANGE".format(self.model.module_name))
+        roll_bendtostraight_limit = pmc.createNode("clamp", n="{0}_bend_to_straight_CLAMP".format(self.model.module_name))
+        roll_bendtostraight_percent = pmc.createNode("setRange",
+                                                     n="{0}_bend_to_straight_percent_RANGE".format(self.model.module_name))
+        roll_toe_mult = pmc.createNode("multiplyDivide", n="{0}_toe_roll_mult_MDV".format(self.model.module_name))
+        roll_bendtostraight_invertpercent = pmc.createNode("plusMinusAverage",
+                                                           n="{0}_invert_percent_RANGE".format(self.model.module_name))
+        roll_ball_percent_mult = pmc.createNode("multiplyDivide",
+                                                n="{0}_ball_percent_mult_MDV".format(self.model.module_name))
+        roll_ball_mult = pmc.createNode("multiplyDivide", n="{0}_ball_roll_mult_MDV".format(self.model.module_name))
+
+        roll_heel_limit.setAttr("minR", -90)
+        roll_heel_limit.setAttr("maxR", 0)
+        self.leg_ik_ctrl.roll >> roll_heel_limit.inputR
+        roll_heel_limit.outputR >> self.created_locs[2].rotateX
+
+        self.leg_ik_ctrl.bendLimitAngle >> roll_bendtostraight_limit.minR
+        self.leg_ik_ctrl.toeStraightAngle >> roll_bendtostraight_limit.maxR
+        self.leg_ik_ctrl.roll >> roll_bendtostraight_limit.inputR
+
+        roll_bendtostraight_percent.setAttr("minX", 0)
+        roll_bendtostraight_percent.setAttr("maxX", 1)
+        roll_bendtostraight_limit.inputR >> roll_bendtostraight_percent.valueX
+        roll_bendtostraight_limit.minR >> roll_bendtostraight_percent.oldMinX
+        roll_bendtostraight_limit.maxR >> roll_bendtostraight_percent.oldMaxX
+
+        roll_toe_mult.setAttr("operation", 1)
+        roll_bendtostraight_percent.outValueX >> roll_toe_mult.input1X
+        roll_bendtostraight_limit.inputR >> roll_toe_mult.input2X
+        roll_toe_mult.outputX >> self.created_locs[1].rotateX
+
+        roll_bendtostraight_invertpercent.setAttr("operation", 2)
+        roll_bendtostraight_invertpercent.setAttr("input1D[0]", 1)
+        roll_bendtostraight_percent.outValueX >> roll_bendtostraight_invertpercent.input1D[1]
+
+        roll_zerotobend_limit.setAttr("minR", 0)
+        self.leg_ik_ctrl.bendLimitAngle >> roll_zerotobend_limit.maxR
+        self.leg_ik_ctrl.roll >> roll_zerotobend_limit.inputR
+
+        roll_zerotobend_percent.setAttr("minX", 0)
+        roll_zerotobend_percent.setAttr("maxX", 1)
+        roll_zerotobend_limit.inputR >> roll_zerotobend_percent.valueX
+        roll_zerotobend_limit.minR >> roll_zerotobend_percent.oldMinX
+        roll_zerotobend_limit.maxR >> roll_zerotobend_percent.oldMaxX
+
+        roll_ball_percent_mult.setAttr("operation", 1)
+        roll_zerotobend_percent.outValueX >> roll_ball_percent_mult.input1X
+        roll_bendtostraight_invertpercent.output1D >> roll_ball_percent_mult.input2X
+
+        roll_ball_mult.setAttr("operation", 1)
+        roll_ball_percent_mult.outputX >> roll_ball_mult.input1X
+        self.leg_ik_ctrl.roll >> roll_ball_mult.input2X
+        roll_ball_mult.outputX >> self.created_locs[0].rotateX
+
+        self.leg_ik_ctrl.toeBend >> toe_bend_group.rotateX
+
+        heel_offset = pmc.createNode("plusMinusAverage", n="{0}_heeltwist_offset_PMA".format(self.created_locs[2]))
+        heel_offset.setAttr("operation", 1)
+        heel_offset.setAttr("input1D[0]", self.created_locs[2].getAttr("rotateY"))
+        self.leg_ik_ctrl.heelTwist >> heel_offset.input1D[1]
+        heel_offset.output1D >> self.created_locs[2].rotateY
+
+        toe_offset = pmc.createNode("plusMinusAverage", n="{0}_toetwist_offset_PMA".format(self.created_locs[1]))
+        toe_offset.setAttr("operation", 1)
+        toe_offset.setAttr("input1D[0]", self.created_locs[1].getAttr("rotateY"))
+        self.leg_ik_ctrl.toeTwist >> toe_offset.input1D[1]
+        toe_offset.output1D >> self.created_locs[1].rotateY
+
+        self.leg_ik_ctrl.lean >> self.created_locs[0].rotateZ
+
+        bank_in_limit = pmc.createNode("clamp", n="{0}_bank_in_CLAMP".format(self.model.module_name))
+        bank_out_limit = pmc.createNode("clamp", n="{0}_bank_out_CLAMP".format(self.model.module_name))
+
+        if self.model.side == "Right":
+            bank_in_limit.setAttr("minR", -90)
+            bank_in_limit.setAttr("maxR", 0)
+            self.leg_ik_ctrl.bank >> bank_in_limit.inputR
+            bank_in_limit.outputR >> self.created_locs[3].rotateZ
+            bank_out_limit.setAttr("minR", 0)
+            bank_out_limit.setAttr("maxR", 90)
+            self.leg_ik_ctrl.bank >> bank_out_limit.inputR
+            bank_out_limit.outputR >> self.created_locs[4].rotateZ
+        else:
+            bank_invert = pmc.createNode("multiplyDivide", n="{0}_bank_invert_value_MDV".format(self.model.module_name))
+            bank_invert.setAttr("input2X", -1)
+            self.leg_ik_ctrl.bank >> bank_invert.input1X
+            bank_in_limit.setAttr("minR", 0)
+            bank_in_limit.setAttr("maxR", 90)
+            bank_invert.outputX >> bank_in_limit.inputR
+            bank_in_limit.outputR >> self.created_locs[3].rotateZ
+            bank_out_limit.setAttr("minR", -90)
+            bank_out_limit.setAttr("maxR", 0)
+            bank_invert.outputX >> bank_out_limit.inputR
+            bank_out_limit.outputR >> self.created_locs[4].rotateZ
 
 
 class Model(AuriScriptModel):

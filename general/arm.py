@@ -289,9 +289,10 @@ class Controller(RigController):
                 self.create_ik()
             if self.model.stretch_creation_switch == 1:
                 self.connect_fk_stretch(self.created_fk_jnts, self.created_fk_ctrls)
-                self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
-                                        self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
-                                        self.wrist_fk_pos_reader)
+                if self.model.ik_creation_switch:
+                    self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
+                                            self.created_fk_ctrls[0].getParent(), self.created_ik_ctrls[0],
+                                            self.wrist_fk_pos_reader)
 
         if self.model.fk_ik_type == "one_chain":
             self.create_and_connect_ctrl_jnts()
@@ -680,9 +681,10 @@ class Controller(RigController):
         rig_lib.clean_ctrl(fk_ctrls[1], color_value, trs="ts", visibility_dependence=invert_value.output1D)
         rig_lib.clean_ctrl(fk_ctrls[2], color_value, trs="t", visibility_dependence=invert_value.output1D)
 
-        rig_lib.clean_ctrl(self.created_ik_ctrls[0], color_value, trs="", visibility_dependence=self.option_ctrl.fkIk)
-        rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
-        rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
+        if self.model.ik_creation_switch:
+            rig_lib.clean_ctrl(self.created_ik_ctrls[0], color_value, trs="", visibility_dependence=self.option_ctrl.fkIk)
+            rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
+            rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
 
     def create_outputs(self):
         if self.model.clavicle_creation_switch:
@@ -702,7 +704,7 @@ class Controller(RigController):
         self.created_ctrtl_jnts = [shoulder_ctrl_jnt, elbow_ctrl_jnt, wrist_ctrl_jnt]
 
         for i, skn_jnt in enumerate(self.created_skn_jnts):
-            if not self.model.ik_creation_switch:
+            if not self.model.stretch_creation_switch:
                 self.created_ctrtl_jnts[i].translate >> skn_jnt.translate
 
             self.created_ctrtl_jnts[i].rotate >> skn_jnt.rotate
