@@ -338,8 +338,7 @@ class Controller(RigController):
             self.create_outputs()
 
             if self.model.raz_ik_ctrls:
-                rig_lib.raz_ik_ctrl_translate_rotate(self.created_ik_ctrls[0], self.created_skn_jnts[-1], self.side_coef)
-
+                rig_lib.raz_one_chain_ik_ctrl_translate_rotate(self.created_ik_ctrls[0])
             self.create_local_spaces()
 
             if self.model.raz_fk_ctrls:

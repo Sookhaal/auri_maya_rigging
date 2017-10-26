@@ -934,6 +934,13 @@ def raz_ik_ctrl_translate_rotate(ctrl, jnt, side_coef):
     ctrl.setAttr("jointOrient", (0, 0, 0))
 
 
+def raz_one_chain_ik_ctrl_translate_rotate(ctrl):
+    pmc.xform(ctrl.getParent(), ws=1, translation=(pmc.xform(ctrl, q=1, ws=1, translation=1)))
+    ctrl.setAttr("translate", (0, 0, 0))
+    ctrl.setAttr("rotate", (0, 0, 0))
+    ctrl.setAttr("jointOrient", (0, 0, 0))
+
+
 def raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, skn_jnt):
     loc = pmc.spaceLocator(p=(0, 0, 0), n="get_xyz_orient_temp_loc")
 
