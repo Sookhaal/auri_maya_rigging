@@ -149,6 +149,21 @@ class Controller(RigController):
 
         if self.guide_check(self.guides_names):
             self.guides = [pmc.ls(guide)[:] for guide in self.guides_names]
+
+            if pmc.objExists("{0}_fingers_planes_GRP".format(self.model.module_name)):
+                pmc.delete("{0}_fingers_planes_GRP".format(self.model.module_name))
+
+            planes_group = pmc.group(em=1, n="{0}_fingers_planes_GRP".format(self.model.module_name))
+            planes_group.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+            planes_group.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+            planes_group.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+            planes_group.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+            planes_group.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+            planes_group.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+            planes_group.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+            planes_group.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+            planes_group.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+
             for i, guide in enumerate(self.guides):
                 if ((self.model.thumb_creation_switch and i != 0) or not self.model.thumb_creation_switch) and \
                                 guide[1].getShape().getAttr("spans") != self.model.how_many_phalanges:
@@ -161,9 +176,75 @@ class Controller(RigController):
                         pmc.delete(guide[1].cv[-2])
                         pmc.delete(guide[1].cv[1])
 
-# TODO: Add the delete of the planes_group and the rebuild of each finger_planes (thumb included)
+                planes_loc_01 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_start_LOC".format(guide[1]))
+                planes_loc_02 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_mid_LOC".format(guide[1]))
+                planes_loc_03 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_end_LOC".format(guide[1]))
+
+                if self.model.thumb_creation_switch and i == 0:
+                    loc_01_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_01))
+                    guide[1].getShape().worldSpace[0] >> loc_01_pos.geometryPath
+                    loc_01_pos.setAttr("uValue", 0)
+                    loc_01_pos.allCoordinates >> planes_loc_01.translate
+                    planes_loc_01.setAttr("visibility", 0)
+
+                    loc_02_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_02))
+                    guide[1].getShape().worldSpace[0] >> loc_02_pos.geometryPath
+                    loc_02_pos.setAttr("uValue", 1)
+                    loc_02_pos.allCoordinates >> planes_loc_02.translate
+                    planes_loc_02.setAttr("visibility", 0)
+
+                    loc_03_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_03))
+                    guide[1].getShape().worldSpace[0] >> loc_03_pos.geometryPath
+                    loc_03_pos.setAttr("uValue", 2)
+                    loc_03_pos.allCoordinates >> planes_loc_03.translate
+                    planes_loc_03.setAttr("visibility", 0)
+                else:
+                    loc_01_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_01))
+                    guide[1].getShape().worldSpace[0] >> loc_01_pos.geometryPath
+                    loc_01_pos.setAttr("uValue", 0)
+                    loc_01_pos.allCoordinates >> planes_loc_01.translate
+                    planes_loc_01.setAttr("visibility", 0)
+
+                    loc_02_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_02))
+                    guide[1].getShape().worldSpace[0] >> loc_02_pos.geometryPath
+                    loc_02_pos.setAttr("uValue", 0.3333)
+                    loc_02_pos.allCoordinates >> planes_loc_02.translate
+                    planes_loc_02.setAttr("visibility", 0)
+
+                    loc_03_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_03))
+                    guide[1].getShape().worldSpace[0] >> loc_03_pos.geometryPath
+                    loc_03_pos.setAttr("uValue", 0.6666)
+                    loc_03_pos.allCoordinates >> planes_loc_03.translate
+                    planes_loc_03.setAttr("visibility", 0)
+
+                plane = pmc.ls(pmc.polyCreateFacet(p=[(0, 0, 0), (0, 0, 0), (0, 0, 0)],
+                                                   n="{0}_plane".format(guide[1]), ch=0))[0]
+
+                planes_loc_01.getShape().worldPosition[0] >> plane.getShape().pnts[0]
+                planes_loc_02.getShape().worldPosition[0] >> plane.getShape().pnts[1]
+                planes_loc_03.getShape().worldPosition[0] >> plane.getShape().pnts[2]
+
+                plane.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("overrideEnabled", 1)
+                plane.setAttr("overrideDisplayType", 2)
+
+                finger_group = pmc.group(em=1, n="{0}_plane_GRP".format(guide[1]))
+                pmc.parent(planes_loc_01, finger_group)
+                pmc.parent(planes_loc_02, finger_group)
+                pmc.parent(planes_loc_03, finger_group)
+                pmc.parent(plane, finger_group)
+                pmc.parent(finger_group, planes_group)
 
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
+            pmc.parent(planes_group, self.guides_grp)
             self.guides_grp.setAttr("visibility", 1)
             self.view.refresh_view()
             pmc.select(d=1)
