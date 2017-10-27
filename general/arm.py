@@ -29,6 +29,7 @@ class View(AuriScriptView):
         self.selected_space = "no_space"
         self.space_list_view = QtWidgets.QListView()
         self.space_list = QtGui.QStringListModel()
+        self.deform_chain_creation_switch = QtWidgets.QCheckBox()
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -49,6 +50,7 @@ class View(AuriScriptView):
                                   l_cbbox_selection=self.selected_space_module,
                                   l_cbbox=self.space_modules_cbbox, r_cbbox_stringlist=self.ctrl.spaces_model,
                                   r_cbbox_selection=self.selected_space, r_cbbox=self.spaces_cbbox)
+        self.deform_chain_creation_switch.setChecked(self.model.deform_chain_creation_switch)
 
     def setup_ui(self):
         self.modules_cbbox.setModel(self.ctrl.modules_with_output)
@@ -82,6 +84,8 @@ class View(AuriScriptView):
 
         self.fk_ik_type_cbbox.insertItems(0, ["one_chain", "three_chains"])
         self.fk_ik_type_cbbox.currentTextChanged.connect(self.ctrl.on_fk_ik_type_changed)
+
+        self.deform_chain_creation_switch.stateChanged.connect(self.ctrl.on_deform_chain_creation_switch_changed)
 
         self.refresh_btn.clicked.connect(self.ctrl.look_for_parent)
         self.prebuild_btn.clicked.connect(self.ctrl.prebuild)
@@ -136,10 +140,15 @@ class View(AuriScriptView):
         clavicle_text = QtWidgets.QLabel("clavicle :")
         clavicle_layout.addWidget(clavicle_text)
         clavicle_layout.addWidget(self.clavicle_creation_switch)
+        deform_chain_layout = QtWidgets.QHBoxLayout()
+        deform_chain_text = QtWidgets.QLabel("deformation chain :")
+        deform_chain_layout.addWidget(deform_chain_text)
+        deform_chain_layout.addWidget(self.deform_chain_creation_switch)
 
         checkbox_layout.addLayout(ik_layout)
         checkbox_layout.addLayout(stretch_layout)
         checkbox_layout.addLayout(clavicle_layout)
+        checkbox_layout.addLayout(deform_chain_layout)
 
         options_layout.addLayout(checkbox_layout)
 
@@ -306,6 +315,9 @@ class Controller(RigController):
                 self.connect_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0],
                                                      self.option_ctrl, self.created_skn_jnts)
 
+        if self.model.deform_chain_creation_switch:
+            self.delete_skn_jnt_chain()
+# TODO: add the creation of the half bones and then the iksplines with the jnt_chains for each segment
         self.create_outputs()
         self.create_local_spaces()
         self.clean_rig()
@@ -693,9 +705,11 @@ class Controller(RigController):
     def create_outputs(self):
         if self.model.clavicle_creation_switch:
             rig_lib.create_output(name="{0}_clavicle_OUTPUT".format(self.model.module_name), parent=self.clavicle_jnt)
-        rig_lib.create_output(name="{0}_shoulder_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[0])
-        rig_lib.create_output(name="{0}_elbow_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[1])
-        rig_lib.create_output(name="{0}_wrist_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
+
+        if not self.model.deform_chain_creation_switch:
+            rig_lib.create_output(name="{0}_shoulder_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[0])
+            rig_lib.create_output(name="{0}_elbow_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[1])
+            rig_lib.create_output(name="{0}_wrist_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
 
     def create_and_connect_ctrl_jnts(self):
         shoulder_ctrl_jnt = \
@@ -841,20 +855,31 @@ class Controller(RigController):
 
         self.option_ctrl.fkIk >> ik_handle.ikBlend
 
-        const = pmc.parentConstraint(ik_ctrl, self.created_ctrtl_jnts[-1], self.created_skn_jnts[-1],
-                                     maintainOffset=1, skipTranslate=["x", "y", "z"])
-        const.setAttr("target[0].targetOffsetRotate", (90 * (1 - self.side_coef), 0, 90 * -self.side_coef))
-        const.setAttr("target[0].targetOffsetTranslate", (0, 0, 0))
-        const.setAttr("target[1].targetOffsetRotate", (0, 0, 0))
-        const.setAttr("target[1].targetOffsetTranslate", (0, 0, 0))
+        # const = pmc.parentConstraint(ik_ctrl, self.created_ctrtl_jnts[-1], self.created_skn_jnts[-1],
+        #                              maintainOffset=1, skipTranslate=["x", "y", "z"])
+        # const.setAttr("target[0].targetOffsetRotate", (90 * (1 - self.side_coef), 0, 90 * -self.side_coef))
+        # const.setAttr("target[0].targetOffsetTranslate", (0, 0, 0))
+        # const.setAttr("target[1].targetOffsetRotate", (0, 0, 0))
+        # const.setAttr("target[1].targetOffsetTranslate", (0, 0, 0))
 
-        invert_value = pmc.createNode("plusMinusAverage", n="{0}_fk_const_switch_MDL".format(self.model.module_name))
-        invert_value.setAttr("input1D[0]", 1)
-        invert_value.setAttr("operation", 2)
-        self.option_ctrl.fkIk >> invert_value.input1D[1]
+        # invert_value = pmc.createNode("plusMinusAverage", n="{0}_fk_const_switch_MDL".format(self.model.module_name))
+        # invert_value.setAttr("input1D[0]", 1)
+        # invert_value.setAttr("operation", 2)
+        # self.option_ctrl.fkIk >> invert_value.input1D[1]
 
-        self.option_ctrl.connectAttr("fkIk", "{0}.{1}W0".format(const, ik_ctrl))
-        invert_value.connectAttr("output1D", "{0}.{1}W1".format(const, self.created_ctrtl_jnts[-1]))
+        # self.option_ctrl.connectAttr("fkIk", "{0}.{1}W0".format(const, ik_ctrl))
+        # invert_value.connectAttr("output1D", "{0}.{1}W1".format(const, self.created_ctrtl_jnts[-1]))
+
+    def delete_skn_jnt_chain(self):
+        pmc.delete(self.jnt_const_group)
+        self.jnt_const_group = pmc.group(em=1, n="{0}_jnts_const_GRP".format(self.model.module_name))
+        self.jnt_const_group.setAttr("translate",
+                                     pmc.xform(self.created_ctrtl_jnts[0].getParent(), q=1, ws=1, translation=1))
+        pmc.parent(self.jnt_const_group, self.jnt_input_grp, r=0)
+
+        if self.model.clavicle_creation_switch:
+            pmc.pointConstraint(pmc.listRelatives(self.clavicle_jnt, children=1)[0], self.jnt_const_group,
+                                maintainOffset=0)
 
 # TODO: find a way to scale wrist_SKN
 class Model(AuriScriptModel):
@@ -869,3 +894,4 @@ class Model(AuriScriptModel):
         self.fk_ik_type = "one_chain"
         # self.bend_creation_switch = False
         self.space_list = []
+        self.deform_chain_creation_switch = True

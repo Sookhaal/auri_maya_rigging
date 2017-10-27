@@ -84,6 +84,9 @@ class RigController(AuriScriptController):
     def on_ik_creation_switch_changed(self, state):
         self.model.ik_creation_switch = is_checked(state)
 
+    def on_deform_chain_creation_switch_changed(self, state):
+        self.model.deform_chain_creation_switch = is_checked(state)
+
     def on_stretch_creation_switch_changed(self, state):
         self.model.stretch_creation_switch = is_checked(state)
 

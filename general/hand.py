@@ -19,6 +19,7 @@ class View(AuriScriptView):
         self.thumb_creation_switch = QtWidgets.QCheckBox()
         self.how_many_fingers = QtWidgets.QSpinBox()
         self.how_many_phalanges = QtWidgets.QSpinBox()
+        self.ik_creation_switch = QtWidgets.QCheckBox()
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -33,6 +34,7 @@ class View(AuriScriptView):
         self.how_many_fingers.setValue(self.model.how_many_fingers)
         self.how_many_phalanges.setValue(self.model.how_many_phalanges)
         self.ctrl.look_for_parent()
+        self.ik_creation_switch.setChecked(self.model.ik_creation_switch)
 
     def setup_ui(self):
         self.modules_cbbox.setModel(self.ctrl.modules_with_output)
@@ -51,6 +53,9 @@ class View(AuriScriptView):
 
         self.how_many_phalanges.setMinimum(2)
         self.how_many_phalanges.valueChanged.connect(self.ctrl.on_how_many_phalanges_changed)
+
+        self.ik_creation_switch.stateChanged.connect(self.ctrl.on_ik_creation_switch_changed)
+        self.ik_creation_switch.setEnabled(False)
 
         self.refresh_btn.clicked.connect(self.ctrl.look_for_parent)
         self.prebuild_btn.clicked.connect(self.ctrl.prebuild)
@@ -89,7 +94,13 @@ class View(AuriScriptView):
         fingers_layout.addWidget(phalanges_text)
         fingers_layout.addWidget(self.how_many_phalanges)
 
+        ik_creation_layout = QtWidgets.QHBoxLayout()
+        ik_creation_text = QtWidgets.QLabel("IK fingers :")
+        ik_creation_layout.addWidget(ik_creation_text)
+        ik_creation_layout.addWidget(self.ik_creation_switch)
+
         options_layout.addLayout(thumb_layout)
+        options_layout.addLayout(ik_creation_layout)
         options_layout.addLayout(fingers_layout)
 
         main_layout.addLayout(select_parent_and_object_layout)
@@ -393,6 +404,8 @@ class Controller(RigController):
 
         self.create_skn_jnts()
         self.create_ctrls()
+        # if self.model.ik_creation_switch:
+        #     self.create_ik()
         self.create_options_attributes()
         self.clean_rig()
 
@@ -634,6 +647,11 @@ class Controller(RigController):
             for ctrl in finger:
                 rig_lib.clean_ctrl(ctrl, color_value, trs="ts")
 
+    def create_ik(self):
+        pass
+    # TODO : remake the ctrls creation to copy the quadruped_front_leg ik/fk, cause to put an ik and each finger we need
+    # TODO : to considerate them as a 4jnt ik setup
+
 
 class Model(AuriScriptModel):
     def __init__(self):
@@ -644,3 +662,4 @@ class Model(AuriScriptModel):
         self.how_many_fingers = 4
         self.thumb_creation_switch = True
         self.how_many_phalanges = 3
+        self.ik_creation_switch = False

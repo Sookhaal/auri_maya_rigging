@@ -881,20 +881,20 @@ class Controller(RigController):
 
         self.option_ctrl.fkIk >> ik_handle.ikBlend
 
-        const = pmc.parentConstraint(ik_ctrl, self.created_ctrtl_jnts[-1], self.created_skn_jnts[-1],
-                                     maintainOffset=1, skipTranslate=["x", "y", "z"])
-        const.setAttr("target[0].targetOffsetRotate", (0, 90 * (1 - self.side_coef), 90 * (1 + self.side_coef)))
-        const.setAttr("target[0].targetOffsetTranslate", (0, 0, 0))
-        const.setAttr("target[1].targetOffsetRotate", (0, 0, 0))
-        const.setAttr("target[1].targetOffsetTranslate", (0, 0, 0))
-
-        invert_value = pmc.createNode("plusMinusAverage", n="{0}_fk_const_switch_MDL".format(self.model.module_name))
-        invert_value.setAttr("input1D[0]", 1)
-        invert_value.setAttr("operation", 2)
-        self.option_ctrl.fkIk >> invert_value.input1D[1]
-
-        self.option_ctrl.connectAttr("fkIk", "{0}.{1}W0".format(const, ik_ctrl))
-        invert_value.connectAttr("output1D", "{0}.{1}W1".format(const, self.created_ctrtl_jnts[-1]))
+        # const = pmc.parentConstraint(ik_ctrl, self.created_ctrtl_jnts[-1], self.created_skn_jnts[-1],
+        #                              maintainOffset=1, skipTranslate=["x", "y", "z"])
+        # const.setAttr("target[0].targetOffsetRotate", (0, 90 * (1 - self.side_coef), 90 * (1 + self.side_coef)))
+        # const.setAttr("target[0].targetOffsetTranslate", (0, 0, 0))
+        # const.setAttr("target[1].targetOffsetRotate", (0, 0, 0))
+        # const.setAttr("target[1].targetOffsetTranslate", (0, 0, 0))
+        #
+        # invert_value = pmc.createNode("plusMinusAverage", n="{0}_fk_const_switch_MDL".format(self.model.module_name))
+        # invert_value.setAttr("input1D[0]", 1)
+        # invert_value.setAttr("operation", 2)
+        # self.option_ctrl.fkIk >> invert_value.input1D[1]
+        #
+        # self.option_ctrl.connectAttr("fkIk", "{0}.{1}W0".format(const, ik_ctrl))
+        # invert_value.connectAttr("output1D", "{0}.{1}W1".format(const, self.created_ctrtl_jnts[-1]))
 
 # TODO: find a way to scale ankle_SKN
 class Model(AuriScriptModel):
