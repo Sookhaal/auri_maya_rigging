@@ -86,6 +86,10 @@ class RigController(AuriScriptController):
 
     def on_deform_chain_creation_switch_changed(self, state):
         self.model.deform_chain_creation_switch = is_checked(state)
+        if state == 0:
+            self.view.how_many_jnts.setEnabled(False)
+        else:
+            self.view.how_many_jnts.setEnabled(True)
 
     def on_stretch_creation_switch_changed(self, state):
         self.model.stretch_creation_switch = is_checked(state)
