@@ -768,6 +768,23 @@ class Controller(RigController):
             rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
             rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
 
+        info_crv = rig_lib.signature_shape_curve("{0}_INFO".format(self.model.module_name))
+        info_crv.getShape().setAttr("visibility", 0)
+        info_crv.setAttr("hiddenInOutliner", 1)
+        info_crv.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("visibility", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("overrideEnabled", 1)
+        info_crv.setAttr("overrideDisplayType", 2)
+        pmc.parent(info_crv, self.parts_grp)
+# TODO: Add all parameters as extra_attr on info_crv
     def create_outputs(self):
         if self.model.clavicle_creation_switch:
             rig_lib.create_output(name="{0}_hip_clavicle_OUTPUT".format(self.model.module_name), parent=self.clavicle_jnt)
