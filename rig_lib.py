@@ -613,22 +613,33 @@ class RigController(AuriScriptController):
         pmc.parent(end_loc, end_parent, r=1)
         pmc.parent(end_tang, end_parent, r=1)
 
-        start_ctrl.addAttr("outTangent", attributeType="float", defaultValue=0.001, hidden=0, keyable=1,
-                           hasMinValue=1, minValue=0.001)
-        end_ctrl.addAttr("inTangent", attributeType="float", defaultValue=-0.001, hidden=0, keyable=1,
-                         hasMaxValue=1, maxValue=-0.001)
+        out_tang_name = str(start_ctrl).replace("fk_CTRL", "outTangent")
+        in_tang_name = str(end_ctrl).replace("fk_CTRL", "inTangent")
+        option_ctrl.addAttr(out_tang_name, attributeType="float", defaultValue=0.001, hidden=0, keyable=1,
+                            hasMinValue=1, minValue=0.001)
+        option_ctrl.addAttr(in_tang_name, attributeType="float", defaultValue=-0.001, hidden=0, keyable=1,
+                            hasMaxValue=1, maxValue=-0.001)
+
+        # start_ctrl.addAttr("outTangent", attributeType="float", defaultValue=0.001, hidden=0, keyable=1,
+        #                    hasMinValue=1, minValue=0.001)
+        # end_ctrl.addAttr("inTangent", attributeType="float", defaultValue=-0.001, hidden=0, keyable=1,
+        #                  hasMaxValue=1, maxValue=-0.001)
         if side_coef == -1:
             outtangent_invert_node = pmc.createNode("multDoubleLinear", n="{0}_outTangent_invert_MDL".format(start_ctrl))
             intangent_invert_node = pmc.createNode("multDoubleLinear", n="{0}_inTangent_invert_MDL".format(end_ctrl))
-            start_ctrl.outTangent >> outtangent_invert_node.input1
+            # start_ctrl.outTangent >> outtangent_invert_node.input1
+            option_ctrl.connectAttr("{0}".format(out_tang_name), outtangent_invert_node.input1)
             outtangent_invert_node.setAttr("input2", -1)
-            end_ctrl.inTangent >> intangent_invert_node.input1
+            # end_ctrl.inTangent >> intangent_invert_node.input1
+            option_ctrl.connectAttr("{0}".format(in_tang_name), intangent_invert_node.input1)
             intangent_invert_node.setAttr("input2", -1)
             outtangent_invert_node.output >> start_tang.translateY
             intangent_invert_node.output >> end_tang.translateY
         else:
-            start_ctrl.outTangent >> start_tang.translateY
-            end_ctrl.inTangent >> end_tang.translateY
+            # start_ctrl.outTangent >> start_tang.translateY
+            option_ctrl.connectAttr("{0}".format(out_tang_name), start_tang.translateY)
+            # end_ctrl.inTangent >> end_tang.translateY
+            option_ctrl.connectAttr("{0}".format(in_tang_name), end_tang.translateY)
 
         crv = create_curve_guide(3, 2, "{0}_ik_spline_CRV".format(name))
 
