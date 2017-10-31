@@ -332,8 +332,14 @@ class Controller(RigController):
 
         if self.model.deform_chain_creation_switch:
             self.create_half_bones()
-            self.create_deformation_chain()
-# TODO: add the creation of the iksplines with the jnt_chains for each segment
+            self.create_deformation_chain("{0}_shoulder_to_elbow".format(self.model.module_name),
+                                          self.created_half_bones[0], self.created_half_bones[1],
+                                          self.created_ctrtl_jnts[0], self.created_ctrtl_jnts[1],
+                                          self.model.how_many_jnts)
+            self.create_deformation_chain("{0}_elbow_to_wrist".format(self.model.module_name),
+                                          self.created_half_bones[1], self.created_half_bones[2],
+                                          self.created_ctrtl_jnts[1], self.created_ctrtl_jnts[2],
+                                          self.model.how_many_jnts)
 
         self.create_outputs()
         self.create_local_spaces()
@@ -923,28 +929,6 @@ class Controller(RigController):
         self.created_ctrtl_jnts[1].setAttr("rotate", fk_ctrl_02_value)
         self.created_ctrtl_jnts[2].setAttr("rotate", fk_ctrl_03_value)
 
-    def create_deformation_chain(self):
-        start_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_shoulder_ik_spline_start_LOC".format(self.model.module_name))
-        start_tang = pmc.spaceLocator(p=(0, 0, 0), n="{0}_shoulder_ik_spline_start_tangent_LOC".format(self.model.module_name))
-        end_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_shoulder_ik_spline_end_LOC".format(self.model.module_name))
-        end_tang = pmc.spaceLocator(p=(0, 0, 0), n="{0}_shoulder_ik_spline_end_tangent_LOC".format(self.model.module_name))
-
-        pmc.parent(start_loc, self.created_half_bones[0], r=1)
-        pmc.parent(start_tang, self.created_half_bones[0], r=1)
-        # start_tang.setAttr("translateY", pmc.xform(self.created_ctrtl_jnts[1], q=1, translation=1)[1]/3)
-        pmc.parent(end_loc, self.created_half_bones[1], r=1)
-        pmc.parent(end_tang, self.created_half_bones[1], r=1)
-        # end_tang.setAttr("translateY", -(pmc.xform(self.created_ctrtl_jnts[1], q=1, translation=1)[1] / 3))
-
-        self.created_ctrtl_jnts[0].addAttr("outTangent", attributeType="float", defaultValue=0, hidden=0, keyable=1,
-                                           hasMinValue=1, minValue=0)
-        self.created_ctrtl_jnts[0].outTangent >> start_tang.translateY
-        self.created_ctrtl_jnts[1].addAttr("inTangent", attributeType="float", defaultValue=0, hidden=0, keyable=1,
-                                           hasMaxValue=1, maxValue=0)
-        self.created_ctrtl_jnts[1].inTangent >> end_tang.translateY
-
-        crv = rig_lib.create_curve_guide(3, 2, "{0}_shoulder_ik_spline_CRV".format(self.model.module_name))
-        #TODO: connecter les locs a la curve, creer la chain de joint et creer l'ik_spline.
 
 # TODO: find a way to scale wrist_SKN
 class Model(AuriScriptModel):

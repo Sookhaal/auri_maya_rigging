@@ -271,12 +271,12 @@ class RigController(AuriScriptController):
             pos_loc.getShape().worldPosition[0] >> nearest_point.inPosition
 
             jnt_locs = []
-            loc_group = pmc.group(em=1, n="{0}_stretch_locs_GRP".format(self.model.module_name))
+            loc_group = pmc.group(em=1, n="{0}_stretch_locs_GRP".format(ik_spline))
 
             for i, jnt in enumerate(created_jnts):
                 pmc.xform(pos_loc, ws=1, matrix=(pmc.xform(jnt, q=1, ws=1, matrix=1)))
 
-                jnt_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_jnt_{1}_LOC".format(self.model.module_name, i))
+                jnt_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_jnt_{1}_LOC".format(ik_spline, i))
                 # point_on_curve = pmc.createNode("pointOnCurveInfo", n="{0}_pos_POCI".format(jnt_loc))
                 point_on_curve = pmc.createNode("motionPath", n="{0}_pos_POCI".format(jnt_loc))
                 point_on_curve.setAttr("fractionMode", 1)
@@ -598,6 +598,76 @@ class RigController(AuriScriptController):
 
         start_loc_shape.setAttr("visibility", 0)
         end_loc_shape.setAttr("visibility", 0)
+
+    def create_deformation_chain(self, name, start_parent, end_parent, start_ctrl, end_ctrl, how_many_jnts):
+        start_loc = pmc.spaceLocator(p=(0, 0, 0),
+                                     n="{0}_ik_spline_start_LOC".format(name))
+        start_tang = pmc.spaceLocator(p=(0, 0, 0),
+                                      n="{0}_ik_spline_start_tangent_LOC".format(name))
+        end_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_spline_end_LOC".format(name))
+        end_tang = pmc.spaceLocator(p=(0, 0, 0),
+                                    n="{0}_ik_spline_end_tangent_LOC".format(name))
+
+        pmc.parent(start_loc, start_parent, r=1)
+        pmc.parent(start_tang, start_parent, r=1)
+        pmc.parent(end_loc, end_parent, r=1)
+        pmc.parent(end_tang, end_parent, r=1)
+
+        start_ctrl.addAttr("outTangent", attributeType="float", defaultValue=0.001, hidden=0, keyable=1,
+                           hasMinValue=1, minValue=0.001)
+        start_ctrl.outTangent >> start_tang.translateY
+        end_ctrl.addAttr("inTangent", attributeType="float", defaultValue=-0.001, hidden=0, keyable=1,
+                         hasMaxValue=1, maxValue=-0.001)
+        end_ctrl.inTangent >> end_tang.translateY
+
+        crv = create_curve_guide(3, 2, "{0}_ik_spline_CRV".format(name))
+
+        start_loc.getShape().worldPosition >> crv.getShape().controlPoints[0]
+        start_tang.getShape().worldPosition >> crv.getShape().controlPoints[1]
+        end_loc.getShape().worldPosition >> crv.getShape().controlPoints[3]
+        end_tang.getShape().worldPosition >> crv.getShape().controlPoints[2]
+
+        chain_jnts = []
+        for i in range(how_many_jnts + 1):
+            distance = pmc.createNode("distanceBetween", n="temp_start_and_end_ik_spline_distanceBetween")
+            start_loc.getShape().worldPosition >> distance.point1
+            end_loc.getShape().worldPosition >> distance.point2
+            if i == 0:
+                pmc.select(d=1)
+            else:
+                pmc.select(chain_jnts[i-1])
+            jnt = pmc.joint(p=(0, distance.getAttr("distance") / self.model.how_many_jnts * i, 0),
+                            n="{0}_{1}_SKN".format(name, i))
+            chain_jnts.append(jnt)
+            pmc.delete(distance)
+
+        ik_handle = pmc.ikHandle(n=("{0}_ik_spline_HDL".format(name)),
+                                 startJoint=chain_jnts[0], endEffector=chain_jnts[-1],
+                                 solver="ikSplineSolver", curve=crv, createCurve=False, parentCurve=False)[0]
+
+        ik_effector = pmc.listRelatives(chain_jnts[-2], children=1)[-1]
+        ik_effector.rename("{0}ik_spline_EFF".format(name))
+        # pmc.disconnectAttr(ik_effector, inputs=1, outputs=0)
+        pmc.parent(ik_effector, chain_jnts[-1], r=1)
+
+        ik_handle.setAttr("dTwistControlEnable", 1)
+        ik_handle.setAttr("dWorldUpType", 4)
+        ik_handle.setAttr("dForwardAxis", 2)
+        ik_handle.setAttr("dWorldUpAxis", 6)
+        ik_handle.setAttr("dWorldUpVectorX", 1)
+        ik_handle.setAttr("dWorldUpVectorY", 0)
+        ik_handle.setAttr("dWorldUpVectorZ", 0)
+        ik_handle.setAttr("dWorldUpVectorEndX", 1)
+        ik_handle.setAttr("dWorldUpVectorEndY", 0)
+        ik_handle.setAttr("dWorldUpVectorEndZ", 0)
+        start_loc.worldMatrix[0] >> ik_handle.dWorldUpMatrix
+        end_loc.worldMatrix[0] >> ik_handle.dWorldUpMatrixEnd
+
+        self.connect_ik_spline_stretch(crv, chain_jnts, measure_type="accurate")
+
+        pmc.parent(ik_handle, self.parts_grp)
+        pmc.parent(crv, self.parts_grp)
+        pmc.parent(chain_jnts[0], self.jnt_input_grp)
 
 
 def square_arrow_curve(name):
