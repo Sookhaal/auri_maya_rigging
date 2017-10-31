@@ -599,7 +599,7 @@ class RigController(AuriScriptController):
         start_loc_shape.setAttr("visibility", 0)
         end_loc_shape.setAttr("visibility", 0)
 
-    def create_deformation_chain(self, name, start_parent, end_parent, start_ctrl, end_ctrl, how_many_jnts):
+    def create_deformation_chain(self, name, start_parent, end_parent, start_ctrl, end_ctrl, option_ctrl,  how_many_jnts, side_coef):
         start_loc = pmc.spaceLocator(p=(0, 0, 0),
                                      n="{0}_ik_spline_start_LOC".format(name))
         start_tang = pmc.spaceLocator(p=(0, 0, 0),
@@ -615,10 +615,20 @@ class RigController(AuriScriptController):
 
         start_ctrl.addAttr("outTangent", attributeType="float", defaultValue=0.001, hidden=0, keyable=1,
                            hasMinValue=1, minValue=0.001)
-        start_ctrl.outTangent >> start_tang.translateY
         end_ctrl.addAttr("inTangent", attributeType="float", defaultValue=-0.001, hidden=0, keyable=1,
                          hasMaxValue=1, maxValue=-0.001)
-        end_ctrl.inTangent >> end_tang.translateY
+        if side_coef == -1:
+            outtangent_invert_node = pmc.createNode("multDoubleLinear", n="{0}_outTangent_invert_MDL".format(start_ctrl))
+            intangent_invert_node = pmc.createNode("multDoubleLinear", n="{0}_inTangent_invert_MDL".format(end_ctrl))
+            start_ctrl.outTangent >> outtangent_invert_node.input1
+            outtangent_invert_node.setAttr("input2", -1)
+            end_ctrl.inTangent >> intangent_invert_node.input1
+            intangent_invert_node.setAttr("input2", -1)
+            outtangent_invert_node.output >> start_tang.translateY
+            intangent_invert_node.output >> end_tang.translateY
+        else:
+            start_ctrl.outTangent >> start_tang.translateY
+            end_ctrl.inTangent >> end_tang.translateY
 
         crv = create_curve_guide(3, 2, "{0}_ik_spline_CRV".format(name))
 
@@ -636,7 +646,7 @@ class RigController(AuriScriptController):
                 pmc.select(d=1)
             else:
                 pmc.select(chain_jnts[i-1])
-            jnt = pmc.joint(p=(0, distance.getAttr("distance") / self.model.how_many_jnts * i, 0),
+            jnt = pmc.joint(p=(0, (distance.getAttr("distance") / self.model.how_many_jnts * i)*side_coef, 0),
                             n="{0}_{1}_SKN".format(name, i))
             chain_jnts.append(jnt)
             pmc.delete(distance)
@@ -652,7 +662,10 @@ class RigController(AuriScriptController):
 
         ik_handle.setAttr("dTwistControlEnable", 1)
         ik_handle.setAttr("dWorldUpType", 4)
-        ik_handle.setAttr("dForwardAxis", 2)
+        if side_coef == -1:
+            ik_handle.setAttr("dForwardAxis", 3)
+        else:
+            ik_handle.setAttr("dForwardAxis", 2)
         ik_handle.setAttr("dWorldUpAxis", 6)
         ik_handle.setAttr("dWorldUpVectorX", 1)
         ik_handle.setAttr("dWorldUpVectorY", 0)

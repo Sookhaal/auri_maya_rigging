@@ -31,6 +31,8 @@ class View(AuriScriptView):
         self.selected_space = "no_space"
         self.space_list_view = QtWidgets.QListView()
         self.space_list = QtGui.QStringListModel()
+        self.deform_chain_creation_switch = QtWidgets.QCheckBox()
+        self.how_many_jnts = QtWidgets.QSpinBox()
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -53,6 +55,8 @@ class View(AuriScriptView):
                                   l_cbbox_selection=self.selected_space_module,
                                   l_cbbox=self.space_modules_cbbox, r_cbbox_stringlist=self.ctrl.spaces_model,
                                   r_cbbox_selection=self.selected_space, r_cbbox=self.spaces_cbbox)
+        self.deform_chain_creation_switch.setChecked(self.model.deform_chain_creation_switch)
+        self.how_many_jnts.setValue(self.model.how_many_jnts)
 
     def setup_ui(self):
         self.modules_cbbox.setModel(self.ctrl.modules_with_output)
@@ -88,6 +92,11 @@ class View(AuriScriptView):
 
         self.fk_ik_type_cbbox.insertItems(0, ["one_chain", "three_chains"])
         self.fk_ik_type_cbbox.currentTextChanged.connect(self.ctrl.on_fk_ik_type_changed)
+
+        self.deform_chain_creation_switch.stateChanged.connect(self.ctrl.on_deform_chain_creation_switch_changed)
+
+        self.how_many_jnts.setMinimum(2)
+        self.how_many_jnts.valueChanged.connect(self.ctrl.on_how_many_jnts_changed)
 
         self.refresh_btn.clicked.connect(self.ctrl.look_for_parent)
         self.prebuild_btn.clicked.connect(self.ctrl.prebuild)
@@ -157,12 +166,26 @@ class View(AuriScriptView):
         checkbox_layout.addLayout(raz_ik_ctrls_layout)
         checkbox_layout.addLayout(raz_fk_ctrls_layout)
 
+        deform_layout = QtWidgets.QVBoxLayout()
+        deform_grp = grpbox("Deformation", deform_layout)
+        deform_switch_layout = QtWidgets.QHBoxLayout()
+        deform_switch_text = QtWidgets.QLabel("deformation chain :")
+        deform_switch_layout.addWidget(deform_switch_text)
+        deform_switch_layout.addWidget(self.deform_chain_creation_switch)
+        jnts_layout = QtWidgets.QVBoxLayout()
+        jnts_text = QtWidgets.QLabel("How many jnts :")
+        jnts_layout.addWidget(jnts_text)
+        jnts_layout.addWidget(self.how_many_jnts)
+        deform_layout.addLayout(deform_switch_layout)
+        deform_layout.addLayout(jnts_layout)
+
         options_layout.addLayout(checkbox_layout)
 
         main_layout.addWidget(select_parent_grp)
         main_layout.addWidget(side_grp)
         main_layout.addWidget(chain_type_grp)
         main_layout.addWidget(options_grp)
+        main_layout.addWidget(deform_grp)
         main_layout.addWidget(select_spaces_grp)
         main_layout.addWidget(space_list_grp)
         main_layout.addWidget(self.prebuild_btn)
@@ -196,6 +219,7 @@ class Controller(RigController):
         self.clavicle_ik_ctrl = None
         self.ankle_fk_pos_reader = None
         self.jnt_const_group = None
+        self.created_half_bones = []
         RigController.__init__(self, model, view)
 
     def on_raz_ik_ctrls_changed(self, state):
@@ -338,6 +362,17 @@ class Controller(RigController):
             if self.model.stretch_creation_switch == 1:
                 self.connect_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0],
                                                      self.option_ctrl, self.created_skn_jnts)
+
+            if self.model.deform_chain_creation_switch:
+                self.create_half_bones()
+                self.create_deformation_chain("{0}_hip_to_knee".format(self.model.module_name),
+                                              self.created_half_bones[0], self.created_half_bones[1],
+                                              self.created_ctrtl_jnts[0], self.created_ctrtl_jnts[1],
+                                              self.option_ctrl, self.model.how_many_jnts, self.side_coef)
+                self.create_deformation_chain("{0}_knee_to_ankle".format(self.model.module_name),
+                                              self.created_half_bones[1], self.created_half_bones[2],
+                                              self.created_ctrtl_jnts[1], self.created_ctrtl_jnts[2],
+                                              self.option_ctrl, self.model.how_many_jnts, self.side_coef)
 
             self.create_outputs()
 
@@ -736,9 +771,15 @@ class Controller(RigController):
     def create_outputs(self):
         if self.model.clavicle_creation_switch:
             rig_lib.create_output(name="{0}_hip_clavicle_OUTPUT".format(self.model.module_name), parent=self.clavicle_jnt)
-        rig_lib.create_output(name="{0}_hip_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[0])
-        rig_lib.create_output(name="{0}_knee_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[1])
-        rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
+
+        if not self.model.deform_chain_creation_switch:
+            rig_lib.create_output(name="{0}_hip_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[0])
+            rig_lib.create_output(name="{0}_knee_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[1])
+            rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
+        else:
+            rig_lib.create_output(name="{0}_hip_OUTPUT".format(self.model.module_name), parent=self.created_ctrtl_jnts[0])
+            rig_lib.create_output(name="{0}_knee_OUTPUT".format(self.model.module_name), parent=self.created_ctrtl_jnts[1])
+            rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_ctrtl_jnts[-1])
 
     def create_and_connect_ctrl_jnts(self):
         hip_ctrl_jnt = \
@@ -896,6 +937,39 @@ class Controller(RigController):
         # self.option_ctrl.connectAttr("fkIk", "{0}.{1}W0".format(const, ik_ctrl))
         # invert_value.connectAttr("output1D", "{0}.{1}W1".format(const, self.created_ctrtl_jnts[-1]))
 
+    def create_half_bones(self):
+        self.created_half_bones = self.created_skn_jnts[:]
+
+        fk_ctrl_01_value = pmc.xform(self.created_ctrtl_jnts[0], q=1, rotation=1)
+        fk_ctrl_02_value = pmc.xform(self.created_ctrtl_jnts[1], q=1, rotation=1)
+        fk_ctrl_03_value = pmc.xform(self.created_ctrtl_jnts[2], q=1, rotation=1)
+
+        self.created_ctrtl_jnts[0].setAttr("rotate", (0, 0, 0))
+        self.created_ctrtl_jnts[1].setAttr("rotate", (0, 0, 0))
+        self.created_ctrtl_jnts[2].setAttr("rotate", (0, 0, 0))
+
+        for i, jnt in enumerate(self.created_half_bones):
+            pmc.disconnectAttr(jnt, inputs=1, outputs=0)
+
+            pmc.parent(jnt, self.jnt_const_group, r=0)
+
+            pmc.parentConstraint(self.created_ctrtl_jnts[i], jnt, maintainOffset=1, skipRotate=["x", "y", "z"])
+
+            if i == 0:
+                rot_const = pmc.parentConstraint(self.clavicle_jnt, self.created_ctrtl_jnts[i], jnt, maintainOffset=1,
+                                                 skipTranslate=["x", "y", "z"])
+            else:
+                rot_const = pmc.parentConstraint(self.created_ctrtl_jnts[i - 1], self.created_ctrtl_jnts[i], jnt,
+                                                 maintainOffset=1, skipTranslate=["x", "y", "z"])
+
+            rot_const.setAttr("interpType", 2)
+            # self.created_ctrtl_jnts[i].scale >> jnt.scale
+
+        self.created_ctrtl_jnts[0].setAttr("rotate", fk_ctrl_01_value)
+        self.created_ctrtl_jnts[1].setAttr("rotate", fk_ctrl_02_value)
+        self.created_ctrtl_jnts[2].setAttr("rotate", fk_ctrl_03_value)
+
+
 # TODO: find a way to scale ankle_SKN
 class Model(AuriScriptModel):
     def __init__(self):
@@ -911,3 +985,5 @@ class Model(AuriScriptModel):
         self.fk_ik_type = "one_chain"
         # self.bend_creation_switch = False
         self.space_list = []
+        self.deform_chain_creation_switch = True
+        self.how_many_jnts = 5

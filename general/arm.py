@@ -146,6 +146,10 @@ class View(AuriScriptView):
         clavicle_layout.addWidget(clavicle_text)
         clavicle_layout.addWidget(self.clavicle_creation_switch)
 
+        checkbox_layout.addLayout(ik_layout)
+        checkbox_layout.addLayout(stretch_layout)
+        checkbox_layout.addLayout(clavicle_layout)
+
         deform_layout = QtWidgets.QVBoxLayout()
         deform_grp = grpbox("Deformation", deform_layout)
         deform_switch_layout = QtWidgets.QHBoxLayout()
@@ -158,10 +162,6 @@ class View(AuriScriptView):
         jnts_layout.addWidget(self.how_many_jnts)
         deform_layout.addLayout(deform_switch_layout)
         deform_layout.addLayout(jnts_layout)
-
-        checkbox_layout.addLayout(ik_layout)
-        checkbox_layout.addLayout(stretch_layout)
-        checkbox_layout.addLayout(clavicle_layout)
 
         options_layout.addLayout(checkbox_layout)
 
@@ -335,11 +335,11 @@ class Controller(RigController):
             self.create_deformation_chain("{0}_shoulder_to_elbow".format(self.model.module_name),
                                           self.created_half_bones[0], self.created_half_bones[1],
                                           self.created_ctrtl_jnts[0], self.created_ctrtl_jnts[1],
-                                          self.model.how_many_jnts)
+                                          self.option_ctrl, self.model.how_many_jnts, self.side_coef)
             self.create_deformation_chain("{0}_elbow_to_wrist".format(self.model.module_name),
                                           self.created_half_bones[1], self.created_half_bones[2],
                                           self.created_ctrtl_jnts[1], self.created_ctrtl_jnts[2],
-                                          self.model.how_many_jnts)
+                                          self.option_ctrl, self.model.how_many_jnts, self.side_coef)
 
         self.create_outputs()
         self.create_local_spaces()
@@ -917,10 +917,10 @@ class Controller(RigController):
 
             if i == 0:
                 rot_const = pmc.parentConstraint(self.clavicle_jnt, self.created_ctrtl_jnts[i], jnt, maintainOffset=1,
-                                     skipTranslate=["x", "y", "z"])
+                                                 skipTranslate=["x", "y", "z"])
             else:
-                rot_const = pmc.parentConstraint(self.created_ctrtl_jnts[i-1], self.created_ctrtl_jnts[i], jnt, maintainOffset=1,
-                                     skipTranslate=["x", "y", "z"])
+                rot_const = pmc.parentConstraint(self.created_ctrtl_jnts[i-1], self.created_ctrtl_jnts[i], jnt,
+                                                 maintainOffset=1, skipTranslate=["x", "y", "z"])
 
             rot_const.setAttr("interpType", 2)
             # self.created_ctrtl_jnts[i].scale >> jnt.scale
