@@ -784,7 +784,20 @@ class Controller(RigController):
         info_crv.setAttr("overrideEnabled", 1)
         info_crv.setAttr("overrideDisplayType", 2)
         pmc.parent(info_crv, self.parts_grp)
-# TODO: Add all parameters as extra_attr on info_crv
+
+        rig_lib.add_parameter_as_extra_attr(info_crv, "parent_Module", self.model.selected_module)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "parent_output", self.model.selected_output)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "side", self.model.side)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "ik_creation", self.model.ik_creation_switch)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "stretch_creation", self.model.stretch_creation_switch)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "raz_ik_ctrls", self.model.raz_ik_ctrls)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "raz_fk_ctrls", self.model.raz_fk_ctrls)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "clavicle_creation", self.model.clavicle_creation_switch)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "fk_ik_type", self.model.fk_ik_type)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "local_spaces", self.model.space_list)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "deform_chain_creation", self.model.deform_chain_creation_switch)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_jnts", self.model.how_many_jnts)
+
     def create_outputs(self):
         if self.model.clavicle_creation_switch:
             rig_lib.create_output(name="{0}_hip_clavicle_OUTPUT".format(self.model.module_name), parent=self.clavicle_jnt)

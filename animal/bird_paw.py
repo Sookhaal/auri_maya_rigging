@@ -439,6 +439,30 @@ class Controller(RigController):
             for ctrl in finger:
                 rig_lib.clean_ctrl(ctrl, color_value, trs="ts")
 
+        info_crv = rig_lib.signature_shape_curve("{0}_INFO".format(self.model.module_name))
+        info_crv.getShape().setAttr("visibility", 0)
+        info_crv.setAttr("hiddenInOutliner", 1)
+        info_crv.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("visibility", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("overrideEnabled", 1)
+        info_crv.setAttr("overrideDisplayType", 2)
+        pmc.parent(info_crv, self.parts_grp)
+
+        rig_lib.add_parameter_as_extra_attr(info_crv, "parent_Module", self.model.selected_module)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "parent_output", self.model.selected_output)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "side", self.model.side)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_fingers", self.model.how_many_fingers)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "thumb_creation", self.model.thumb_creation_switch)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_phalanges", self.model.how_many_phalanges)
+
 
 class Model(AuriScriptModel):
     def __init__(self):

@@ -1103,3 +1103,9 @@ def connect_condition_to_constraint(const_attr_to_connect_entire_name, space_att
     condition.setAttr("colorIfTrueR", 1)
     condition.setAttr("colorIfFalseR", 0)
     pmc.connectAttr("{0}.outColorR".format(condition), "{0}".format(const_attr_to_connect_entire_name))
+
+
+def add_parameter_as_extra_attr(obj, parameter_name, parameter_value):
+    obj.addAttr(parameter_name, dataType="string", hidden=0, keyable=0, readable=1, writable=1)
+    obj.setAttr(parameter_name, str(parameter_value))
+    obj.setAttr(parameter_name, lock=1)

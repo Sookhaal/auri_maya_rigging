@@ -469,6 +469,28 @@ class Controller(RigController):
 
         self.created_locs[2].setAttr("visibility", 0)
 
+        info_crv = rig_lib.signature_shape_curve("{0}_INFO".format(self.model.module_name))
+        info_crv.getShape().setAttr("visibility", 0)
+        info_crv.setAttr("hiddenInOutliner", 1)
+        info_crv.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("visibility", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("overrideEnabled", 1)
+        info_crv.setAttr("overrideDisplayType", 2)
+        pmc.parent(info_crv, self.parts_grp)
+
+        rig_lib.add_parameter_as_extra_attr(info_crv, "parent_Module", self.model.selected_module)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "parent_output", self.model.selected_output)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "side", self.model.side)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "fk_ik_type", self.model.fk_ik_type)
+
     def create_and_connect_ctrl_jnts(self):
         ankle_ctrl_jnt = self.created_skn_jnts[0].duplicate(n="{0}_ankle_ctrl_JNT".format(self.model.module_name))[0]
         ball_ctrl_jnt = pmc.ls("{0}_ankle_ctrl_JNT|{0}_toes_SKN".format(self.model.module_name))[0]
