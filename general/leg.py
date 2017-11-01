@@ -220,6 +220,7 @@ class Controller(RigController):
         self.ankle_fk_pos_reader = None
         self.jnt_const_group = None
         self.created_half_bones = []
+        self.jnts_to_skin = []
         RigController.__init__(self, model, view)
 
     def on_raz_ik_ctrls_changed(self, state):
@@ -366,14 +367,14 @@ class Controller(RigController):
             if self.model.deform_chain_creation_switch:
                 self.create_one_chain_half_bones()
 
-                self.create_deformation_chain("{0}_hip_to_knee".format(self.model.module_name),
+                self.jnts_to_skin.append(self.create_deformation_chain("{0}_hip_to_knee".format(self.model.module_name),
                                               self.created_half_bones[0], self.created_half_bones[1],
                                               self.created_ctrtl_jnts[0], self.created_ctrtl_jnts[1],
-                                              self.option_ctrl, self.model.how_many_jnts, self.side_coef)
-                self.create_deformation_chain("{0}_knee_to_ankle".format(self.model.module_name),
+                                              self.option_ctrl, self.model.how_many_jnts, self.side_coef)[1:-1])
+                self.jnts_to_skin.append(self.create_deformation_chain("{0}_knee_to_ankle".format(self.model.module_name),
                                               self.created_half_bones[1], self.created_half_bones[2],
                                               self.created_ctrtl_jnts[1], self.created_ctrtl_jnts[2],
-                                              self.option_ctrl, self.model.how_many_jnts, self.side_coef)
+                                              self.option_ctrl, self.model.how_many_jnts, self.side_coef)[1:-1])
 
             self.create_outputs()
 
@@ -470,6 +471,8 @@ class Controller(RigController):
         pmc.parent(hip_jnt, self.jnt_const_group, r=0)
 
         self.created_skn_jnts = [hip_jnt, knee_jnt, ankle_jnt]
+        self.jnts_to_skin = self.created_skn_jnts[:]
+        self.jnts_to_skin.append(self.clavicle_jnt)
 
         pmc.delete(duplicates_guides[:])
         pmc.delete(temp_guide_orient)
@@ -798,6 +801,17 @@ class Controller(RigController):
         rig_lib.add_parameter_as_extra_attr(info_crv, "local_spaces", self.model.space_list)
         rig_lib.add_parameter_as_extra_attr(info_crv, "deform_chain_creation", self.model.deform_chain_creation_switch)
         rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_jnts", self.model.how_many_jnts)
+
+        if not pmc.objExists("jnts_to_SKN_SET"):
+            skn_set = pmc.createNode("objectSet", n="jnts_to_SKN_SET")
+        else:
+            skn_set = pmc.ls("jnts_to_SKN_SET", type="objectSet")[0]
+        for jnt in self.jnts_to_skin:
+            if type(jnt) == list:
+                for obj in jnt:
+                    skn_set.add(obj)
+            else:
+                skn_set.add(jnt)
 
     def create_outputs(self):
         if self.model.clavicle_creation_switch:

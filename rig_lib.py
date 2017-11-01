@@ -662,6 +662,9 @@ class RigController(AuriScriptController):
             chain_jnts.append(jnt)
             pmc.delete(distance)
 
+        chain_jnts[0].rename(str(chain_jnts[0].replace("_SKN", "_JNT")))
+        chain_jnts[-1].rename(str(chain_jnts[-1].replace("_SKN", "_JNT")))
+
         ik_handle = pmc.ikHandle(n=("{0}_ik_spline_HDL".format(name)),
                                  startJoint=chain_jnts[0], endEffector=chain_jnts[-1],
                                  solver="ikSplineSolver", curve=crv, createCurve=False, parentCurve=False)[0]
@@ -692,6 +695,7 @@ class RigController(AuriScriptController):
         pmc.parent(ik_handle, self.parts_grp)
         pmc.parent(crv, self.parts_grp)
         pmc.parent(chain_jnts[0], self.jnt_input_grp)
+        return chain_jnts
 
 
 def square_arrow_curve(name):

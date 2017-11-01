@@ -118,6 +118,7 @@ class Controller(RigController):
         self.created_fk_ctrls = []
         self.created_pelvis_ctrl = None
         self.created_ik_ctrls = []
+        self.jnts_to_skin = []
         RigController.__init__(self,  model, view)
 
     def prebuild(self):
@@ -198,6 +199,9 @@ class Controller(RigController):
                                             n="{0}_pelvis_SKN".format(self.model.module_name))
         self.created_pelvis_jnt.setAttr("rotateOrder", 2)
         pmc.parent(self.created_pelvis_jnt, self.jnt_input_grp)
+
+        self.jnts_to_skin = self.created_spine_jnts[:]
+        self.jnts_to_skin.append(self.created_pelvis_jnt)
 
     def create_ikspline(self):
         # if self.model.ik_creation_switch:
@@ -416,6 +420,17 @@ class Controller(RigController):
         rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_ctrls", self.model.how_many_ctrls)
         rig_lib.add_parameter_as_extra_attr(info_crv, "ik_creation", self.model.ik_creation_switch)
         rig_lib.add_parameter_as_extra_attr(info_crv, "stretch_creation", self.model.stretch_creation_switch)
+
+        if not pmc.objExists("jnts_to_SKN_SET"):
+            skn_set = pmc.createNode("objectSet", n="jnts_to_SKN_SET")
+        else:
+            skn_set = pmc.ls("jnts_to_SKN_SET", type="objectSet")[0]
+        for jnt in self.jnts_to_skin:
+            if type(jnt) == list:
+                for obj in jnt:
+                    skn_set.add(obj)
+            else:
+                skn_set.add(jnt)
 
     def create_outputs(self):
         rig_lib.create_output(name="{0}_pelvis_OUTPUT".format(self.model.module_name), parent=self.created_pelvis_jnt)

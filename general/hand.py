@@ -128,6 +128,7 @@ class Controller(RigController):
         self.parent_wrist_fk_ctrl = None
         self.parent_wrist_ik_ctrl = None
         self.parent_option_ctrl = None
+        self.jnts_to_skin = []
         RigController.__init__(self, model, view)
 
     def on_how_many_fingers_changed(self, value):
@@ -418,6 +419,7 @@ class Controller(RigController):
     def create_skn_jnts(self):
         duplicate_guides = []
         self.created_skn_jnts = []
+        self.jnts_to_skin = []
         orient_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_wrist_LOC".format(self.model.module_name))
         orient_loc.setAttr("rotateOrder", 4)
         orient_loc.setAttr("translate", pmc.xform(self.parent_wrist_fk_ctrl, q=1, ws=1, translation=1))
@@ -507,6 +509,7 @@ class Controller(RigController):
             pmc.delete(finger_plane)
 
             self.created_skn_jnts.append(created_finger_jnts)
+            self.jnts_to_skin.append(created_finger_jnts[:-1])
 
         pmc.delete(duplicate_guides[:])
         pmc.delete(orient_loc)
@@ -672,6 +675,17 @@ class Controller(RigController):
         rig_lib.add_parameter_as_extra_attr(info_crv, "thumb_creation", self.model.thumb_creation_switch)
         rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_phalanges", self.model.how_many_phalanges)
         rig_lib.add_parameter_as_extra_attr(info_crv, "ik_creation", self.model.ik_creation_switch)
+
+        if not pmc.objExists("jnts_to_SKN_SET"):
+            skn_set = pmc.createNode("objectSet", n="jnts_to_SKN_SET")
+        else:
+            skn_set = pmc.ls("jnts_to_SKN_SET", type="objectSet")[0]
+        for jnt in self.jnts_to_skin:
+            if type(jnt) == list:
+                for obj in jnt:
+                    skn_set.add(obj)
+            else:
+                skn_set.add(jnt)
 
     def create_ik(self):
         pass

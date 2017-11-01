@@ -68,6 +68,7 @@ class Controller(RigController):
         self.guides_names = []
         self.created_skn_jnts = []
         self.created_ctrls = []
+        self.jnts_to_skin = []
         RigController.__init__(self, model, view)
 
     def prebuild(self):
@@ -158,6 +159,8 @@ class Controller(RigController):
 
         pmc.delete(duplicates_guides[:])
 
+        self.jnts_to_skin = [head_base_jnt, jaw_base_jnt]
+
     def create_ctrls(self):
         jaw_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=3, d=3, s=8,
                                n="{0}_jaw_CTRL_shape".format(self.model.module_name), ch=0)[0]
@@ -238,6 +241,17 @@ class Controller(RigController):
 
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_Module", self.model.selected_module)
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_output", self.model.selected_output)
+
+        if not pmc.objExists("jnts_to_SKN_SET"):
+            skn_set = pmc.createNode("objectSet", n="jnts_to_SKN_SET")
+        else:
+            skn_set = pmc.ls("jnts_to_SKN_SET", type="objectSet")[0]
+        for jnt in self.jnts_to_skin:
+            if type(jnt) == list:
+                for obj in jnt:
+                    skn_set.add(obj)
+            else:
+                skn_set.add(jnt)
 
 
 class Model(AuriScriptModel):

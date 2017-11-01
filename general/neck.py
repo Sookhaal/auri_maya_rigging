@@ -162,6 +162,7 @@ class Controller(RigController):
         self.created_locs = []
         self.created_fk_ctrls = []
         self.created_ik_ctrls = []
+        self.jnts_to_skin = []
         RigController.__init__(self,  model, view)
 
     def prebuild(self):
@@ -235,6 +236,8 @@ class Controller(RigController):
         rig_lib.change_jnt_chain_suffix(self.created_jnts[0:-1], new_suffix="SKN")
 
         pmc.delete(guide_rebuilded)
+
+        self.jnts_to_skin = self.created_jnts[:-1]
 
     def create_ikspline(self):
         self.ik_spline = pmc.duplicate(self.guide, n="{0}_ik_CRV".format(self.model.module_name))[0]
@@ -437,6 +440,17 @@ class Controller(RigController):
         rig_lib.add_parameter_as_extra_attr(info_crv, "ik_creation", self.model.ik_creation_switch)
         rig_lib.add_parameter_as_extra_attr(info_crv, "stretch_creation", self.model.stretch_creation_switch)
         rig_lib.add_parameter_as_extra_attr(info_crv, "local_spaces", self.model.space_list)
+
+        if not pmc.objExists("jnts_to_SKN_SET"):
+            skn_set = pmc.createNode("objectSet", n="jnts_to_SKN_SET")
+        else:
+            skn_set = pmc.ls("jnts_to_SKN_SET", type="objectSet")[0]
+        for jnt in self.jnts_to_skin:
+            if type(jnt) == list:
+                for obj in jnt:
+                    skn_set.add(obj)
+            else:
+                skn_set.add(jnt)
 
     def create_outputs(self):
         rig_lib.create_output(name="{0}_start_OUTPUT".format(self.model.module_name), parent=self.created_locs[0])
