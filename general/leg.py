@@ -364,7 +364,8 @@ class Controller(RigController):
                                                      self.option_ctrl, self.created_skn_jnts)
 
             if self.model.deform_chain_creation_switch:
-                self.create_half_bones()
+                self.create_one_chain_half_bones()
+
                 self.create_deformation_chain("{0}_hip_to_knee".format(self.model.module_name),
                                               self.created_half_bones[0], self.created_half_bones[1],
                                               self.created_ctrtl_jnts[0], self.created_ctrtl_jnts[1],
@@ -802,7 +803,7 @@ class Controller(RigController):
         if self.model.clavicle_creation_switch:
             rig_lib.create_output(name="{0}_hip_clavicle_OUTPUT".format(self.model.module_name), parent=self.clavicle_jnt)
 
-        if not self.model.deform_chain_creation_switch:
+        if not self.model.deform_chain_creation_switch or self.model.fk_ik_type == "three_chains":
             rig_lib.create_output(name="{0}_hip_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[0])
             rig_lib.create_output(name="{0}_knee_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[1])
             rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
@@ -967,7 +968,7 @@ class Controller(RigController):
         # self.option_ctrl.connectAttr("fkIk", "{0}.{1}W0".format(const, ik_ctrl))
         # invert_value.connectAttr("output1D", "{0}.{1}W1".format(const, self.created_ctrtl_jnts[-1]))
 
-    def create_half_bones(self):
+    def create_one_chain_half_bones(self):
         self.created_half_bones = self.created_skn_jnts[:]
 
         fk_ctrl_01_value = pmc.xform(self.created_ctrtl_jnts[0], q=1, rotation=1)
@@ -1000,7 +1001,7 @@ class Controller(RigController):
         self.created_ctrtl_jnts[2].setAttr("rotate", fk_ctrl_03_value)
 
 
-# TODO: find a way to scale ankle_SKN
+# TODO: find a way to scale ankle_SKN / ankle_output on one_chain ik
 class Model(AuriScriptModel):
     def __init__(self):
         AuriScriptModel.__init__(self)

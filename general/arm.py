@@ -330,16 +330,17 @@ class Controller(RigController):
                 self.connect_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0],
                                                      self.option_ctrl, self.created_skn_jnts)
 
-        if self.model.deform_chain_creation_switch:
-            self.create_half_bones()
-            self.create_deformation_chain("{0}_shoulder_to_elbow".format(self.model.module_name),
-                                          self.created_half_bones[0], self.created_half_bones[1],
-                                          self.created_ctrtl_jnts[0], self.created_ctrtl_jnts[1],
-                                          self.option_ctrl, self.model.how_many_jnts, self.side_coef)
-            self.create_deformation_chain("{0}_elbow_to_wrist".format(self.model.module_name),
-                                          self.created_half_bones[1], self.created_half_bones[2],
-                                          self.created_ctrtl_jnts[1], self.created_ctrtl_jnts[2],
-                                          self.option_ctrl, self.model.how_many_jnts, self.side_coef)
+            if self.model.deform_chain_creation_switch:
+                self.create_one_chain_half_bones()
+
+                self.create_deformation_chain("{0}_shoulder_to_elbow".format(self.model.module_name),
+                                              self.created_half_bones[0], self.created_half_bones[1],
+                                              self.created_ctrtl_jnts[0], self.created_ctrtl_jnts[1],
+                                              self.option_ctrl, self.model.how_many_jnts, self.side_coef)
+                self.create_deformation_chain("{0}_elbow_to_wrist".format(self.model.module_name),
+                                              self.created_half_bones[1], self.created_half_bones[2],
+                                              self.created_ctrtl_jnts[1], self.created_ctrtl_jnts[2],
+                                              self.option_ctrl, self.model.how_many_jnts, self.side_coef)
 
         self.create_outputs()
         self.create_local_spaces()
@@ -725,6 +726,20 @@ class Controller(RigController):
             rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
             rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
 
+        # if self.model.fk_ik_type == "one_chain":
+        #     blend_scale = pmc.createNode("blendColors", n="{0}_scale_blendColor".format(self.wrist_output))
+        #     self.option_ctrl.fkIk >> blend_scale.blender
+        #     self.created_ik_ctrls[0].scaleY >> blend_scale.color1R
+        #     self.created_ik_ctrls[0].scaleX >> blend_scale.color1G
+        #     self.created_ik_ctrls[0].scaleZ >> blend_scale.color1B
+        #     self.created_ctrtl_jnts[-1].scaleX >> blend_scale.color2R
+        #     self.created_ctrtl_jnts[-1].scaleY >> blend_scale.color2G
+        #     self.created_ctrtl_jnts[-1].scaleZ >> blend_scale.color2B
+        #     blend_scale.outputR >> self.wrist_output.scaleX
+        #     blend_scale.outputG >> self.wrist_output.scaleY
+        #     blend_scale.outputB >> self.wrist_output.scaleZ
+        # tentative de faire fonctionner le scale du ik_ctrl
+
         info_crv = rig_lib.signature_shape_curve("{0}_INFO".format(self.model.module_name))
         info_crv.getShape().setAttr("visibility", 0)
         info_crv.setAttr("hiddenInOutliner", 1)
@@ -757,7 +772,7 @@ class Controller(RigController):
         if self.model.clavicle_creation_switch:
             rig_lib.create_output(name="{0}_clavicle_OUTPUT".format(self.model.module_name), parent=self.clavicle_jnt)
 
-        if not self.model.deform_chain_creation_switch:
+        if not self.model.deform_chain_creation_switch or self.model.fk_ik_type == "three_chains":
             rig_lib.create_output(name="{0}_shoulder_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[0])
             rig_lib.create_output(name="{0}_elbow_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[1])
             rig_lib.create_output(name="{0}_wrist_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
@@ -925,7 +940,7 @@ class Controller(RigController):
         # self.option_ctrl.connectAttr("fkIk", "{0}.{1}W0".format(const, ik_ctrl))
         # invert_value.connectAttr("output1D", "{0}.{1}W1".format(const, self.created_ctrtl_jnts[-1]))
 
-    def create_half_bones(self):
+    def create_one_chain_half_bones(self):
         self.created_half_bones = self.created_skn_jnts[:]
 
         fk_ctrl_01_value = pmc.xform(self.created_ctrtl_jnts[0], q=1, rotation=1)
@@ -958,7 +973,7 @@ class Controller(RigController):
         self.created_ctrtl_jnts[2].setAttr("rotate", fk_ctrl_03_value)
 
 
-# TODO: find a way to scale wrist_SKN
+# TODO: find a way to scale wrist_SKN / wrist_output on one_chain ik
 class Model(AuriScriptModel):
     def __init__(self):
         AuriScriptModel.__init__(self)

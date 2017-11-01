@@ -996,6 +996,7 @@ def create_output(name, parent):
     output = pmc.spaceLocator(p=(0, 0, 0), n=name)
     pmc.parent(output, parent, r=1)
     output.visibility.set(0)
+    return output
 
 
 def raz_fk_ctrl_rotate(ctrl, jnt, stretch=False):
