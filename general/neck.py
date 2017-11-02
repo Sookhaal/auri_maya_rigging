@@ -392,13 +392,13 @@ class Controller(RigController):
 
                 rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(fk_space_const, space_locs[i], i),
                                                         self.created_fk_ctrls[-1].space, i,
-                                                        "{0}_{1}_COND".format(self.created_fk_ctrls[-1], name))
+                                                        "{0}_{1}Space_COND".format(self.created_fk_ctrls[-1], spaces_names[i]))
             else:
                 ik_space_const = pmc.orientConstraint(space_locs[i], self.created_ik_ctrls[-1].getParent(), maintainOffset=1)
 
                 rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(ik_space_const, space_locs[i], i),
                                                         self.created_ik_ctrls[-1].space, i,
-                                                        "{0}_{1}_COND".format(self.created_ik_ctrls[-1], name))
+                                                        "{0}_{1}Space_COND".format(self.created_ik_ctrls[-1], spaces_names[i]))
 
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)
