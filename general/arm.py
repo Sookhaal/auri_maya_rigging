@@ -430,7 +430,8 @@ class Controller(RigController):
 
         self.created_skn_jnts = [shoulder_jnt, elbow_jnt, wrist_jnt]
         self.jnts_to_skin = self.created_skn_jnts[:]
-        self.jnts_to_skin.append(self.clavicle_jnt)
+        if self.model.clavicle_creation_switch:
+            self.jnts_to_skin.append(self.clavicle_jnt)
 
         pmc.delete(duplicates_guides[:])
         pmc.delete(arm_plane)

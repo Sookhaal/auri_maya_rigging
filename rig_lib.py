@@ -466,7 +466,7 @@ class RigController(AuriScriptController):
         ik_ctrl.setAttr("translate", ik_ctrl_translate)
         ik_ctrl.setAttr("rotate", ik_ctrl_rotate)
 
-    def connect_quadruped_one_chain_fk_ik_stretch(self, fk_ctrls, ik_ctrl, option_ctrl, ik_setup_chain, side_coef):
+    def connect_quadruped_one_chain_fk_ik_stretch(self, fk_ctrls, ik_ctrl, option_ctrl, ik_setup_chain, skn_jnts):
         ik_ctrl_translate = ik_ctrl.getAttr("translate")
         ik_ctrl_rotate = ik_ctrl.getAttr("rotate")
         ik_ctrl.setAttr("translate", (0, 0, 0))
@@ -506,41 +506,76 @@ class RigController(AuriScriptController):
         ik_global_scale.outputX >> stretch_condition.firstTerm
         ik_stretch_value.outputX >> stretch_condition.colorIfFalseR
 
-        if pmc.objExists("{0}_fk_ik_stretch_merge_EXP".format(self.model.module_name)):
-            pmc.delete("{0}_fk_ik_stretch_merge_EXP".format(self.model.module_name))
-        exp = pmc.createNode("expression", n="{0}_fk_ik_stretch_merge_EXP".format(self.model.module_name))
-        exp_text = ""
-
         for i, ctrl in enumerate(fk_ctrls):
-            if i < (len(fk_ctrls) - 1):
-                ctrl.addAttr("baseLength", attributeType="float",
-                             defaultValue=pmc.xform(fk_ctrls[i+1], q=1, translation=1)[1] * side_coef, hidden=0, keyable=0)
-                ctrl.setAttr("baseLength", lock=1, channelBox=0)
-                ctrl.addAttr("stretch", attributeType="float", defaultValue=1, hidden=0, keyable=1,
+            if i > 0:
+                ctrl.addAttr("baseTranslateY", attributeType="float",
+                             defaultValue=pmc.xform(ctrl, q=1, translation=1)[1], hidden=0, keyable=0)
+                ctrl.setAttr("baseTranslateY", lock=1, channelBox=0)
+                fk_ctrls[i - 1].addAttr("stretch", attributeType="float", defaultValue=1, hidden=0, keyable=1,
                                         hasMinValue=1, minValue=0)
                 jnt_lenght = pmc.createNode("multiplyDivide",
-                                            n="{0}_jnt_{1}_length_MDV".format(self.model.module_name, i))
-                ctrl.baseLength >> jnt_lenght.input1Y
-                ctrl.stretch >> jnt_lenght.input2Y
-                jnt_lenght.outputY >> base_lenght.input1D[i]
+                                            n="{0}_jnt_{1}_length_MDV".format(self.model.module_name, i - 1))
+                ctrl.baseTranslateY >> jnt_lenght.input1Y
+                fk_ctrls[i - 1].stretch >> jnt_lenght.input2Y
+                if ctrl.getAttr("baseTranslateY") < 0:
+                    absolute_base_length_value = pmc.createNode("multDoubleLinear",
+                                                                n="{0}_jnt_{1}_invertLengthValue_MDL".format(
+                                                                    self.model.module_name, i - 1))
+                    jnt_lenght.outputY >> absolute_base_length_value.input1
+                    absolute_base_length_value.setAttr("input2", -1)
+                    absolute_base_length_value.output >> base_lenght.input1D[i - 1]
+                else:
+                    jnt_lenght.outputY >> base_lenght.input1D[i - 1]
+
+                jnt_ik_stretch = pmc.createNode("multiplyDivide",
+                                                n="{0}_jnt_ik_{1}_stretch_MDV".format(self.model.module_name, i - 1))
+                jnt_lenght.outputY >> jnt_ik_stretch.input1Y
+                stretch_condition.outColorR >> jnt_ik_stretch.input2Y
+
+                blend = pmc.createNode("blendColors",
+                                       n="{0}_jnt_{1}_fk_ik_stretch_merge_BLENDCOLOR".format(self.model.module_name, i - 1))
+                option_ctrl.fkIk >> blend.blender
+                jnt_ik_stretch.outputY >> blend.color1R
+                jnt_lenght.outputY >> blend.color2R
+                blend.outputR >> ctrl.translateY
+                continue
+                # TODO: find out why the ik_setup_chain flip when connecting something to his translateY
+                # blend.outputR >> ik_setup_chain[i].translateY
+                ctrl.translateY >> ik_setup_chain[i].translateY
+                blend.outputR >> skn_jnts[i].translateY
+
+        knee_ik_hdl = pmc.listRelatives(ik_setup_chain[-1], children=1, type="ikHandle")[0]
+        ankle_ik_hdl = pmc.listRelatives(ik_setup_chain[-2], children=1, type="ikHandle")[0]
+
+        invert_node = pmc.createNode("multDoubleLinear", n="{0}_invert_translateY_MDL".format(knee_ik_hdl))
+
+        ik_setup_chain[-1].translateY >> ankle_ik_hdl.translateY
+        ik_setup_chain[-1].translateY >> invert_node.input1
+        invert_node.setAttr("input2", -1)
+        invert_node.output >> knee_ik_hdl.translateY
+
+        return
+            # if i < (len(fk_ctrls) - 1):
+            #     ctrl.addAttr("baseLength", attributeType="float",
+            #                  defaultValue=pmc.xform(fk_ctrls[i+1], q=1, translation=1)[1] * side_coef, hidden=0, keyable=0)
+            #     ctrl.setAttr("baseLength", lock=1, channelBox=0)
+            #     ctrl.addAttr("stretch", attributeType="float", defaultValue=1, hidden=0, keyable=1,
+            #                             hasMinValue=1, minValue=0)
+            #     jnt_lenght = pmc.createNode("multiplyDivide",
+            #                                 n="{0}_jnt_{1}_length_MDV".format(self.model.module_name, i))
+            #     ctrl.baseLength >> jnt_lenght.input1Y
+            #     ctrl.stretch >> jnt_lenght.input2Y
+            #     jnt_lenght.outputY >> base_lenght.input1D[i]
 
                 # jnt_ik_stretch = pmc.createNode("multiplyDivide",
                 #                                 n="{0}_jnt_ik_{1}_stretch_MDV".format(self.model.module_name, i - 1))
                 # jnt_lenght.outputY >> jnt_ik_stretch.input1Y
                 # stretch_condition.outColorR >> jnt_ik_stretch.input2Y
 
-                # exp_text += "\n{0}.translateY = ((1-{1}.fkIk) * {2}.outputY) + ({1}.fkIk * {3}.outputY);".format(
-                #     ctrl, option_ctrl, jnt_lenght, jnt_ik_stretch)
-                # exp_text += "\n{0}.translateY = ((1-{1}.fkIk) * {2}.outputY) + ({1}.fkIk * {3}.outputY);".format(
-                #     ik_setup_chain[i], option_ctrl, jnt_lenght, jnt_ik_stretch)
-                exp_text += "\n{0}.scaleY = ((1-{1}.fkIk) * {0}.stretch) + ({1}.fkIk * {2}.outColorR);".format(
-                        ctrl, option_ctrl, stretch_condition)
-                exp_text += "\n{3}.scaleY = ((1-{1}.fkIk) * {0}.stretch) + ({1}.fkIk * {2}.outColorR);".format(
-                    ctrl, option_ctrl, stretch_condition, ik_setup_chain[i])
-# TODO: find a way to link the fk and ik stretch, and to use translates (care to the ik_setup_chain)
-        exp.setExpression(exp_text)
 
-        ik_setup_chain[-2].scaleY >> ik_setup_chain[-1].scaleY
+# TODO: find a way to link the fk and ik stretch, and to use translates (care to the ik_setup_chain)
+
+        # ik_setup_chain[-2].scaleY >> ik_setup_chain[-1].scaleY
 
         ik_ctrl.setAttr("translate", ik_ctrl_translate)
         ik_ctrl.setAttr("rotate", ik_ctrl_rotate)

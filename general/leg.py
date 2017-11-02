@@ -380,6 +380,7 @@ class Controller(RigController):
 
             if self.model.raz_ik_ctrls:
                 rig_lib.raz_one_chain_ik_ctrl_translate_rotate(self.created_ik_ctrls[0])
+
             self.create_local_spaces()
 
             if self.model.raz_fk_ctrls:
@@ -472,7 +473,8 @@ class Controller(RigController):
 
         self.created_skn_jnts = [hip_jnt, knee_jnt, ankle_jnt]
         self.jnts_to_skin = self.created_skn_jnts[:]
-        self.jnts_to_skin.append(self.clavicle_jnt)
+        if self.model.clavicle_creation_switch:
+            self.jnts_to_skin.append(self.clavicle_jnt)
 
         pmc.delete(duplicates_guides[:])
         pmc.delete(temp_guide_orient)
