@@ -323,16 +323,19 @@ class Controller(RigController):
 
         self.create_skn_jnts()
         self.create_options_ctrl()
+
         if self.model.clavicle_creation_switch:
             self.create_clavicle_ctrl()
+
         self.create_and_connect_ctrl_jnts()
         self.create_fk()
         if self.model.ik_creation_switch:
             self.create_ik()
+
         if self.model.stretch_creation_switch == 1:
             self.connect_quadruped_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0], self.option_ctrl,
-                                                           self.created_ik_setup_chain, self.created_skn_jnts)
-        return
+                                                           self.created_ik_setup_chain, self.created_skn_jnts, self.side_coef)
+
         if self.model.deform_chain_creation_switch:
             self.create_one_chain_half_bones()
 
@@ -365,7 +368,6 @@ class Controller(RigController):
 
         self.clean_rig()
         pmc.select(d=1)
-# TODO: find a way to make a better stretch
 
     def create_skn_jnts(self):
         duplicates_guides = []
@@ -623,7 +625,7 @@ class Controller(RigController):
 
         if self.model.clavicle_creation_switch:
             pmc.pointConstraint(pmc.listRelatives(self.clavicle_jnt, children=1)[0], hip_ofs, maintainOffset=1)
-
+# TODO: ADD locale_space to pole_vector
     def create_ik(self):
         fk_ctrl_01_value = pmc.xform(self.created_ctrtl_jnts[0], q=1, rotation=1)
         fk_ctrl_02_value = pmc.xform(self.created_ctrtl_jnts[1], q=1, rotation=1)
@@ -768,8 +770,70 @@ class Controller(RigController):
         self.created_ctrtl_jnts[1].setAttr("preferredAngleX", fk_ctrl_02_value[0])
         self.created_ctrtl_jnts[2].setAttr("preferredAngleX", fk_ctrl_03_value[0])
 
+        start_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_start_LOC".format(self.model.module_name))
+        end_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_end_LOC".format(self.model.module_name))
+        pmc.parent(start_loc, self.created_ctrtl_jnts[0].getParent(), r=1)
+        pmc.parent(end_loc, ik_ctrl, r=1)
+        start_loc.setAttr("visibility", 0)
+        end_loc.setAttr("visibility", 0)
+
+        length_measure = pmc.createNode("distanceDimShape",
+                                        n="{0}_ik_length_measure_DDMShape".format(self.model.module_name))
+        length_measure.getParent().rename("{0}_ik_length_measure_DDM".format(self.model.module_name))
+        pmc.parent(length_measure.getParent(), self.parts_grp, r=0)
+        start_loc.getShape().worldPosition[0] >> length_measure.startPoint
+        end_loc.getShape().worldPosition[0] >> length_measure.endPoint
+
+        ik_global_scale = pmc.createNode("multiplyDivide", n="{0}_ik_global_scale_MDV".format(self.model.module_name))
+        ik_stretch_value = pmc.createNode("multiplyDivide", n="{0}_ik_stretch_value_MDV".format(self.model.module_name))
+        global_scale = pmc.ls(regex=".*_global_mult_local_scale_MDL$")[0]
+        base_lenght = pmc.createNode("plusMinusAverage", n="{0}_ik_base_length_PMA".format(self.model.module_name))
+
+        ik_global_scale.setAttr("operation", 2)
+        length_measure.distance >> ik_global_scale.input1X
+        global_scale.output >> ik_global_scale.input2X
+        ik_stretch_value.setAttr("operation", 2)
+        base_lenght.output1D >> ik_stretch_value.input2X
+        ik_global_scale.outputX >> ik_stretch_value.input1X
+
+        for i, ctrl in enumerate(self.created_ctrtl_jnts):
+            if i < (len(self.created_ctrtl_jnts) - 1):
+                ctrl.addAttr("baseLength", attributeType="float",
+                             defaultValue=pmc.xform(self.created_ctrtl_jnts[i + 1], q=1, translation=1)[1] * self.side_coef,
+                             hidden=0, keyable=0)
+                ctrl.setAttr("baseLength", lock=1, channelBox=0)
+                ctrl.addAttr("stretch", attributeType="float", defaultValue=1, hidden=0, keyable=1,
+                             hasMinValue=1, minValue=0)
+                jnt_lenght = pmc.createNode("multiplyDivide",
+                                            n="{0}_jnt_{1}_length_MDV".format(self.model.module_name, i))
+                ctrl.baseLength >> jnt_lenght.input1Y
+                ctrl.stretch >> jnt_lenght.input2Y
+                jnt_lenght.outputY >> base_lenght.input1D[i]
+
         ik_ctrl.addAttr("ankleBend", attributeType="float", defaultValue=0, hidden=0, keyable=1)
-        ik_ctrl.ankleBend >> ankle_ik_setup_jnt.rotateX
+        ik_ctrl.addAttr("ankleBend_decrease_range_start", attributeType="float", defaultValue=0.9, hidden=0, keyable=0,
+                        readable=1, writable=1, hasMinValue=1, minValue=0, hasMaxValue=1, maxValue=1)
+        ankle_bend_decrease_range = pmc.createNode("clamp", n="{0}_ankle_bend_decrease_range_CLAMP".format(self.model.module_name))
+        ankle_bend_decrease_percent = pmc.createNode("setRange", n="{0}_ankle_bend_decrease_percent_RANGE".format(self.model.module_name))
+        ankle_bend_decrease_percent_invert = pmc.createNode("plusMinusAverage", n="{0}_ankle_bend_decrease_percent_invert_PMA".format(self.model.module_name))
+        ankle_bend_value = pmc.createNode("multDoubleLinear", n="{0}_ankle_bend_decrease_percent_invert_MDL".format(self.model.module_name))
+
+        # ankle_bend_decrease_range.setAttr("minR", 0.9)
+        ik_ctrl.ankleBend_decrease_range_start >> ankle_bend_decrease_range.minR
+        ankle_bend_decrease_range.setAttr("maxR", 1)
+        ik_stretch_value.outputX >> ankle_bend_decrease_range.inputR
+        ankle_bend_decrease_percent.setAttr("minX", 0)
+        ankle_bend_decrease_percent.setAttr("maxX", 1)
+        # ankle_bend_decrease_percent.setAttr("oldMinX", 0.9)
+        ik_ctrl.ankleBend_decrease_range_start >> ankle_bend_decrease_percent.oldMinX
+        ankle_bend_decrease_percent.setAttr("oldMaxX", 1)
+        ankle_bend_decrease_range.outputR >> ankle_bend_decrease_percent.valueX
+        ankle_bend_decrease_percent_invert.setAttr("operation", 2)
+        ankle_bend_decrease_percent_invert.setAttr("input1D[0]", 1)
+        ankle_bend_decrease_percent.outValueX >> ankle_bend_decrease_percent_invert.input1D[1]
+        ik_ctrl.ankleBend >> ankle_bend_value.input1
+        ankle_bend_decrease_percent_invert.output1D >> ankle_bend_value.input2
+        ankle_bend_value.output >> ankle_ik_setup_jnt.rotateX
 
         # const = pmc.parentConstraint(ik_ctrl, self.created_ik_jnts[-1], maintainOffset=1, skipTranslate=["x", "y", "z"])
         # const.setAttr("target[0].targetOffsetRotate", (0, 90 * (1 - self.side_coef), 90 * (1 + self.side_coef)))
