@@ -169,22 +169,22 @@ class Controller(RigController):
 
         if self.model.thumb_creation_switch:
             thumb_wrist_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[0][0])
-            thumb_wrist_guide.setAttr("translate", (7.5 * self.side_coef, 14, 2))
+            thumb_wrist_guide.setAttr("translate", (2 * self.side_coef, 0.5, -1.5))
             thumb_guide = rig_lib.create_curve_guide(d=1, number_of_points=3, name=self.guides_names[0][1],
                                                      hauteur_curve=2)
-            thumb_guide.setAttr("translate", (8 * self.side_coef, 14, 2))
-            thumb_guide.setAttr("rotate", (0, 0, -90 * self.side_coef))
+            thumb_guide.setAttr("translate", (2 * self.side_coef, 0, -2))
+            thumb_guide.setAttr("rotate", (-90, 0, 0))
             thumb = [thumb_wrist_guide, thumb_guide]
             self.guides.append(thumb)
 
         for i, finger in enumerate(self.guides_names):
             if (self.model.thumb_creation_switch and i != 0) or not self.model.thumb_creation_switch:
                 wrist_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[i][0])
-                wrist_guide.setAttr("translate", (7.5 * self.side_coef, 14, 2 - (0.5 * i)))
+                wrist_guide.setAttr("translate", (1.5 * self.side_coef + (0.5 * (i - int(self.model.thumb_creation_switch)) * self.side_coef), 0.5, -0.5))
                 finger_guide = rig_lib.create_curve_guide(d=1, number_of_points=(self.model.how_many_phalanges + 1),
                                                           name=finger[1], hauteur_curve=3)
-                finger_guide.setAttr("translate", (9 * self.side_coef, 14, 2 - (0.5 * i)))
-                finger_guide.setAttr("rotate", (0, 0, -90 * self.side_coef))
+                finger_guide.setAttr("translate", (1.5 * self.side_coef + (0.5 * (i - int(self.model.thumb_creation_switch)) * self.side_coef), 0, 0))
+                finger_guide.setAttr("rotate", (90, 0, 0))
                 finger = [wrist_guide, finger_guide]
                 self.guides.append(finger)
 
@@ -484,6 +484,6 @@ class Model(AuriScriptModel):
         self.selected_module = None
         self.selected_output = None
         self.side = "Left"
-        self.how_many_fingers = 4
+        self.how_many_fingers = 3
         self.thumb_creation_switch = True
         self.how_many_phalanges = 3
