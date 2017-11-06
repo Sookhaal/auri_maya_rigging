@@ -333,8 +333,9 @@ class Controller(RigController):
             self.create_ik()
 
         if self.model.stretch_creation_switch == 1:
-            self.connect_quadruped_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0], self.option_ctrl,
-                                                           self.created_ik_setup_chain, self.created_skn_jnts, self.side_coef)
+            self.connect_quadruped_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0],
+                                                           self.option_ctrl, self.created_ik_setup_chain,
+                                                           self.created_skn_jnts, self.side_coef)
 
         if self.model.deform_chain_creation_switch:
             self.create_one_chain_half_bones()
@@ -407,11 +408,12 @@ class Controller(RigController):
         pmc.parent(duplicates_guides[1], duplicates_guides[0])
         pmc.parent(duplicates_guides[2], duplicates_guides[1])
         pmc.parent(duplicates_guides[3], duplicates_guides[2])
+
         if duplicates_guides[1].getAttr("rotateY") == 180 or duplicates_guides[1].getAttr("rotateY") == -180 or \
-                    duplicates_guides[1].getAttr("rotateZ") == 180 or duplicates_guides[1].getAttr("rotateZ") == -180:
+                duplicates_guides[1].getAttr("rotateZ") == 180 or duplicates_guides[1].getAttr("rotateZ") == -180:
             duplicates_guides[1].setAttr("rotate", (-180 - duplicates_guides[1].getAttr("rotate")[0], 0, 0))
         if duplicates_guides[2].getAttr("rotateY") == 180 or duplicates_guides[2].getAttr("rotateY") == -180 or \
-                    duplicates_guides[2].getAttr("rotateZ") == 180 or duplicates_guides[2].getAttr("rotateZ") == -180:
+                duplicates_guides[2].getAttr("rotateZ") == 180 or duplicates_guides[2].getAttr("rotateZ") == -180:
             duplicates_guides[2].setAttr("rotate", (180 - duplicates_guides[2].getAttr("rotate")[0], 0, 0))
 
         temp_guide_orient = pmc.group(em=1, n="temp_guide_orient_grp")
@@ -660,6 +662,7 @@ class Controller(RigController):
             # self.created_ctrtl_jnts[2].setAttr("preferredAngleX", fk_ctrl_03_value[0])
 
         self.created_ik_setup_chain = [hip_ik_setup_jnt, knee_ik_setup_jnt, knee_02_ik_setup_jnt, ankle_ik_setup_jnt]
+
         pmc.parent(hip_ik_setup_jnt, self.ctrl_input_grp)
         hip_ik_setup_jnt.setAttr("visibility", 0)
 
