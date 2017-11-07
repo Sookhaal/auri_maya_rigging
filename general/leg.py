@@ -221,6 +221,7 @@ class Controller(RigController):
         self.jnt_const_group = None
         self.created_half_bones = []
         self.jnts_to_skin = []
+        self.ankle_output = None
         RigController.__init__(self, model, view)
 
     def on_raz_ik_ctrls_changed(self, state):
@@ -656,9 +657,9 @@ class Controller(RigController):
         pole_vector = rig_lib.create_jnttype_ctrl("{0}_poleVector_CTRL".format(self.model.module_name), pole_vector_shape,
                                                   drawstyle=2)
         pv_ofs = pmc.group(pole_vector, n="{0}_poleVector_ctrl_OFS".format(self.model.module_name))
-        pv_ofs.setAttr("translate", (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0],
-                                     pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[1],
-                                     pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[2] + (
+        pv_ofs.setAttr("translate", (pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1)[0],
+                                     pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1)[1],
+                                     pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1)[2] + (
                                          (pmc.xform(self.created_fk_jnts[1], q=1, translation=1)[1]) * self.side_coef)))
         pmc.poleVectorConstraint(pole_vector, ik_handle)
         pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
@@ -752,6 +753,13 @@ class Controller(RigController):
                                                 self.created_ik_ctrls[1].space, 1,
                                                 "{0}_footSpace_COND".format(self.created_ik_ctrls[0]))
 
+        # self.created_ik_ctrls[0].addAttr("legTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        # pole_vector_const = pmc.aimConstraint(self.created_ik_ctrls[0], self.created_ik_ctrls[1].getParent(),
+        #                                       maintainOffset=1, aimVector=(0.0, -1.0, 0.0),
+        #                                       upVector=(1.0, 0.0, 0.0), worldUpType="objectrotation",
+        #                                       worldUpVector=(1.0, 0.0, 0.0), worldUpObject=self.created_ik_ctrls[0])
+# TODO: test la deuxieme facon de contraindre le pole_vector
+
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)
         self.parts_grp.setAttr("visibility", 0)
@@ -790,6 +798,19 @@ class Controller(RigController):
             rig_lib.clean_ctrl(self.created_ik_ctrls[0], color_value, trs="", visibility_dependence=self.option_ctrl.fkIk)
             rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
             rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
+
+        if self.model.fk_ik_type == "one_chain":
+            blend_scale = pmc.createNode("blendColors", n="{0}_scale_blendColor".format(self.ankle_output))
+            self.option_ctrl.fkIk >> blend_scale.blender
+            self.created_ik_ctrls[0].scaleX >> blend_scale.color1R
+            self.created_ik_ctrls[0].scaleY >> blend_scale.color1G
+            self.created_ik_ctrls[0].scaleZ >> blend_scale.color1B
+            self.created_ctrtl_jnts[-1].scaleX >> blend_scale.color2R
+            self.created_ctrtl_jnts[-1].scaleY >> blend_scale.color2G
+            self.created_ctrtl_jnts[-1].scaleZ >> blend_scale.color2B
+            blend_scale.outputR >> self.ankle_output.scaleX
+            blend_scale.outputG >> self.ankle_output.scaleY
+            blend_scale.outputB >> self.ankle_output.scaleZ
 
         info_crv = rig_lib.signature_shape_curve("{0}_INFO".format(self.model.module_name))
         info_crv.getShape().setAttr("visibility", 0)
@@ -839,11 +860,11 @@ class Controller(RigController):
         if not self.model.deform_chain_creation_switch or self.model.fk_ik_type == "three_chains":
             rig_lib.create_output(name="{0}_hip_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[0])
             rig_lib.create_output(name="{0}_knee_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[1])
-            rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
+            self.ankle_output = rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[-1])
         else:
             rig_lib.create_output(name="{0}_hip_OUTPUT".format(self.model.module_name), parent=self.created_ctrtl_jnts[0])
             rig_lib.create_output(name="{0}_knee_OUTPUT".format(self.model.module_name), parent=self.created_ctrtl_jnts[1])
-            rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_ctrtl_jnts[-1])
+            self.ankle_output = rig_lib.create_output(name="{0}_ankle_OUTPUT".format(self.model.module_name), parent=self.created_ctrtl_jnts[-1])
 
     def create_and_connect_ctrl_jnts(self):
         hip_ctrl_jnt = \
@@ -940,11 +961,12 @@ class Controller(RigController):
 
         fk_rotation_hdl = pmc.ikHandle(n="{0}_ankle_rotation_ik_HDL".format(self.model.module_name),
                                        startJoint=self.created_ctrtl_jnts[2], endEffector=fk_rotation_jnt,
-                                       solver="ikSCsolver")[0]
+                                       solver="ikRPsolver")[0]
         fk_rotation_effector = pmc.listRelatives(self.created_ctrtl_jnts[2], children=1)[-1]
         fk_rotation_effector.rename("{0}_ankle_rotation_ik_EFF".format(self.model.module_name))
         fk_rotation_hdl.setAttr("snapEnable", 0)
         fk_rotation_hdl.setAttr("ikBlend", 0)
+        fk_rotation_hdl.setAttr("poleVector", (-1 * self.side_coef, 0, 0))
         pmc.parent(fk_rotation_hdl, ik_ctrl, r=0)
         self.option_ctrl.fkIk >> fk_rotation_hdl.ikBlend
         fk_rotation_hdl.setAttr("visibility", 0)
@@ -954,9 +976,9 @@ class Controller(RigController):
         pole_vector = rig_lib.create_jnttype_ctrl("{0}_poleVector_CTRL".format(self.model.module_name), pole_vector_shape,
                                                   drawstyle=2)
         pv_ofs = pmc.group(pole_vector, n="{0}_poleVector_ctrl_OFS".format(self.model.module_name))
-        pv_ofs.setAttr("translate", (pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[0],
-                                     pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[1],
-                                     pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[2] + (
+        pv_ofs.setAttr("translate", (pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[0],
+                                     pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[1],
+                                     pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[2] + (
                                          (pmc.xform(self.created_ctrtl_jnts[1], q=1, translation=1)[1]) * self.side_coef)))
         pmc.poleVectorConstraint(pole_vector, ik_handle)
         pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
@@ -1034,7 +1056,6 @@ class Controller(RigController):
         self.created_ctrtl_jnts[2].setAttr("rotate", fk_ctrl_03_value)
 
 
-# TODO: find a way to scale ankle_SKN / ankle_output on one_chain ik
 class Model(AuriScriptModel):
     def __init__(self):
         AuriScriptModel.__init__(self)
