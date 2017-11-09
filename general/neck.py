@@ -252,6 +252,9 @@ class Controller(RigController):
         ik_effector = pmc.listRelatives(self.created_jnts[-2], children=1)[1]
         ik_effector.rename("{0}_ik_EFF".format(self.model.module_name))
 
+        if self.model.how_many_jnts == 1:
+            pmc.parent(ik_effector, self.created_jnts[-1])
+
     def create_fk(self):
         ik_spline_cv_list = []
         for i, cv in enumerate(self.guide.cv):

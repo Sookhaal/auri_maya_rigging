@@ -140,7 +140,9 @@ class Controller(RigController):
         pmc.select(d=1)
         jaw_base_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)),
                                  n="{0}_jaw_SKN".format(self.model.module_name))
-        jaw_base_jnt.setAttr("jointOrient", pmc.xform(duplicates_guides[2], q=1, rotation=1))
+        jaw_base_ofs = pmc.duplicate(jaw_base_jnt, n="{0}_jaw_skn_OFS".format(self.model.module_name))[0]
+        pmc.parent(jaw_base_jnt, jaw_base_ofs)
+        jaw_base_ofs.setAttr("jointOrient", pmc.xform(duplicates_guides[2], q=1, rotation=1))
         jaw_end_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[3], q=1, ws=1, translation=1)),
                                 n="{0}_jaw_end_JNT".format(self.model.module_name))
         pmc.select(d=1)
@@ -151,7 +153,7 @@ class Controller(RigController):
                                   n="{0}_right_eye_SKN".format(self.model.module_name))
 
         pmc.parent(head_base_jnt, self.jnt_input_grp)
-        pmc.parent(jaw_base_jnt, self.jnt_input_grp)
+        pmc.parent(jaw_base_ofs, self.jnt_input_grp)
         pmc.parent(left_eye_jnt, self.jnt_input_grp)
         pmc.parent(right_eye_jnt, self.jnt_input_grp)
 
@@ -181,6 +183,7 @@ class Controller(RigController):
         jaw_ofs.setAttr("jointOrient", pmc.xform(self.created_skn_jnts[2], q=1, ws=1, rotation=1))
         pmc.parent(jaw_ofs, self.ctrl_input_grp)
         jaw_ctrl.rotate >> self.created_skn_jnts[2].rotate
+        jaw_ctrl.translate >> self.created_skn_jnts[2].translate
 
         l_eye_shape = pmc.circle(c=(0, 0, 0), nr=(0, 0, 1), sw=360, r=1, d=3, s=8,
                                 n="{0}_left_eye_CTRL_shape".format(self.model.module_name), ch=0)[0]
