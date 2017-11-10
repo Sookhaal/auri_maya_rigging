@@ -653,16 +653,37 @@ class Controller(RigController):
 
         ik_ctrl.setAttr("translate", (0, 0, 0))
 
-        pole_vector_shape = rig_lib.jnt_shape_curve("{0}_poleVector_CTRL_shape".format(self.model.module_name))
-        pole_vector = rig_lib.create_jnttype_ctrl("{0}_poleVector_CTRL".format(self.model.module_name), pole_vector_shape,
-                                                  drawstyle=2)
-        pv_ofs = pmc.group(pole_vector, n="{0}_poleVector_ctrl_OFS".format(self.model.module_name))
-        pv_ofs.setAttr("translate", (pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1)[0],
-                                     pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1)[1],
-                                     pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1)[2] + (
-                                         (pmc.xform(self.created_fk_jnts[1], q=1, translation=1)[1]) * self.side_coef)))
-        pmc.poleVectorConstraint(pole_vector, ik_handle)
-        pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
+        manual_pole_vector_shape = rig_lib.jnt_shape_curve(
+            "{0}_manual_poleVector_CTRL_shape".format(self.model.module_name))
+        manual_pole_vector = rig_lib.create_jnttype_ctrl("{0}_manual_poleVector_CTRL".format(self.model.module_name),
+                                                         manual_pole_vector_shape, drawstyle=2)
+        manual_pv_ofs = pmc.group(manual_pole_vector, n="{0}_manual_poleVector_ctrl_OFS".format(self.model.module_name))
+        manual_pv_ofs.setAttr("translate", (pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[0],
+                                            pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[1],
+                                            pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)[2] + (
+                                                (pmc.xform(self.created_fk_jnts[1], q=1, translation=1)[
+                                                     1]) * self.side_coef)))
+        auto_pole_vector_shape = rig_lib.jnt_shape_curve(
+            "{0}_auto_poleVector_CTRL_shape".format(self.model.module_name))
+        auto_pole_vector = rig_lib.create_jnttype_ctrl("{0}_auto_poleVector_CTRL".format(self.model.module_name),
+                                                       auto_pole_vector_shape, drawstyle=2)
+        auto_pv_ofs = pmc.group(auto_pole_vector, n="{0}_auto_poleVector_ctrl_OFS".format(self.model.module_name))
+        auto_pv_ofs.setAttr("translate", (pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1)[0],
+                                          pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1)[1],
+                                          pmc.xform(self.created_fk_jnts[0], q=1, ws=1, translation=1)[2]))
+
+        ik_ctrl.addAttr("poleVector", attributeType="enum", enumName=["auto", "manual"], hidden=0, keyable=1)
+
+        pole_vector_const = pmc.poleVectorConstraint(manual_pole_vector, auto_pole_vector, ik_handle)
+        rig_lib.connect_condition_to_constraint("{0}.{1}W0".format(pole_vector_const, manual_pole_vector),
+                                                ik_ctrl.poleVector, 1,
+                                                "{0}_manual_poleVector_COND".format(ik_ctrl))
+        rig_lib.connect_condition_to_constraint("{0}.{1}W1".format(pole_vector_const, auto_pole_vector),
+                                                ik_ctrl.poleVector, 0,
+                                                "{0}_auto_poleVector_COND".format(ik_ctrl))
+
+        pmc.parent(manual_pv_ofs, self.ctrl_input_grp, r=0)
+        pmc.parent(auto_pv_ofs, self.parts_grp, r=0)
 
         self.created_ik_jnts[1].setAttr("preferredAngleX", -90)
 
@@ -671,13 +692,22 @@ class Controller(RigController):
         const.setAttr("target[0].targetOffsetTranslate", (0, 0, 0))
         ik_ctrl.scale >> self.created_ik_jnts[-1].scale
 
-        self.created_ik_ctrls = [ik_ctrl, pole_vector]
+        ik_ctrl.addAttr("legTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        pmc.aimConstraint(ik_ctrl, auto_pv_ofs,
+                          maintainOffset=1, aimVector=(0.0, -1.0, 0.0),
+                          upVector=(1.0, 0.0, 0.0), worldUpType="objectrotation",
+                          worldUpVector=(1.0, 0.0, 0.0), worldUpObject=ik_ctrl)
+        ik_ctrl.legTwist >> ik_handle.twist
+
+        self.created_ik_ctrls = [ik_ctrl, manual_pole_vector, auto_pole_vector]
 
         self.created_fk_ctrls[0].setAttr("rotate", fk_ctrl_01_value)
         self.created_fk_ctrls[1].setAttr("rotate", fk_ctrl_02_value)
         self.created_fk_ctrls[2].setAttr("rotate", fk_ctrl_03_value)
 
-        pmc.xform(pole_vector, ws=1, translation=(pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)))
+        pmc.xform(manual_pole_vector, ws=1,
+                  translation=(pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)))
+        pmc.xform(auto_pole_vector, ws=1, translation=(pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)))
 
         ik_handle.setAttr("visibility", 0)
 
@@ -753,13 +783,6 @@ class Controller(RigController):
                                                 self.created_ik_ctrls[1].space, 1,
                                                 "{0}_footSpace_COND".format(self.created_ik_ctrls[0]))
 
-        # self.created_ik_ctrls[0].addAttr("legTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
-        # pole_vector_const = pmc.aimConstraint(self.created_ik_ctrls[0], self.created_ik_ctrls[1].getParent(),
-        #                                       maintainOffset=1, aimVector=(0.0, -1.0, 0.0),
-        #                                       upVector=(1.0, 0.0, 0.0), worldUpType="objectrotation",
-        #                                       worldUpVector=(1.0, 0.0, 0.0), worldUpObject=self.created_ik_ctrls[0])
-# TODO: test la deuxieme facon de contraindre le pole_vector
-
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)
         self.parts_grp.setAttr("visibility", 0)
@@ -797,7 +820,8 @@ class Controller(RigController):
         if self.model.ik_creation_switch:
             rig_lib.clean_ctrl(self.created_ik_ctrls[0], color_value, trs="", visibility_dependence=self.option_ctrl.fkIk)
             rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
-            rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.option_ctrl.fkIk)
+            rig_lib.clean_ctrl(self.created_ik_ctrls[1].getParent(), color_value, trs="trs", visibility_dependence=self.option_ctrl.fkIk)
+            rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.created_ik_ctrls[0].poleVector)
 
         if self.model.fk_ik_type == "one_chain":
             blend_scale = pmc.createNode("blendColors", n="{0}_scale_blendColor".format(self.ankle_output))
@@ -972,26 +996,52 @@ class Controller(RigController):
         fk_rotation_hdl.setAttr("visibility", 0)
         fk_rotation_jnt.setAttr("visibility", 0)
 
-        pole_vector_shape = rig_lib.jnt_shape_curve("{0}_poleVector_CTRL_shape".format(self.model.module_name))
-        pole_vector = rig_lib.create_jnttype_ctrl("{0}_poleVector_CTRL".format(self.model.module_name), pole_vector_shape,
-                                                  drawstyle=2)
-        pv_ofs = pmc.group(pole_vector, n="{0}_poleVector_ctrl_OFS".format(self.model.module_name))
-        pv_ofs.setAttr("translate", (pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[0],
-                                     pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[1],
-                                     pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[2] + (
+        manual_pole_vector_shape = rig_lib.jnt_shape_curve("{0}_manual_poleVector_CTRL_shape".format(self.model.module_name))
+        manual_pole_vector = rig_lib.create_jnttype_ctrl("{0}_manual_poleVector_CTRL".format(self.model.module_name),
+                                                         manual_pole_vector_shape, drawstyle=2)
+        manual_pv_ofs = pmc.group(manual_pole_vector, n="{0}_manual_poleVector_ctrl_OFS".format(self.model.module_name))
+        manual_pv_ofs.setAttr("translate", (pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[0],
+                                     pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[1],
+                                     pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[2] + (
                                          (pmc.xform(self.created_ctrtl_jnts[1], q=1, translation=1)[1]) * self.side_coef)))
-        pmc.poleVectorConstraint(pole_vector, ik_handle)
-        pmc.parent(pv_ofs, self.ctrl_input_grp, r=0)
+        auto_pole_vector_shape = rig_lib.jnt_shape_curve("{0}_auto_poleVector_CTRL_shape".format(self.model.module_name))
+        auto_pole_vector = rig_lib.create_jnttype_ctrl("{0}_auto_poleVector_CTRL".format(self.model.module_name),
+                                                       auto_pole_vector_shape, drawstyle=2)
+        auto_pv_ofs = pmc.group(auto_pole_vector, n="{0}_auto_poleVector_ctrl_OFS".format(self.model.module_name))
+        auto_pv_ofs.setAttr("translate", (pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[0],
+                                     pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[1],
+                                     pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[2]))
+
+        ik_ctrl.addAttr("poleVector", attributeType="enum", enumName=["auto", "manual"], hidden=0, keyable=1)
+
+        pole_vector_const = pmc.poleVectorConstraint(manual_pole_vector, auto_pole_vector, ik_handle)
+        rig_lib.connect_condition_to_constraint("{0}.{1}W0".format(pole_vector_const, manual_pole_vector),
+                                                ik_ctrl.poleVector, 1,
+                                                "{0}_manual_poleVector_COND".format(ik_ctrl))
+        rig_lib.connect_condition_to_constraint("{0}.{1}W1".format(pole_vector_const, auto_pole_vector),
+                                                ik_ctrl.poleVector, 0,
+                                                "{0}_auto_poleVector_COND".format(ik_ctrl))
+
+        pmc.parent(manual_pv_ofs, self.ctrl_input_grp, r=0)
+        pmc.parent(auto_pv_ofs, self.parts_grp, r=0)
 
         self.created_ctrtl_jnts[1].setAttr("preferredAngleX", -90)
 
-        self.created_ik_ctrls = [ik_ctrl, pole_vector]
+        ik_ctrl.addAttr("legTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        pmc.aimConstraint(ik_ctrl, auto_pv_ofs,
+                          maintainOffset=1, aimVector=(0.0, -1.0, 0.0),
+                          upVector=(1.0, 0.0, 0.0), worldUpType="objectrotation",
+                          worldUpVector=(1.0, 0.0, 0.0), worldUpObject=ik_ctrl)
+        ik_ctrl.legTwist >> ik_handle.twist
+
+        self.created_ik_ctrls = [ik_ctrl, manual_pole_vector, auto_pole_vector]
 
         self.created_ctrtl_jnts[0].setAttr("rotate", fk_ctrl_01_value)
         self.created_ctrtl_jnts[1].setAttr("rotate", fk_ctrl_02_value)
         self.created_ctrtl_jnts[2].setAttr("rotate", fk_ctrl_03_value)
 
-        pmc.xform(pole_vector, ws=1, translation=(pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)))
+        pmc.xform(manual_pole_vector, ws=1, translation=(pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)))
+        pmc.xform(auto_pole_vector, ws=1, translation=(pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)))
 
         ik_handle.setAttr("visibility", 0)
 

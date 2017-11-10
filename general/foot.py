@@ -164,7 +164,8 @@ class Controller(RigController):
     def get_parent_ik_objects(self):
         self.leg_ik_ctrl = pmc.ls("{0}_ankle_ik_CTRL".format(self.model.selected_module))[0]
         self.leg_ik_handle = pmc.ls("{0}_ik_HDL".format(self.model.selected_module))[0]
-        self.leg_ankle_rotation_handle = pmc.ls("{0}_ankle_rotation_ik_HDL".format(self.model.selected_module))[0]
+        if pmc.objExists("{0}_ankle_rotation_ik_HDL".format(self.model.selected_module)):
+            self.leg_ankle_rotation_handle = pmc.ls("{0}_ankle_rotation_ik_HDL".format(self.model.selected_module))[0]
         self.leg_option_ctrl = pmc.ls("{0}_option_CTRL".format(self.model.selected_module))[0]
         self.leg_ik_length_end_loc = pmc.ls("{0}_ik_length_end_LOC".format(self.model.selected_module))[0]
 
@@ -311,7 +312,8 @@ class Controller(RigController):
         ik_effector.rename("{0}_ball_ik_EFF".format(self.model.module_name))
 
         pmc.parent(self.leg_ik_handle, world=1)
-        pmc.parent(self.leg_ankle_rotation_handle, world=1)
+        if self.leg_ankle_rotation_handle is not None:
+            pmc.parent(self.leg_ankle_rotation_handle, world=1)
         pmc.parent(self.leg_ik_length_end_loc, world=1)
         if pmc.objExists("{0}_roll_OFS".format(self.model.module_name)):
             pmc.delete("{0}_roll_OFS".format(self.model.module_name))
@@ -326,7 +328,8 @@ class Controller(RigController):
         pmc.parent(toe_ik_handle, toe_bend_group, r=0)
         pmc.parent(self.created_locs[2], locs_offset, r=0)
         pmc.parent(self.leg_ik_handle, self.created_locs[0], r=0)
-        pmc.parent(self.leg_ankle_rotation_handle, self.created_locs[0], r=0)
+        if self.leg_ankle_rotation_handle is not None:
+            pmc.parent(self.leg_ankle_rotation_handle, self.created_locs[0], r=0)
         pmc.parent(self.leg_ik_length_end_loc, self.created_locs[0], r=0)
 
         if "roll" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
@@ -578,7 +581,8 @@ class Controller(RigController):
         pmc.parent(self.leg_ik_handle, self.created_locs[0], r=0)
         pmc.parent(self.leg_ik_length_end_loc, self.created_locs[0], r=0)
 
-        pmc.pointConstraint(self.leg_ik_handle, self.leg_ankle_rotation_handle, maintainOffset=1)
+        if self.leg_ankle_rotation_handle is not None:
+            pmc.pointConstraint(self.leg_ik_handle, self.leg_ankle_rotation_handle, maintainOffset=1)
 
         if "roll" in pmc.listAttr(self.leg_ik_ctrl, keyable=1):
             self.leg_ik_ctrl.deleteAttr("roll")
