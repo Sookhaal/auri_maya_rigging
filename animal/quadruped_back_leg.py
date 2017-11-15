@@ -364,6 +364,9 @@ class Controller(RigController):
         self.create_local_spaces()
 
         if self.model.raz_fk_ctrls:
+            self.option_ctrl.setAttr("fkIk", 1)
+            pmc.refresh()
+            self.option_ctrl.setAttr("fkIk", 0)
             for i, ctrl in enumerate(self.created_ctrtl_jnts):
                 rig_lib.raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, self.created_skn_jnts[i])
 
