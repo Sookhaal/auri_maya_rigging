@@ -361,9 +361,11 @@ class Controller(RigController):
             self.create_and_connect_ctrl_jnts()
             self.create_one_chain_fk()
             self.create_one_chain_ik()
-            if self.model.stretch_creation_switch == 1:
+            if self.model.stretch_creation_switch:
                 self.connect_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0],
                                                      self.option_ctrl, self.created_skn_jnts)
+
+            self.create_ik_knee_snap()
 
             if self.model.deform_chain_creation_switch:
                 self.create_one_chain_half_bones()
@@ -1104,6 +1106,85 @@ class Controller(RigController):
         self.created_ctrtl_jnts[0].setAttr("rotate", fk_ctrl_01_value)
         self.created_ctrtl_jnts[1].setAttr("rotate", fk_ctrl_02_value)
         self.created_ctrtl_jnts[2].setAttr("rotate", fk_ctrl_03_value)
+
+    def create_ik_knee_snap(self):
+        if self.model.stretch_creation_switch:
+            start_loc = pmc.ls("{0}_ik_length_start_LOC".format(self.model.module_name))[0]
+            end_loc = pmc.ls("{0}_ik_length_end_LOC".format(self.model.module_name))[0]
+
+        else:
+            start_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_start_LOC".format(self.model.module_name))
+            end_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_end_LOC".format(self.model.module_name))
+            pmc.parent(start_loc, self.created_ctrtl_jnts[0].getParent(), r=1)
+            pmc.parent(end_loc, self.created_ik_ctrls[0], r=1)
+            start_loc.setAttr("visibility", 0)
+            end_loc.setAttr("visibility", 0)
+
+        pv_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_pole_vector_LOC".format(self.model.module_name))
+        pmc.parent(pv_loc, self.created_ik_ctrls[1], r=1)
+        pv_loc.setAttr("visibility", 0)
+
+        thigh_distance = pmc.createNode("distanceBetween", n="{0}_ik_thigh_to_pole_vector_length_distBetween".format(self.model.module_name))
+        calf_distance = pmc.createNode("distanceBetween", n="{0}_ik_pole_vector_to_ankle_length_distBetween".format(self.model.module_name))
+
+        start_loc.getShape().worldPosition >> thigh_distance.point1
+        pv_loc.getShape().worldPosition >> thigh_distance.point2
+        pv_loc.getShape().worldPosition >> calf_distance.point1
+        end_loc.getShape().worldPosition >> calf_distance.point2
+
+        thigh_blend = pmc.createNode("blendColors", n="{0}_knee_snap_thigh_BLENDCOLOR".format(self.model.module_name))
+        calf_blend = pmc.createNode("blendColors", n="{0}_knee_snap_calf_BLENDCOLOR".format(self.model.module_name))
+
+        if self.model.side == "Right":
+            invert_thigh_distance = pmc.createNode("multDoubleLinear", n="{0}_ik_thigh_to_pole_vector_invert_length_MDL".format(self.model.module_name))
+            invert_calf_distance = pmc.createNode("multDoubleLinear", n="{0}_ik_pole_vector_to_ankle_invert_length_MDL".format(self.model.module_name))
+
+            invert_thigh_distance.setAttr("input1", -1)
+            thigh_distance.distance >> invert_thigh_distance.input2
+            invert_calf_distance.setAttr("input1", -1)
+            calf_distance.distance >> invert_calf_distance.input2
+
+            invert_thigh_distance.output >> thigh_blend.color1R
+            invert_calf_distance.output >> calf_blend.color1R
+        else:
+            thigh_distance.distance >> thigh_blend.color1R
+            calf_distance.distance >> calf_blend.color1R
+
+        if self.model.stretch_creation_switch:
+            stretch_thigh_output = pmc.listConnections(self.created_ctrtl_jnts[1].translateY, source=1, destination=0,
+                                                       connections=1)[0][1]
+            stretch_calf_output = pmc.listConnections(self.created_ctrtl_jnts[2].translateY, source=1, destination=0,
+                                                      connections=1)[0][1]
+
+            stretch_thigh_output.outputR >> thigh_blend.color2R
+            stretch_calf_output.outputR >> calf_blend.color2R
+
+            stretch_thigh_output.outputR // self.created_ctrtl_jnts[1].translateY
+            stretch_calf_output.outputR // self.created_ctrtl_jnts[2].translateY
+
+        else:
+            self.created_ctrtl_jnts[1].addAttr("baseTranslateY", attributeType="float",
+                                               defaultValue=pmc.xform(self.created_ctrtl_jnts[1], q=1, translation=1)[
+                                                   1],
+                                               hidden=0, keyable=0)
+            self.created_ctrtl_jnts[1].setAttr("baseTranslateY", lock=1, channelBox=0)
+            self.created_ctrtl_jnts[2].addAttr("baseTranslateY", attributeType="float",
+                                               defaultValue=pmc.xform(self.created_ctrtl_jnts[2], q=1, translation=1)[
+                                                   1],
+                                               hidden=0, keyable=0)
+            self.created_ctrtl_jnts[2].setAttr("baseTranslateY", lock=1, channelBox=0)
+
+            self.created_ctrtl_jnts[1].baseTranslateY >> thigh_blend.color2R
+            self.created_ctrtl_jnts[2].baseTranslateY >> calf_blend.color2R
+
+        thigh_blend.outputR >> self.created_ctrtl_jnts[1].translateY
+        calf_blend.outputR >> self.created_ctrtl_jnts[2].translateY
+
+        self.created_ik_ctrls[0].addAttr("snapKnee", attributeType="float", defaultValue=0, hidden=0, keyable=1,
+                                         hasMaxValue=1, hasMinValue=1, maxValue=1, minValue=0)
+
+        self.created_ik_ctrls[0].snapKnee >> thigh_blend.blender
+        self.created_ik_ctrls[0].snapKnee >> calf_blend.blender
 
 
 class Model(AuriScriptModel):
