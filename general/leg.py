@@ -371,18 +371,20 @@ class Controller(RigController):
                 self.create_one_chain_half_bones()
 
                 self.jnts_to_skin.append(self.create_deformation_chain("{0}_hip_to_knee".format(self.model.module_name),
-                                              self.created_half_bones[0], self.created_half_bones[1],
-                                              self.created_ctrtl_jnts[0], self.created_ctrtl_jnts[1],
-                                              self.option_ctrl, self.model.how_many_jnts, self.side_coef)[1:-1])
+                                                                       self.created_half_bones[0], self.created_half_bones[1],
+                                                                       self.created_ctrtl_jnts[0], self.created_ctrtl_jnts[1],
+                                                                       self.option_ctrl, self.model.how_many_jnts, self.side_coef)[1:-1])
                 self.jnts_to_skin.append(self.create_deformation_chain("{0}_knee_to_ankle".format(self.model.module_name),
-                                              self.created_half_bones[1], self.created_half_bones[2],
-                                              self.created_ctrtl_jnts[1], self.created_ctrtl_jnts[2],
-                                              self.option_ctrl, self.model.how_many_jnts, self.side_coef)[1:-1])
+                                                                       self.created_half_bones[1], self.created_half_bones[2],
+                                                                       self.created_ctrtl_jnts[1], self.created_ctrtl_jnts[2],
+                                                                       self.option_ctrl, self.model.how_many_jnts, self.side_coef)[1:-1])
 
             self.create_outputs()
 
             if self.model.raz_ik_ctrls:
                 rig_lib.raz_one_chain_ik_ctrl_translate_rotate(self.created_ik_ctrls[0])
+                pmc.xform(self.created_ik_ctrls[2], ws=1, translation=(pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1,
+                                                                                 translation=1)))
 
             self.create_local_spaces()
             if self.model.raz_fk_ctrls:
@@ -709,9 +711,7 @@ class Controller(RigController):
         self.created_fk_ctrls[1].setAttr("rotate", fk_ctrl_02_value)
         self.created_fk_ctrls[2].setAttr("rotate", fk_ctrl_03_value)
 
-        pmc.xform(manual_pole_vector, ws=1,
-                  translation=(pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)))
-        pmc.xform(auto_pole_vector, ws=1, translation=(pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)))
+        pmc.xform(manual_pole_vector, ws=1, translation=(pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)))
 
         ik_handle.setAttr("visibility", 0)
 
@@ -725,6 +725,8 @@ class Controller(RigController):
 
         pmc.xform(ik_ctrl, ws=1, translation=(pmc.xform(self.created_fk_jnts[-1], q=1, ws=1, translation=1)))
         pmc.xform(ik_ctrl, ws=1, rotation=(pmc.xform(self.ankle_fk_pos_reader, q=1, ws=1, rotation=1)))
+
+        pmc.xform(auto_pole_vector, ws=1, translation=(pmc.xform(self.created_fk_jnts[1], q=1, ws=1, translation=1)))
 
     def create_local_spaces(self):
         spaces_names = []
@@ -1005,16 +1007,16 @@ class Controller(RigController):
                                                          manual_pole_vector_shape, drawstyle=2)
         manual_pv_ofs = pmc.group(manual_pole_vector, n="{0}_manual_poleVector_ctrl_OFS".format(self.model.module_name))
         manual_pv_ofs.setAttr("translate", (pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[0],
-                                     pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[1],
-                                     pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[2] + (
-                                         (pmc.xform(self.created_ctrtl_jnts[1], q=1, translation=1)[1]) * self.side_coef)))
+                                            pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[1],
+                                            pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[2] + (
+                                                (pmc.xform(self.created_ctrtl_jnts[1], q=1, translation=1)[1]) * self.side_coef)))
         auto_pole_vector_shape = rig_lib.jnt_shape_curve("{0}_auto_poleVector_CTRL_shape".format(self.model.module_name))
         auto_pole_vector = rig_lib.create_jnttype_ctrl("{0}_auto_poleVector_CTRL".format(self.model.module_name),
                                                        auto_pole_vector_shape, drawstyle=2)
         auto_pv_ofs = pmc.group(auto_pole_vector, n="{0}_auto_poleVector_ctrl_OFS".format(self.model.module_name))
         auto_pv_ofs.setAttr("translate", (pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[0],
-                                     pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[1],
-                                     pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[2]))
+                                          pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[1],
+                                          pmc.xform(self.created_ctrtl_jnts[0], q=1, ws=1, translation=1)[2]))
 
         ik_ctrl.addAttr("poleVector", attributeType="enum", enumName=["auto", "manual"], hidden=0, keyable=1)
 
@@ -1045,7 +1047,6 @@ class Controller(RigController):
         self.created_ctrtl_jnts[2].setAttr("rotate", fk_ctrl_03_value)
 
         pmc.xform(manual_pole_vector, ws=1, translation=(pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)))
-        pmc.xform(auto_pole_vector, ws=1, translation=(pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)))
 
         ik_handle.setAttr("visibility", 0)
 
@@ -1059,6 +1060,8 @@ class Controller(RigController):
 
         pmc.xform(ik_ctrl, ws=1, translation=(pmc.xform(self.created_ctrtl_jnts[-1], q=1, ws=1, translation=1)))
         pmc.xform(ik_ctrl, ws=1, rotation=(pmc.xform(self.ankle_fk_pos_reader, q=1, ws=1, rotation=1)))
+
+        pmc.xform(auto_pole_vector, ws=1, translation=(pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)))
 
         self.option_ctrl.fkIk >> ik_handle.ikBlend
 
