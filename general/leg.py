@@ -958,7 +958,7 @@ class Controller(RigController):
         ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)),
                                  startJoint=self.created_ctrtl_jnts[0], endEffector=self.created_ctrtl_jnts[-1],
                                  solver="ikRPsolver")[0]
-        ik_effector = pmc.listRelatives(self.created_ctrtl_jnts[-2], children=1)[1]
+        ik_effector = pmc.listRelatives(self.created_ctrtl_jnts[-2], children=1)[-1]
         ik_effector.rename("{0}_ik_EFF".format(self.model.module_name))
         ik_handle.setAttr("snapEnable", 0)
         ik_handle.setAttr("ikBlend", 0)

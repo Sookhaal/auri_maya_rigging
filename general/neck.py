@@ -334,22 +334,43 @@ class Controller(RigController):
 
         if not self.model.how_many_ctrls == 2:
             center_ctrl = (self.model.how_many_ctrls / 2.0) - 0.5
+            # for i, loc in enumerate(self.created_locs):
+            #     if i == center_ctrl:
+            #         const = pmc.parentConstraint(start_ctrl, end_ctrl, loc, maintainOffset=1,
+            #                                      skipRotate=["x", "y", "z"])
+            #         const.setAttr("{0}W0".format(start_ctrl), 1)
+            #         const.setAttr("{0}W1".format(end_ctrl), 1)
+            #     elif i < center_ctrl:
+            #         const = pmc.parentConstraint(start_ctrl, end_ctrl, loc, maintainOffset=1,
+            #                                      skipRotate=["x", "y", "z"])
+            #         const.setAttr("{0}W0".format(start_ctrl), 1)
+            #         const.setAttr("{0}W1".format(end_ctrl), ((1 / (self.model.how_many_ctrls / 2.0)) * (i / 2.0)))
+            #     elif i > center_ctrl:
+            #         const = pmc.parentConstraint(start_ctrl, end_ctrl, loc, maintainOffset=1,
+            #                                      skipRotate=["x", "y", "z"])
+            #         const.setAttr("{0}W0".format(start_ctrl), ((1 / (self.model.how_many_ctrls / 2.0)) *
+            #                                                    (((len(self.created_locs) - 1) - i) / 2.0)))
+            #         const.setAttr("{0}W1".format(end_ctrl), 1)
+
             for i, loc in enumerate(self.created_locs):
                 if i == center_ctrl:
-                    const = pmc.parentConstraint(start_ctrl, end_ctrl, loc, maintainOffset=1,
+                    const = pmc.parentConstraint(start_ctrl, end_ctrl, self.created_fk_ctrls[i], loc, maintainOffset=1,
                                                  skipRotate=["x", "y", "z"])
                     const.setAttr("{0}W0".format(start_ctrl), 1)
                     const.setAttr("{0}W1".format(end_ctrl), 1)
+                    const.setAttr("{0}W2".format(self.created_fk_ctrls[i]), 1)
                 elif i < center_ctrl:
-                    const = pmc.parentConstraint(start_ctrl, end_ctrl, loc, maintainOffset=1,
+                    const = pmc.parentConstraint(start_ctrl, self.created_fk_ctrls[i], loc, maintainOffset=1,
                                                  skipRotate=["x", "y", "z"])
                     const.setAttr("{0}W0".format(start_ctrl), 1)
-                    const.setAttr("{0}W1".format(end_ctrl), ((1 / (self.model.how_many_ctrls / 2.0)) * (i / 2.0)))
+                    const.setAttr("{0}W1".format(self.created_fk_ctrls[i]), ((1 / (self.model.how_many_ctrls / 2.0)) *
+                                                                             (
+                                                                             ((len(self.created_locs) - 1) - i) / 2.0)))
                 elif i > center_ctrl:
-                    const = pmc.parentConstraint(start_ctrl, end_ctrl, loc, maintainOffset=1,
+                    const = pmc.parentConstraint(self.created_fk_ctrls[i], end_ctrl, loc, maintainOffset=1,
                                                  skipRotate=["x", "y", "z"])
-                    const.setAttr("{0}W0".format(start_ctrl), ((1 / (self.model.how_many_ctrls / 2.0)) *
-                                                               (((len(self.created_locs) - 1) - i) / 2.0)))
+                    const.setAttr("{0}W0".format(self.created_fk_ctrls[i]), ((1 / (self.model.how_many_ctrls / 2.0)) *
+                                                                             (i / 2.0)))
                     const.setAttr("{0}W1".format(end_ctrl), 1)
 
     def activate_twist(self):
