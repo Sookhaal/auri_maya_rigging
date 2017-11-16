@@ -699,7 +699,7 @@ class Controller(RigController):
         ik_ctrl.scale >> self.created_ik_jnts[-1].scale
 
         ik_ctrl.addAttr("legTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
-        pmc.aimConstraint(ik_ctrl, auto_pv_ofs,
+        pmc.aimConstraint(ik_handle, auto_pv_ofs,
                           maintainOffset=1, aimVector=(0.0, -1.0, 0.0),
                           upVector=(1.0, 0.0, 0.0), worldUpType="objectrotation",
                           worldUpVector=(1.0, 0.0, 0.0), worldUpObject=ik_ctrl)
@@ -1034,7 +1034,7 @@ class Controller(RigController):
         self.created_ctrtl_jnts[1].setAttr("preferredAngleX", -90)
 
         ik_ctrl.addAttr("legTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
-        pmc.aimConstraint(ik_ctrl, auto_pv_ofs,
+        pmc.aimConstraint(ik_handle, auto_pv_ofs,
                           maintainOffset=1, aimVector=(0.0, -1.0, 0.0),
                           upVector=(1.0, 0.0, 0.0), worldUpType="objectrotation",
                           worldUpVector=(1.0, 0.0, 0.0), worldUpObject=ik_ctrl)
