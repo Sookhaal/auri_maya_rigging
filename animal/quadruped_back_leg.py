@@ -31,7 +31,9 @@ class View(AuriScriptView):
         self.space_list_view = QtWidgets.QListView()
         self.space_list = QtGui.QStringListModel()
         self.deform_chain_creation_switch = QtWidgets.QCheckBox()
-        self.how_many_jnts = QtWidgets.QSpinBox()
+        self.how_many_thigh_jnts = QtWidgets.QSpinBox()
+        self.how_many_calf_jnts = QtWidgets.QSpinBox()
+        self.how_many_ankle_jnts = QtWidgets.QSpinBox()
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -54,7 +56,9 @@ class View(AuriScriptView):
                                   l_cbbox=self.space_modules_cbbox, r_cbbox_stringlist=self.ctrl.spaces_model,
                                   r_cbbox_selection=self.selected_space, r_cbbox=self.spaces_cbbox)
         self.deform_chain_creation_switch.setChecked(self.model.deform_chain_creation_switch)
-        self.how_many_jnts.setValue(self.model.how_many_jnts)
+        self.how_many_thigh_jnts.setValue(self.model.how_many_thigh_jnts)
+        self.how_many_calf_jnts.setValue(self.model.how_many_calf_jnts)
+        self.how_many_ankle_jnts.setValue(self.model.how_many_ankle_jnts)
 
     def setup_ui(self):
         self.modules_cbbox.setModel(self.ctrl.modules_with_output)
@@ -90,8 +94,14 @@ class View(AuriScriptView):
 
         self.deform_chain_creation_switch.stateChanged.connect(self.ctrl.on_deform_chain_creation_switch_changed)
 
-        self.how_many_jnts.setMinimum(2)
-        self.how_many_jnts.valueChanged.connect(self.ctrl.on_how_many_jnts_changed)
+        self.how_many_thigh_jnts.setMinimum(2)
+        self.how_many_thigh_jnts.valueChanged.connect(self.ctrl.on_how_many_thigh_jnts_changed)
+
+        self.how_many_calf_jnts.setMinimum(2)
+        self.how_many_calf_jnts.valueChanged.connect(self.ctrl.on_how_many_calf_jnts_changed)
+
+        self.how_many_ankle_jnts.setMinimum(2)
+        self.how_many_ankle_jnts.valueChanged.connect(self.ctrl.on_how_many_ankle_jnts_changed)
 
         self.refresh_btn.clicked.connect(self.ctrl.look_for_parent)
         self.prebuild_btn.clicked.connect(self.ctrl.prebuild)
@@ -164,9 +174,15 @@ class View(AuriScriptView):
         deform_switch_layout.addWidget(deform_switch_text)
         deform_switch_layout.addWidget(self.deform_chain_creation_switch)
         jnts_layout = QtWidgets.QVBoxLayout()
-        jnts_text = QtWidgets.QLabel("How many jnts :")
-        jnts_layout.addWidget(jnts_text)
-        jnts_layout.addWidget(self.how_many_jnts)
+        jnts_thigh_text = QtWidgets.QLabel("How many thigh jnts :")
+        jnts_layout.addWidget(jnts_thigh_text)
+        jnts_layout.addWidget(self.how_many_thigh_jnts)
+        jnts_calf_text = QtWidgets.QLabel("How many calf jnts :")
+        jnts_layout.addWidget(jnts_calf_text)
+        jnts_layout.addWidget(self.how_many_calf_jnts)
+        jnts_ankle_text = QtWidgets.QLabel("How many ankle jnts :")
+        jnts_layout.addWidget(jnts_ankle_text)
+        jnts_layout.addWidget(self.how_many_ankle_jnts)
         deform_layout.addLayout(deform_switch_layout)
         deform_layout.addLayout(jnts_layout)
 
@@ -216,6 +232,26 @@ class Controller(RigController):
 
     def on_raz_fk_ctrls_changed(self, state):
         self.model.raz_fk_ctrls = is_checked(state)
+
+    def on_how_many_thigh_jnts_changed(self, value):
+        self.model.how_many_thigh_jnts = value
+
+    def on_how_many_calf_jnts_changed(self, value):
+        self.model.how_many_calf_jnts = value
+
+    def on_how_many_ankle_jnts_changed(self, value):
+        self.model.how_many_ankle_jnts = value
+
+    def on_deform_chain_creation_switch_changed(self, state):
+        self.model.deform_chain_creation_switch = is_checked(state)
+        if state == 0:
+            self.view.how_many_thigh_jnts.setEnabled(False)
+            self.view.how_many_calf_jnts.setEnabled(False)
+            self.view.how_many_ankle_jnts.setEnabled(False)
+        else:
+            self.view.how_many_thigh_jnts.setEnabled(True)
+            self.view.how_many_calf_jnts.setEnabled(True)
+            self.view.how_many_ankle_jnts.setEnabled(True)
 
     def prebuild(self):
         if self.model.clavicle_creation_switch:
@@ -343,17 +379,17 @@ class Controller(RigController):
             self.jnts_to_skin.append(self.create_deformation_chain("{0}_hip_to_knee".format(self.model.module_name),
                                                                    self.created_half_bones[0], self.created_half_bones[1],
                                                                    self.created_ctrtl_jnts[0], self.created_ctrtl_jnts[1],
-                                                                   self.option_ctrl, self.model.how_many_jnts,
+                                                                   self.option_ctrl, self.model.how_many_thigh_jnts,
                                                                    self.side_coef)[1:-1])
             self.jnts_to_skin.append(self.create_deformation_chain("{0}_knee_to_knee_02".format(self.model.module_name),
                                                                    self.created_half_bones[1], self.created_half_bones[2],
                                                                    self.created_ctrtl_jnts[1], self.created_ctrtl_jnts[2],
-                                                                   self.option_ctrl, self.model.how_many_jnts,
+                                                                   self.option_ctrl, self.model.how_many_calf_jnts,
                                                                    self.side_coef)[1:-1])
             self.jnts_to_skin.append(self.create_deformation_chain("{0}_knee_02_to_ankle".format(self.model.module_name),
                                                                    self.created_half_bones[2], self.created_half_bones[3],
                                                                    self.created_ctrtl_jnts[2], self.created_ctrtl_jnts[3],
-                                                                   self.option_ctrl, self.model.how_many_jnts,
+                                                                   self.option_ctrl, self.model.how_many_ankle_jnts,
                                                                    self.side_coef)[1:-1])
 
         self.create_outputs()
@@ -1016,7 +1052,9 @@ class Controller(RigController):
         rig_lib.add_parameter_as_extra_attr(info_crv, "clavicle_creation", self.model.clavicle_creation_switch)
         rig_lib.add_parameter_as_extra_attr(info_crv, "local_spaces", self.model.space_list)
         rig_lib.add_parameter_as_extra_attr(info_crv, "deform_chain_creation", self.model.deform_chain_creation_switch)
-        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_jnts", self.model.how_many_jnts)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_thigh_jnts", self.model.how_many_thigh_jnts)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_calf_jnts", self.model.how_many_calf_jnts)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_ankle_jnts", self.model.how_many_ankle_jnts)
 
         if not pmc.objExists("jnts_to_SKN_SET"):
             skn_set = pmc.createNode("objectSet", n="jnts_to_SKN_SET")
@@ -1094,4 +1132,6 @@ class Model(AuriScriptModel):
         # self.bend_creation_switch = False
         self.space_list = []
         self.deform_chain_creation_switch = True
-        self.how_many_jnts = 5
+        self.how_many_thigh_jnts = 5
+        self.how_many_calf_jnts = 5
+        self.how_many_ankle_jnts = 5

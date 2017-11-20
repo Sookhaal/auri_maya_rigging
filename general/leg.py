@@ -32,7 +32,8 @@ class View(AuriScriptView):
         self.space_list_view = QtWidgets.QListView()
         self.space_list = QtGui.QStringListModel()
         self.deform_chain_creation_switch = QtWidgets.QCheckBox()
-        self.how_many_jnts = QtWidgets.QSpinBox()
+        self.how_many_thigh_jnts = QtWidgets.QSpinBox()
+        self.how_many_calf_jnts = QtWidgets.QSpinBox()
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -56,7 +57,8 @@ class View(AuriScriptView):
                                   l_cbbox=self.space_modules_cbbox, r_cbbox_stringlist=self.ctrl.spaces_model,
                                   r_cbbox_selection=self.selected_space, r_cbbox=self.spaces_cbbox)
         self.deform_chain_creation_switch.setChecked(self.model.deform_chain_creation_switch)
-        self.how_many_jnts.setValue(self.model.how_many_jnts)
+        self.how_many_thigh_jnts.setValue(self.model.how_many_thigh_jnts)
+        self.how_many_calf_jnts.setValue(self.model.how_many_calf_jnts)
 
     def setup_ui(self):
         self.modules_cbbox.setModel(self.ctrl.modules_with_output)
@@ -95,8 +97,11 @@ class View(AuriScriptView):
 
         self.deform_chain_creation_switch.stateChanged.connect(self.ctrl.on_deform_chain_creation_switch_changed)
 
-        self.how_many_jnts.setMinimum(2)
-        self.how_many_jnts.valueChanged.connect(self.ctrl.on_how_many_jnts_changed)
+        self.how_many_thigh_jnts.setMinimum(2)
+        self.how_many_thigh_jnts.valueChanged.connect(self.ctrl.on_how_many_thigh_jnts_changed)
+
+        self.how_many_calf_jnts.setMinimum(2)
+        self.how_many_calf_jnts.valueChanged.connect(self.ctrl.on_how_many_calf_jnts_changed)
 
         self.refresh_btn.clicked.connect(self.ctrl.look_for_parent)
         self.prebuild_btn.clicked.connect(self.ctrl.prebuild)
@@ -173,9 +178,12 @@ class View(AuriScriptView):
         deform_switch_layout.addWidget(deform_switch_text)
         deform_switch_layout.addWidget(self.deform_chain_creation_switch)
         jnts_layout = QtWidgets.QVBoxLayout()
-        jnts_text = QtWidgets.QLabel("How many jnts :")
-        jnts_layout.addWidget(jnts_text)
-        jnts_layout.addWidget(self.how_many_jnts)
+        jnts_thigh_text = QtWidgets.QLabel("How many thigh jnts :")
+        jnts_layout.addWidget(jnts_thigh_text)
+        jnts_layout.addWidget(self.how_many_thigh_jnts)
+        jnts_calf_text = QtWidgets.QLabel("How many calf jnts :")
+        jnts_layout.addWidget(jnts_calf_text)
+        jnts_layout.addWidget(self.how_many_calf_jnts)
         deform_layout.addLayout(deform_switch_layout)
         deform_layout.addLayout(jnts_layout)
 
@@ -224,11 +232,20 @@ class Controller(RigController):
         self.ankle_output = None
         RigController.__init__(self, model, view)
 
-    def on_raz_ik_ctrls_changed(self, state):
-        self.model.raz_ik_ctrls = is_checked(state)
+    def on_how_many_thigh_jnts_changed(self, value):
+        self.model.how_many_thigh_jnts = value
 
-    def on_raz_fk_ctrls_changed(self, state):
-        self.model.raz_fk_ctrls = is_checked(state)
+    def on_how_many_calf_jnts_changed(self, value):
+        self.model.how_many_calf_jnts = value
+
+    def on_deform_chain_creation_switch_changed(self, state):
+        self.model.deform_chain_creation_switch = is_checked(state)
+        if state == 0:
+            self.view.how_many_thigh_jnts.setEnabled(False)
+            self.view.how_many_calf_jnts.setEnabled(False)
+        else:
+            self.view.how_many_thigh_jnts.setEnabled(True)
+            self.view.how_many_calf_jnts.setEnabled(True)
 
     def prebuild(self):
         if self.model.clavicle_creation_switch:
@@ -373,11 +390,13 @@ class Controller(RigController):
                 self.jnts_to_skin.append(self.create_deformation_chain("{0}_hip_to_knee".format(self.model.module_name),
                                                                        self.created_half_bones[0], self.created_half_bones[1],
                                                                        self.created_ctrtl_jnts[0], self.created_ctrtl_jnts[1],
-                                                                       self.option_ctrl, self.model.how_many_jnts, self.side_coef)[1:-1])
+                                                                       self.option_ctrl, self.model.how_many_thigh_jnts,
+                                                                       self.side_coef)[1:-1])
                 self.jnts_to_skin.append(self.create_deformation_chain("{0}_knee_to_ankle".format(self.model.module_name),
                                                                        self.created_half_bones[1], self.created_half_bones[2],
                                                                        self.created_ctrtl_jnts[1], self.created_ctrtl_jnts[2],
-                                                                       self.option_ctrl, self.model.how_many_jnts, self.side_coef)[1:-1])
+                                                                       self.option_ctrl, self.model.how_many_calf_jnts,
+                                                                       self.side_coef)[1:-1])
 
             self.create_outputs()
 
@@ -387,6 +406,7 @@ class Controller(RigController):
                                                                                  translation=1)))
 
             self.create_local_spaces()
+
             if self.model.raz_fk_ctrls:
                 self.option_ctrl.setAttr("fkIk", 1)
                 pmc.refresh()
@@ -747,8 +767,9 @@ class Controller(RigController):
         else:
             fk_ctrls = self.created_ctrtl_jnts
 
-        fk_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
-        self.created_ik_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
+        if len(self.model.space_list) > 0:
+            fk_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
+            self.created_ik_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
 
         for i, space in enumerate(self.model.space_list):
             space_locs[i].setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
@@ -778,7 +799,7 @@ class Controller(RigController):
         else:
             world_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_world_SPACELOC".format(self.model.module_name))
             world_loc.setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
-            world_parent = pmc.ls(regex=".*_local_ctrl_OUTPUT$")
+            world_parent = pmc.ls(regex=".*_local_ctrl_OUTPUT$")[0]
             pmc.parent(world_loc, world_parent)
         pole_vector_const = pmc.parentConstraint(world_loc, self.created_ik_ctrls[0], self.created_ik_ctrls[1].getParent(),
                                                  maintainOffset=1)
@@ -870,7 +891,8 @@ class Controller(RigController):
         rig_lib.add_parameter_as_extra_attr(info_crv, "fk_ik_type", self.model.fk_ik_type)
         rig_lib.add_parameter_as_extra_attr(info_crv, "local_spaces", self.model.space_list)
         rig_lib.add_parameter_as_extra_attr(info_crv, "deform_chain_creation", self.model.deform_chain_creation_switch)
-        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_jnts", self.model.how_many_jnts)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_thigh_jnts", self.model.how_many_thigh_jnts)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_calf_jnts", self.model.how_many_calf_jnts)
 
         if not pmc.objExists("jnts_to_SKN_SET"):
             skn_set = pmc.createNode("objectSet", n="jnts_to_SKN_SET")
@@ -910,6 +932,7 @@ class Controller(RigController):
             if not self.model.stretch_creation_switch:
                 self.created_ctrtl_jnts[i].translate >> skn_jnt.translate
 
+            self.created_ctrtl_jnts[i].jointOrient >> skn_jnt.jointOrient
             self.created_ctrtl_jnts[i].rotate >> skn_jnt.rotate
             self.created_ctrtl_jnts[i].scale >> skn_jnt.scale
 
@@ -1207,4 +1230,5 @@ class Model(AuriScriptModel):
         # self.bend_creation_switch = False
         self.space_list = []
         self.deform_chain_creation_switch = True
-        self.how_many_jnts = 5
+        self.how_many_thigh_jnts = 5
+        self.how_many_calf_jnts = 5

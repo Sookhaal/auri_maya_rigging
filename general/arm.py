@@ -30,7 +30,10 @@ class View(AuriScriptView):
         self.space_list_view = QtWidgets.QListView()
         self.space_list = QtGui.QStringListModel()
         self.deform_chain_creation_switch = QtWidgets.QCheckBox()
-        self.how_many_jnts = QtWidgets.QSpinBox()
+        self.how_many_arm_jnts = QtWidgets.QSpinBox()
+        self.how_many_forearm_jnts = QtWidgets.QSpinBox()
+        self.raz_ik_ctrls = QtWidgets.QCheckBox()
+        self.raz_fk_ctrls = QtWidgets.QCheckBox()
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -52,7 +55,10 @@ class View(AuriScriptView):
                                   l_cbbox=self.space_modules_cbbox, r_cbbox_stringlist=self.ctrl.spaces_model,
                                   r_cbbox_selection=self.selected_space, r_cbbox=self.spaces_cbbox)
         self.deform_chain_creation_switch.setChecked(self.model.deform_chain_creation_switch)
-        self.how_many_jnts.setValue(self.model.how_many_jnts)
+        self.how_many_arm_jnts.setValue(self.model.how_many_arm_jnts)
+        self.how_many_forearm_jnts.setValue(self.model.how_many_forearm_jnts)
+        self.raz_ik_ctrls.setChecked(self.model.raz_ik_ctrls)
+        self.raz_fk_ctrls.setChecked(self.model.raz_fk_ctrls)
 
     def setup_ui(self):
         self.modules_cbbox.setModel(self.ctrl.modules_with_output)
@@ -89,8 +95,14 @@ class View(AuriScriptView):
 
         self.deform_chain_creation_switch.stateChanged.connect(self.ctrl.on_deform_chain_creation_switch_changed)
 
-        self.how_many_jnts.setMinimum(2)
-        self.how_many_jnts.valueChanged.connect(self.ctrl.on_how_many_jnts_changed)
+        self.how_many_arm_jnts.setMinimum(2)
+        self.how_many_arm_jnts.valueChanged.connect(self.ctrl.on_how_many_arm_jnts_changed)
+
+        self.how_many_forearm_jnts.setMinimum(2)
+        self.how_many_forearm_jnts.valueChanged.connect(self.ctrl.on_how_many_forearm_jnts_changed)
+
+        self.raz_ik_ctrls.stateChanged.connect(self.ctrl.on_raz_ik_ctrls_changed)
+        self.raz_fk_ctrls.stateChanged.connect(self.ctrl.on_raz_fk_ctrls_changed)
 
         self.refresh_btn.clicked.connect(self.ctrl.look_for_parent)
         self.prebuild_btn.clicked.connect(self.ctrl.prebuild)
@@ -145,10 +157,20 @@ class View(AuriScriptView):
         clavicle_text = QtWidgets.QLabel("clavicle :")
         clavicle_layout.addWidget(clavicle_text)
         clavicle_layout.addWidget(self.clavicle_creation_switch)
+        raz_ik_ctrls_layout = QtWidgets.QHBoxLayout()
+        raz_ik_ctrls_text = QtWidgets.QLabel("\"Freez\" ik ctrls :")
+        raz_ik_ctrls_layout.addWidget(raz_ik_ctrls_text)
+        raz_ik_ctrls_layout.addWidget(self.raz_ik_ctrls)
+        raz_fk_ctrls_layout = QtWidgets.QHBoxLayout()
+        raz_fk_ctrls_text = QtWidgets.QLabel("\"Freez\" fk ctrls :")
+        raz_fk_ctrls_layout.addWidget(raz_fk_ctrls_text)
+        raz_fk_ctrls_layout.addWidget(self.raz_fk_ctrls)
 
         checkbox_layout.addLayout(ik_layout)
         checkbox_layout.addLayout(stretch_layout)
         checkbox_layout.addLayout(clavicle_layout)
+        checkbox_layout.addLayout(raz_ik_ctrls_layout)
+        checkbox_layout.addLayout(raz_fk_ctrls_layout)
 
         deform_layout = QtWidgets.QVBoxLayout()
         deform_grp = grpbox("Deformation", deform_layout)
@@ -157,9 +179,12 @@ class View(AuriScriptView):
         deform_switch_layout.addWidget(deform_switch_text)
         deform_switch_layout.addWidget(self.deform_chain_creation_switch)
         jnts_layout = QtWidgets.QVBoxLayout()
-        jnts_text = QtWidgets.QLabel("How many jnts :")
-        jnts_layout.addWidget(jnts_text)
-        jnts_layout.addWidget(self.how_many_jnts)
+        jnts_arm_text = QtWidgets.QLabel("How many arm jnts :")
+        jnts_layout.addWidget(jnts_arm_text)
+        jnts_layout.addWidget(self.how_many_arm_jnts)
+        jnts_forearm_text = QtWidgets.QLabel("How many forearm jnts :")
+        jnts_layout.addWidget(jnts_forearm_text)
+        jnts_layout.addWidget(self.how_many_forearm_jnts)
         deform_layout.addLayout(deform_switch_layout)
         deform_layout.addLayout(jnts_layout)
 
@@ -207,6 +232,21 @@ class Controller(RigController):
         self.jnts_to_skin = []
         self.wrist_output = None
         RigController.__init__(self,  model, view)
+
+    def on_how_many_arm_jnts_changed(self, value):
+        self.model.how_many_arm_jnts = value
+
+    def on_how_many_forearm_jnts_changed(self, value):
+        self.model.how_many_forearm_jnts = value
+
+    def on_deform_chain_creation_switch_changed(self, state):
+        self.model.deform_chain_creation_switch = is_checked(state)
+        if state == 0:
+            self.view.how_many_arm_jnts.setEnabled(False)
+            self.view.how_many_forearm_jnts.setEnabled(False)
+        else:
+            self.view.how_many_arm_jnts.setEnabled(True)
+            self.view.how_many_forearm_jnts.setEnabled(True)
 
     def prebuild(self):
         if self.model.clavicle_creation_switch:
@@ -338,14 +378,26 @@ class Controller(RigController):
                 self.jnts_to_skin.append(self.create_deformation_chain("{0}_shoulder_to_elbow".format(self.model.module_name),
                                               self.created_half_bones[0], self.created_half_bones[1],
                                               self.created_ctrtl_jnts[0], self.created_ctrtl_jnts[1],
-                                              self.option_ctrl, self.model.how_many_jnts, self.side_coef)[1:-1])
+                                              self.option_ctrl, self.model.how_many_arm_jnts, self.side_coef)[1:-1])
                 self.jnts_to_skin.append(self.create_deformation_chain("{0}_elbow_to_wrist".format(self.model.module_name),
                                               self.created_half_bones[1], self.created_half_bones[2],
                                               self.created_ctrtl_jnts[1], self.created_ctrtl_jnts[2],
-                                              self.option_ctrl, self.model.how_many_jnts, self.side_coef)[1:-1])
+                                              self.option_ctrl, self.model.how_many_forearm_jnts, self.side_coef)[1:-1])
 
         self.create_outputs()
+
+        if self.model.raz_ik_ctrls:
+            rig_lib.raz_one_chain_ik_ctrl_translate_rotate(self.created_ik_ctrls[0])
+
         self.create_local_spaces()
+
+        if self.model.raz_fk_ctrls:
+            self.option_ctrl.setAttr("fkIk", 1)
+            pmc.refresh()
+            self.option_ctrl.setAttr("fkIk", 0)
+            for i, ctrl in enumerate(self.created_ctrtl_jnts):
+                rig_lib.raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, self.created_skn_jnts[i])
+
         self.clean_rig()
         pmc.select(d=1)
 
@@ -788,7 +840,8 @@ class Controller(RigController):
         rig_lib.add_parameter_as_extra_attr(info_crv, "fk_ik_type", self.model.fk_ik_type)
         rig_lib.add_parameter_as_extra_attr(info_crv, "local_spaces", self.model.space_list)
         rig_lib.add_parameter_as_extra_attr(info_crv, "deform_chain_creation", self.model.deform_chain_creation_switch)
-        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_jnts", self.model.how_many_jnts)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_arm_jnts", self.model.how_many_arm_jnts)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_forearm_jnts", self.model.how_many_forearm_jnts)
 
         if not pmc.objExists("jnts_to_SKN_SET"):
             skn_set = pmc.createNode("objectSet", n="jnts_to_SKN_SET")
@@ -1019,4 +1072,7 @@ class Model(AuriScriptModel):
         # self.bend_creation_switch = False
         self.space_list = []
         self.deform_chain_creation_switch = True
-        self.how_many_jnts = 5
+        self.how_many_arm_jnts = 5
+        self.how_many_forearm_jnts = 5
+        self.raz_ik_ctrls = False
+        self.raz_fk_ctrls = True

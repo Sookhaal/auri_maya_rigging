@@ -84,18 +84,18 @@ class RigController(AuriScriptController):
     def on_ik_creation_switch_changed(self, state):
         self.model.ik_creation_switch = is_checked(state)
 
+    def on_stretch_creation_switch_changed(self, state):
+        self.model.stretch_creation_switch = is_checked(state)
+
+    def on_clavicle_creation_switch_changed(self, state):
+        self.model.clavicle_creation_switch = is_checked(state)
+
     def on_deform_chain_creation_switch_changed(self, state):
         self.model.deform_chain_creation_switch = is_checked(state)
         if state == 0:
             self.view.how_many_jnts.setEnabled(False)
         else:
             self.view.how_many_jnts.setEnabled(True)
-
-    def on_stretch_creation_switch_changed(self, state):
-        self.model.stretch_creation_switch = is_checked(state)
-
-    def on_clavicle_creation_switch_changed(self, state):
-        self.model.clavicle_creation_switch = is_checked(state)
 
     def on_how_many_jnts_changed(self, value):
         self.model.how_many_jnts = value
@@ -105,6 +105,12 @@ class RigController(AuriScriptController):
 
     def on_side_cbbox_changed(self, text):
         self.model.side = text
+
+    def on_raz_ik_ctrls_changed(self, state):
+        self.model.raz_ik_ctrls = is_checked(state)
+
+    def on_raz_fk_ctrls_changed(self, state):
+        self.model.raz_fk_ctrls = is_checked(state)
 
     def on_fk_ik_type_changed(self, text):
         self.model.fk_ik_type = text
@@ -731,7 +737,7 @@ class RigController(AuriScriptController):
                 pmc.select(d=1)
             else:
                 pmc.select(chain_jnts[i-1])
-            jnt = pmc.joint(p=(0, (distance.getAttr("distance") / self.model.how_many_jnts * i)*side_coef, 0),
+            jnt = pmc.joint(p=(0, (distance.getAttr("distance") / how_many_jnts * i)*side_coef, 0),
                             n="{0}_{1}_SKN".format(name, i))
             chain_jnts.append(jnt)
             pmc.delete(distance)
@@ -1153,6 +1159,9 @@ def raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, skn_jnt):
     ctrl.jointOrient >> skn_jnt.jointOrient
 
     ctrl.setAttr("rotate", (0, 0, 0))
+
+    # VERY IMPORTANT IF YOU DONT WANT TO HAVE FUCKING FLIP IN YOUR JNT_CHAIN :
+    ctrl.setAttr("preferredAngle", (0, 0, 0))
 
     ctrl_cvs = ctrl.cv[:]
     for i, cv in enumerate(ctrl_cvs):
