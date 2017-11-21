@@ -849,6 +849,8 @@ class Controller(RigController):
             rig_lib.clean_ctrl(self.created_ik_ctrls[0].getParent(), color_value, trs="trs")
             rig_lib.clean_ctrl(self.created_ik_ctrls[1].getParent(), color_value, trs="trs", visibility_dependence=self.option_ctrl.fkIk)
             rig_lib.clean_ctrl(self.created_ik_ctrls[1], color_value, trs="rs", visibility_dependence=self.created_ik_ctrls[0].poleVector)
+            rig_lib.clean_ctrl(self.created_ik_ctrls[2].getParent(), color_value, trs="trs")
+            rig_lib.clean_ctrl(self.created_ik_ctrls[2], color_value, trs="trs")
 
         if self.model.fk_ik_type == "one_chain":
             blend_scale = pmc.createNode("blendColors", n="{0}_scale_blendColor".format(self.ankle_output))
@@ -1052,7 +1054,8 @@ class Controller(RigController):
                                                 "{0}_auto_poleVector_COND".format(ik_ctrl))
 
         pmc.parent(manual_pv_ofs, self.ctrl_input_grp, r=0)
-        pmc.parent(auto_pv_ofs, self.parts_grp, r=0)
+        pmc.parent(auto_pv_ofs, self.ctrl_input_grp, r=0)
+        auto_pv_ofs.setAttr("visibility", 0)
 
         self.created_ctrtl_jnts[1].setAttr("preferredAngleX", -90)
 
