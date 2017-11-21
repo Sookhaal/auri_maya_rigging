@@ -1148,7 +1148,7 @@ def raz_one_chain_ik_ctrl_translate_rotate(ctrl):
     ctrl.setAttr("jointOrient", (0, 0, 0))
 
 
-def raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, skn_jnt):
+def raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, skn_jnt, raz_ctrl_shape_axe="y"):
     loc = pmc.spaceLocator(p=(0, 0, 0), n="get_xyz_orient_temp_loc")
 
     pmc.parent(loc, ctrl, r=1)
@@ -1165,9 +1165,18 @@ def raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, skn_jnt):
 
     ctrl_cvs = ctrl.cv[:]
     for i, cv in enumerate(ctrl_cvs):
-        pmc.xform(ctrl.getShape().controlPoints[i], ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0],
-                                                                       pmc.xform(ctrl, q=1, ws=1, translation=1)[1],
-                                                                       pmc.xform(cv, q=1, ws=1, translation=1)[2]))
+        if raz_ctrl_shape_axe == "x":
+            pmc.xform(ctrl.getShape().controlPoints[i], ws=1, translation=(pmc.xform(ctrl, q=1, ws=1, translation=1)[0],
+                                                                           pmc.xform(cv, q=1, ws=1, translation=1)[1],
+                                                                           pmc.xform(cv, q=1, ws=1, translation=1)[2]))
+        elif raz_ctrl_shape_axe == "y":
+            pmc.xform(ctrl.getShape().controlPoints[i], ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0],
+                                                                           pmc.xform(ctrl, q=1, ws=1, translation=1)[1],
+                                                                           pmc.xform(cv, q=1, ws=1, translation=1)[2]))
+        elif raz_ctrl_shape_axe == "z":
+            pmc.xform(ctrl.getShape().controlPoints[i], ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0],
+                                                                           pmc.xform(cv, q=1, ws=1, translation=1)[1],
+                                                                           pmc.xform(ctrl, q=1, ws=1, translation=1)[2]))
 
     pmc.delete(loc)
 
