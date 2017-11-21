@@ -440,8 +440,13 @@ class Controller(RigController):
         self.guides[-1][0].getShape().worldPosition[0] >> hand_plane.getShape().pnts[3]
 
         mid_finger_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_temp_mid_loc".format(self.model.module_name))
-        mid_finger_loc.setAttr("translate", pmc.xform(self.guides[self.model.how_many_fingers / 2][1].cv[0], q=1, ws=1,
-                                                      translation=1))
+        mid_finger_loc.setAttr("translate", ((pmc.xform(first_finger[1].cv[0], q=1, ws=1, translation=1)[0] +
+                                              pmc.xform(self.guides[-1][1].cv[0], q=1, ws=1, translation=1)[0]) / 2,
+                                             (pmc.xform(first_finger[1].cv[0], q=1, ws=1, translation=1)[1] +
+                                              pmc.xform(self.guides[-1][1].cv[0], q=1, ws=1, translation=1)[1]) / 2,
+                                             (pmc.xform(first_finger[1].cv[0], q=1, ws=1, translation=1)[2] +
+                                              pmc.xform(self.guides[-1][1].cv[0], q=1, ws=1, translation=1)[2]) / 2
+                                             ))
 
         orient_loc_const = pmc.normalConstraint(hand_plane, orient_loc, aimVector=(-1.0, 0.0, 0.0),
                                                 upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="object",
