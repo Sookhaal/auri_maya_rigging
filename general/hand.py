@@ -55,7 +55,6 @@ class View(AuriScriptView):
         self.how_many_phalanges.valueChanged.connect(self.ctrl.on_how_many_phalanges_changed)
 
         self.ik_creation_switch.stateChanged.connect(self.ctrl.on_ik_creation_switch_changed)
-        self.ik_creation_switch.setEnabled(False)
 
         self.refresh_btn.clicked.connect(self.ctrl.look_for_parent)
         self.prebuild_btn.clicked.connect(self.ctrl.prebuild)
@@ -129,6 +128,7 @@ class Controller(RigController):
         self.parent_wrist_ik_ctrl = None
         self.parent_option_ctrl = None
         self.jnts_to_skin = []
+        # self.created_ik_setup_chains = []
         RigController.__init__(self, model, view)
 
     def on_how_many_fingers_changed(self, value):
@@ -404,9 +404,13 @@ class Controller(RigController):
         self.get_parent_needed_objects()
 
         self.create_skn_jnts()
-        self.create_ctrls()
-        # if self.model.ik_creation_switch:
-        #     self.create_ik()
+        self.create_fk_ctrls()
+        if self.model.ik_creation_switch and self.model.how_many_phalanges == 3:
+            self.create_3phalanges_ik()
+        elif self.model.ik_creation_switch and self.model.how_many_phalanges == 2:
+            # perhaps more than 3 phalanges could be made with the same function as 2
+            pass
+        return
         self.create_options_attributes()
         self.clean_rig()
         pmc.select(d=1)
@@ -523,12 +527,12 @@ class Controller(RigController):
         pmc.delete(last_finger_loc)
         pmc.delete(mid_finger_loc)
 
-    def create_ctrls(self):
+    def create_fk_ctrls(self):
         self.created_fk_ctrls = []
         for n, finger in enumerate(self.created_skn_jnts):
             created_finger_ctrls = []
             for i, jnt in enumerate(finger):
-                if 1 < i < len(finger) - 1:
+                if 1 < i < len(finger):
                     ctrl_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=0.5, d=3, s=8,
                                             n="{0}_finger{1}_{2}_fk_CTRL_shape".format(self.model.module_name,
                                                                                        (n + 1), i), ch=0)[0]
@@ -538,11 +542,16 @@ class Controller(RigController):
                     ctrl.setAttr("radius", 0)
                     ctrl.setAttr("translate", pmc.xform(jnt, q=1, ws=1, translation=1))
                     pmc.parent(ctrl, created_finger_ctrls[i - 1], r=0)
-                    pmc.reorder(ctrl, front=1)
+                    if i == len(finger) - 1:
+                        ctrl.setAttr("visibility", 0)
+                    else:
+                        pmc.reorder(ctrl, front=1)
+
                     ctrl.setAttr("jointOrient", (0, 0, 0))
+
                     ctrl.setAttr("rotate", pmc.xform(self.created_skn_jnts[n][i], q=1, rotation=1))
 
-                    ctrl.rotate >> self.created_skn_jnts[n][i].rotate
+                    # ctrl.rotate >> self.created_skn_jnts[n][i].rotate
 
                     created_finger_ctrls.append(ctrl)
 
@@ -557,6 +566,7 @@ class Controller(RigController):
                     ctrl.setAttr("translate", pmc.xform(jnt, q=1, ws=1, translation=1))
                     pmc.parent(ctrl, created_finger_ctrls[i - 1], r=0)
                     pmc.reorder(ctrl, front=1)
+
                     ctrl.setAttr("jointOrient", (0, 0, 0))
 
                     if (self.model.thumb_creation_switch and n != 0) or not self.model.thumb_creation_switch:
@@ -565,43 +575,52 @@ class Controller(RigController):
 
                     pmc.xform(ctrl, ws=1, rotation=pmc.xform(self.created_skn_jnts[n][i], q=1, ws=1, rotation=1))
 
-                    if (self.model.thumb_creation_switch and n != 0) or not self.model.thumb_creation_switch:
-                        jnt_offset = pmc.createNode("plusMinusAverage",
-                                                    n="{0}_Xoffset_Xctrlvalue_spreadValue_cumul_PMA".format(ctrl))
-                        jnt_offset.setAttr("operation", 1)
-                        ctrl.rotateX >> jnt_offset.input1D[0]
-                        ctrl.jointOrientX >> jnt_offset.input1D[1]
-                        jnt_offset.output1D >> self.created_skn_jnts[n][i].rotateX
-
-                    else:
-                        ctrl.rotateX >> self.created_skn_jnts[n][i].rotateX
-
-                    ctrl.rotateY >> self.created_skn_jnts[n][i].rotateY
-                    ctrl.rotateZ >> self.created_skn_jnts[n][i].rotateZ
+                    # if (self.model.thumb_creation_switch and n != 0) or not self.model.thumb_creation_switch:
+                    #     jnt_offset = pmc.createNode("plusMinusAverage",
+                    #                                 n="{0}_Xoffset_Xctrlvalue_spreadValue_cumul_PMA".format(ctrl))
+                    #     jnt_offset.setAttr("operation", 1)
+                    #     ctrl.rotateX >> jnt_offset.input1D[0]
+                    #     ctrl.jointOrientX >> jnt_offset.input1D[1]
+                    #     jnt_offset.output1D >> self.created_skn_jnts[n][i].rotateX
+                    #
+                    # else:
+                    #     ctrl.rotateX >> self.created_skn_jnts[n][i].rotateX
+                    #
+                    # ctrl.rotateY >> self.created_skn_jnts[n][i].rotateY
+                    # ctrl.rotateZ >> self.created_skn_jnts[n][i].rotateZ
 
                     created_finger_ctrls.append(ctrl)
 
                 elif i == 0:
                     ctrl_shape = rig_lib.oval_curve_y(
-                        "{0}_finger{1}_{2}_fk_CTRL".format(self.model.module_name, (n + 1), i), self.side_coef)
+                        "{0}_finger{1}_{2}_fk_CTRL_shape".format(self.model.module_name, (n + 1), i), self.side_coef)
                     ctrl = rig_lib.create_jnttype_ctrl("{0}_finger{1}_{2}_fk_CTRL".format(self.model.module_name,
                                                                                           (n + 1), i), ctrl_shape,
                                                        drawstyle=0, rotateorder=1)
                     ctrl.setAttr("radius", 0)
                     ctrl.setAttr("translate", pmc.xform(jnt, q=1, ws=1, translation=1))
                     pmc.parent(ctrl, self.ctrl_input_grp, r=0)
+
                     ctrl.setAttr("jointOrient", (0, 0, 0))
+
                     ctrl.setAttr("jointOrientX", pmc.xform(self.created_skn_jnts[n][i], q=1, rotation=1)[0])
+
                     pmc.xform(ctrl, ws=1, rotation=pmc.xform(self.created_skn_jnts[n][i], q=1, ws=1, rotation=1))
-                    jnt_offset = pmc.createNode("plusMinusAverage", n="{0}_raz_jnt_offset_PMA".format(ctrl))
-                    jnt_offset.setAttr("operation", 1)
-                    ctrl.rotateX >> jnt_offset.input1D[0]
-                    ctrl.jointOrientX >> jnt_offset.input1D[1]
-                    jnt_offset.output1D >> self.created_skn_jnts[n][i].rotateX
-                    ctrl.rotateY >> self.created_skn_jnts[n][i].rotateY
-                    ctrl.rotateZ >> self.created_skn_jnts[n][i].rotateZ
+
+                    # jnt_offset = pmc.createNode("plusMinusAverage", n="{0}_raz_jnt_offset_PMA".format(ctrl))
+                    # jnt_offset.setAttr("operation", 1)
+                    # ctrl.rotateX >> jnt_offset.input1D[0]
+                    # ctrl.jointOrientX >> jnt_offset.input1D[1]
+                    # jnt_offset.output1D >> self.created_skn_jnts[n][i].rotateX
+                    # ctrl.rotateY >> self.created_skn_jnts[n][i].rotateY
+                    # ctrl.rotateZ >> self.created_skn_jnts[n][i].rotateZ
 
                     created_finger_ctrls.append(ctrl)
+
+                ctrl.translate >> self.created_skn_jnts[n][i].translate
+                ctrl.rotate >> self.created_skn_jnts[n][i].rotate
+                ctrl.jointOrient >> self.created_skn_jnts[n][i].jointOrient
+                ctrl.scale >> self.created_skn_jnts[n][i].scale
 
             self.created_fk_ctrls.append(created_finger_ctrls)
 
@@ -692,8 +711,254 @@ class Controller(RigController):
             else:
                 skn_set.add(jnt)
 
-    def create_ik(self):
-        pass
+    def create_3phalanges_ik(self):
+        # self.created_ik_setup_chains = []
+
+        if self.model.thumb_creation_switch:
+            fingers_fk_ctrls = self.created_fk_ctrls[1:]
+            x = 2
+        else:
+            fingers_fk_ctrls = self.created_fk_ctrls[:]
+            x = 1
+
+        for n, finger in enumerate(fingers_fk_ctrls):
+            metacarpus_fk_ctrl_value = pmc.xform(finger[0], q=1, rotation=1)
+            finger_fk_ctrl_01_value = pmc.xform(finger[1], q=1, rotation=1)
+            finger_fk_ctrl_02_value = pmc.xform(finger[2], q=1, rotation=1)
+            finger_fk_ctrl_03_value = pmc.xform(finger[3], q=1, rotation=1)
+            finger_fk_ctrl_04_value = pmc.xform(finger[4], q=1, rotation=1)
+
+            metacarpus_ik_setup_jnt = finger[0].duplicate(n="{0}_finger{1}_0_ik_setup_JNT".format(
+                                                                                    self.model.module_name, (n + x)))[0]
+            first_phalanx_ik_setup_jnt = pmc.ls("{0}_finger{1}_0_ik_setup_JNT|{0}_finger{1}_1_fk_CTRL".format(
+                                                                                    self.model.module_name, (n + x)))[0]
+            second_phalanx_ik_setup_jnt = pmc.ls("{0}_finger{1}_0_ik_setup_JNT|{0}_finger{1}_1_fk_CTRL|{0}_finger{1}_2_fk_CTRL".format(
+                                                                                    self.model.module_name, (n + x)))[0]
+            third_phalanx_ik_setup_jnt = pmc.ls("{0}_finger{1}_0_ik_setup_JNT|{0}_finger{1}_1_fk_CTRL|{0}_finger{1}_2_fk_CTRL|{0}_finger{1}_3_fk_CTRL".format(
+                                                                                    self.model.module_name, (n + x)))[0]
+            end_ik_setup_jnt = pmc.ls("{0}_finger{1}_0_ik_setup_JNT|{0}_finger{1}_1_fk_CTRL|{0}_finger{1}_2_fk_CTRL|{0}_finger{1}_3_fk_CTRL|{0}_finger{1}_4_fk_CTRL".format(
+                                                                                    self.model.module_name, (n + x)))[0]
+
+            first_phalanx_ik_setup_jnt.rename("{0}_finger{1}_1_ik_setup_JNT".format(self.model.module_name, (n + x)))
+            second_phalanx_ik_setup_jnt.rename("{0}_finger{1}_2_ik_setup_JNT".format(self.model.module_name, (n + x)))
+            third_phalanx_ik_setup_jnt.rename("{0}_finger{1}_3_ik_setup_JNT".format(self.model.module_name, (n + x)))
+            end_ik_setup_jnt.rename("{0}_finger{1}_4_ik_setup_JNT".format(self.model.module_name, (n + x)))
+
+            ik_setup_chain = [metacarpus_ik_setup_jnt, first_phalanx_ik_setup_jnt,
+                              second_phalanx_ik_setup_jnt, third_phalanx_ik_setup_jnt, end_ik_setup_jnt]
+
+            for jnt in ik_setup_chain:
+                pmc.delete(jnt.getShape())
+                jnt.setAttr("radius", 0.1)
+
+            metacarpus_ik_setup_jnt.setAttr("visibility", 0)
+
+            global_ik_handle = pmc.ikHandle(n=("{0}_finger{1}_finger_ik_HDL".format(self.model.module_name, (n + x))),
+                                            startJoint=first_phalanx_ik_setup_jnt, endEffector=end_ik_setup_jnt,
+                                            solver="ikRPsolver")[0]
+            global_ik_effector = pmc.listRelatives(third_phalanx_ik_setup_jnt, children=1)[-1]
+            global_ik_effector.rename("{0}_finger{1}_finger_ik_EFF".format(self.model.module_name, (n + x)))
+            global_ik_handle.setAttr("snapEnable", 0)
+
+            start_ik_handle = pmc.ikHandle(n=("{0}_finger{1}_first_part_ik_HDL".format(self.model.module_name, (n + x))),
+                                          startJoint=finger[1], endEffector=finger[3], solver="ikRPsolver")[0]
+            start_ik_effector = pmc.listRelatives(finger[2], children=1)[-1]
+            start_ik_effector.rename("{0}_finger{1}_first_part_ik_EFF".format(self.model.module_name, (n + x)))
+            start_ik_handle.setAttr("snapEnable", 0)
+            start_ik_handle.setAttr("ikBlend", 0)
+
+            end_ik_handle = pmc.ikHandle(n=("{0}_finger{1}_end_ik_HDL".format(self.model.module_name, (n + x))),
+                                           startJoint=finger[3], endEffector=finger[4], solver="ikSCsolver")[0]
+            end_ik_effector = pmc.listRelatives(finger[3], children=1)[-1]
+            end_ik_effector.rename("{0}_finger{1}_end_ik_EFF".format(self.model.module_name, (n + x)))
+            end_ik_handle.setAttr("snapEnable", 0)
+            end_ik_handle.setAttr("ikBlend", 0)
+
+            pmc.xform(start_ik_handle, ws=1, translation=pmc.xform(third_phalanx_ik_setup_jnt, q=1, ws=1, translation=1))
+            pmc.xform(end_ik_handle, ws=1, translation=pmc.xform(end_ik_setup_jnt, q=1, ws=1, translation=1))
+
+            pmc.parent(start_ik_handle, end_ik_setup_jnt)
+            pmc.parent(end_ik_handle, third_phalanx_ik_setup_jnt)
+
+            ik_shape = rig_lib.medium_cube("{0}__finger{1}_ik_CTRL_shape".format(self.model.module_name, (n + x)))
+            ik_ctrl = rig_lib.create_jnttype_ctrl("{0}_finger{1}_ik_CTRL".format(self.model.module_name, (n + x)),
+                                                  ik_shape, drawstyle=2, rotateorder=3)
+            pmc.select(d=1)
+            ik_ctrl_ofs = pmc.joint(p=(0, 0, 0), n="{0}_finger{1}_ik_ctrl_OFS".format(self.model.module_name, (n + x)))
+            ik_ctrl_ofs.setAttr("rotateOrder", 3)
+            ik_ctrl_ofs.setAttr("drawStyle", 2)
+            pmc.parent(ik_ctrl, ik_ctrl_ofs)
+            finger[0].setAttr("rotate", (0, 0, 0))
+            finger[1].setAttr("rotate", (0, 0, 0))
+            finger[2].setAttr("rotate", (0, 0, 0))
+            finger[3].setAttr("rotate", (0, 0, 0))
+            finger[4].setAttr("rotate", (0, 0, 0))
+
+            ik_ctrl_ofs.setAttr("translate", pmc.xform(finger[-1], q=1, ws=1, translation=1))
+            pmc.parent(global_ik_handle, ik_ctrl_ofs, r=0)
+            ik_ctrl.setAttr("translate", pmc.xform(global_ik_handle, q=1, translation=1))
+            pmc.parent(global_ik_handle, ik_ctrl, r=0)
+            pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
+            ik_ctrl.setAttr("translate", (0, 0, 0))
+
+            pmc.select(finger[-1])
+            fk_rotation_jnt = pmc.joint(p=(0, 0, 0), n="{0}_finger{1}_fk_end_JNT".format(self.model.module_name, (n + x)))
+            fk_rotation_jnt.setAttr("translate", (0, self.side_coef, 0))
+            fk_rotation_jnt.setAttr("rotate", (0, 0, 0))
+            fk_rotation_jnt.setAttr("jointOrient", (0, 0, 0))
+
+            fk_rotation_hdl = pmc.ikHandle(n="{0}_finger{1}_end_rotation_ik_HDL".format(self.model.module_name, (n + x)),
+                                           startJoint=finger[-1], endEffector=fk_rotation_jnt, solver="ikSCsolver")[0]
+            fk_rotation_effector = pmc.listRelatives(finger[-1], children=1)[-1]
+            fk_rotation_effector.rename("{0}_finger{1}_end_rotation_ik_EFF".format(self.model.module_name, (n + x)))
+            fk_rotation_hdl.setAttr("snapEnable", 0)
+            fk_rotation_hdl.setAttr("ikBlend", 0)
+            pmc.parent(fk_rotation_hdl, ik_ctrl, r=0)
+
+            self.parent_option_ctrl.fkIk >> fk_rotation_hdl.ikBlend
+# TODO: split l'activation de chaque ik, voir avec les attr parent/enfants pour faire un switch global et ensuite un pour chaque
+
+            fk_rotation_hdl.setAttr("visibility", 0)
+            fk_rotation_jnt.setAttr("visibility", 0)
+
+            auto_pole_vector_shape = rig_lib.jnt_shape_curve("{0}_finger{1}_auto_poleVector_CTRL_shape".format(
+                                                                                       self.model.module_name, (n + x)))
+            auto_pole_vector = rig_lib.create_jnttype_ctrl("{0}_finger{1}_auto_poleVector_CTRL".format(
+                                                  self.model.module_name, (n + x)), auto_pole_vector_shape, drawstyle=2)
+            auto_pv_ofs = pmc.group(auto_pole_vector, n="{0}_finger{1}_auto_poleVector_ctrl_OFS".format(
+                                                                                       self.model.module_name, (n + x)))
+            auto_pv_ofs.setAttr("translate", (pmc.xform(finger[1], q=1, ws=1, translation=1)[0],
+                                              pmc.xform(finger[1], q=1, ws=1, translation=1)[1],
+                                              pmc.xform(finger[1], q=1, ws=1, translation=1)[2]))
+
+            pmc.poleVectorConstraint(auto_pole_vector, global_ik_handle)
+            pmc.poleVectorConstraint(auto_pole_vector, start_ik_handle)
+
+            pmc.parent(auto_pv_ofs, self.ctrl_input_grp, r=0)
+            auto_pv_ofs.setAttr("visibility", 0)
+
+            second_phalanx_ik_setup_jnt.setAttr("preferredAngleZ", finger_fk_ctrl_02_value[2])
+            third_phalanx_ik_setup_jnt.setAttr("preferredAngleZ", finger_fk_ctrl_03_value[2])
+            finger[2].setAttr("preferredAngleZ", finger_fk_ctrl_02_value[2])
+            finger[3].setAttr("preferredAngleZ", finger_fk_ctrl_03_value[2])
+
+            ik_ctrl.addAttr("fingerTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+            pmc.aimConstraint(global_ik_handle, auto_pv_ofs,
+                              maintainOffset=1, aimVector=(self.side_coef, 0.0, 0.0),
+                              upVector=(0.0, 0.0, 1.0), worldUpType="objectrotation",
+                              worldUpVector=(0.0, 0.0, 1.0), worldUpObject=ik_ctrl)
+            ik_ctrl.fingerTwist >> global_ik_handle.twist
+# TODO: twist globale n'entraine pas le "genoux" qui reste oriente vers le pole_vector (essayer d'add un pole_vector pour le genoux, parente sous la chain globale)
+            start_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_finger{1}_ik_length_start_LOC".format(
+                                                                                       self.model.module_name, (n + x)))
+            end_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_finger{1}_ik_length_end_LOC".format(
+                                                                                       self.model.module_name, (n + x)))
+            pmc.parent(start_loc, finger[1], r=1)
+            pmc.parent(start_loc, finger[0], r=0)
+            pmc.parent(end_loc, ik_ctrl, r=1)
+            start_loc.setAttr("visibility", 0)
+            end_loc.setAttr("visibility", 0)
+
+            length_measure = pmc.createNode("distanceDimShape",
+                                            n="{0}_finger{1}_ik_length_measure_DDMShape".format(
+                                                                                       self.model.module_name, (n + x)))
+            length_measure.getParent().rename("{0}_finger{1}_ik_length_measure_DDM".format(
+                                                                                       self.model.module_name, (n + x)))
+            pmc.parent(length_measure.getParent(), self.parts_grp, r=0)
+            start_loc.getShape().worldPosition[0] >> length_measure.startPoint
+            end_loc.getShape().worldPosition[0] >> length_measure.endPoint
+
+            ik_global_scale = pmc.createNode("multiplyDivide", n="{0}_finger{1}_ik_global_scale_MDV".format(
+                                                                                       self.model.module_name, (n + x)))
+            ik_stretch_value = pmc.createNode("multiplyDivide", n="{0}_finger{1}_ik_stretch_value_MDV".format(
+                                                                                       self.model.module_name, (n + x)))
+            global_scale = pmc.ls(regex=".*_global_mult_local_scale_MDL$")[0]
+            base_lenght = pmc.createNode("plusMinusAverage", n="{0}_finger{1}_ik_base_length_PMA".format(
+                                                                                       self.model.module_name, (n + x)))
+
+            ik_global_scale.setAttr("operation", 2)
+            length_measure.distance >> ik_global_scale.input1X
+            global_scale.output >> ik_global_scale.input2X
+            ik_stretch_value.setAttr("operation", 2)
+            base_lenght.output1D >> ik_stretch_value.input2X
+            ik_global_scale.outputX >> ik_stretch_value.input1X
+
+            for i, ctrl in enumerate(finger):
+                if i < (len(finger) - 1):
+                    ctrl.addAttr("baseLength", attributeType="float",
+                                 defaultValue=pmc.xform(finger[i + 1], q=1, translation=1)[1] * self.side_coef,
+                                 hidden=0, keyable=0)
+                    ctrl.setAttr("baseLength", lock=1, channelBox=0)
+                    ctrl.addAttr("stretch", attributeType="float", defaultValue=1, hidden=0, keyable=1,
+                                 hasMinValue=1, minValue=0)
+                    jnt_lenght = pmc.createNode("multiplyDivide",
+                                                n="{0}_finger{1}_jnt_{2}_length_MDV".format(self.model.module_name,
+                                                                                            (n + x), i))
+                    ctrl.baseLength >> jnt_lenght.input1Y
+                    ctrl.stretch >> jnt_lenght.input2Y
+                    jnt_lenght.outputY >> base_lenght.input1D[i]
+
+            ik_ctrl.addAttr("lastPhalanxBend", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+            ik_ctrl.addAttr("lastPhalanxBend_decrease_range_start", attributeType="float", defaultValue=0.9, hidden=0,
+                            keyable=0, readable=1, writable=1, hasMinValue=1, minValue=0, hasMaxValue=1, maxValue=1)
+            last_phalanx_bend_decrease_range = pmc.createNode("clamp",
+                                                                     n="{0}_finger{1}_bend_decrease_range_CLAMP".format(
+                                                                                       self.model.module_name, (n + x)))
+            last_phalanx_bend_decrease_percent = pmc.createNode("setRange",
+                                                                   n="{0}_finger{1}_bend_decrease_percent_RANGE".format(
+                                                                                       self.model.module_name, (n + x)))
+            last_phalanx_bend_decrease_percent_invert = pmc.createNode("plusMinusAverage",
+                                                              n="{0}_finger{1}_bend_decrease_percent_invert_PMA".format(
+                                                                                      self.model.module_name,  (n + x)))
+            last_phalanx_bend_value = pmc.createNode("multDoubleLinear",
+                                                              n="{0}_finger{1}_bend_decrease_percent_invert_MDL".format(
+                                                                                       self.model.module_name, (n + x)))
+
+            ik_ctrl.lastPhalanxBend_decrease_range_start >> last_phalanx_bend_decrease_range.minR
+            last_phalanx_bend_decrease_range.setAttr("maxR", 1)
+            ik_stretch_value.outputX >> last_phalanx_bend_decrease_range.inputR
+            last_phalanx_bend_decrease_percent.setAttr("minX", 0)
+            last_phalanx_bend_decrease_percent.setAttr("maxX", 1)
+            ik_ctrl.lastPhalanxBend_decrease_range_start >> last_phalanx_bend_decrease_percent.oldMinX
+            last_phalanx_bend_decrease_percent.setAttr("oldMaxX", 1)
+            last_phalanx_bend_decrease_range.outputR >> last_phalanx_bend_decrease_percent.valueX
+            last_phalanx_bend_decrease_percent_invert.setAttr("operation", 2)
+            last_phalanx_bend_decrease_percent_invert.setAttr("input1D[0]", 1)
+            last_phalanx_bend_decrease_percent.outValueX >> last_phalanx_bend_decrease_percent_invert.input1D[1]
+            ik_ctrl.lastPhalanxBend >> last_phalanx_bend_value.input1
+            last_phalanx_bend_decrease_percent_invert.output1D >> last_phalanx_bend_value.input2
+            last_phalanx_bend_value.output >> end_ik_setup_jnt.rotateZ
+
+            created_ik_ctrls = [ik_ctrl, auto_pole_vector]
+
+            finger[0].setAttr("rotate", metacarpus_fk_ctrl_value)
+            finger[1].setAttr("rotate", finger_fk_ctrl_01_value)
+            finger[2].setAttr("rotate", finger_fk_ctrl_02_value)
+            finger[3].setAttr("rotate", finger_fk_ctrl_03_value)
+            finger[3].setAttr("rotate", finger_fk_ctrl_04_value)
+
+            global_ik_handle.setAttr("visibility", 0)
+
+            finger_end_fk_pos_reader = pmc.spaceLocator(p=(0, 0, 0),
+                                                        n="{0}_finger{1}_fk_pos_reader_LOC".format(
+                                                                                       self.model.module_name, (n + x)))
+            finger_end_fk_pos_reader.setAttr("rotateOrder", 3)
+            finger_end_fk_pos_reader.setAttr("visibility", 0)
+            pmc.parent(finger_end_fk_pos_reader, finger[-1], r=1)
+            finger_end_fk_pos_reader.setAttr("rotate", (0, -90 * (1 - self.side_coef), 90))
+            rig_lib.clean_ctrl(finger_end_fk_pos_reader, 0, trs="trs")
+
+            pmc.xform(ik_ctrl, ws=1, translation=(pmc.xform(finger[-1], q=1, ws=1, translation=1)))
+            pmc.xform(ik_ctrl, ws=1, rotation=(pmc.xform(finger_end_fk_pos_reader, q=1, ws=1, rotation=1)))
+
+            pmc.xform(auto_pole_vector, ws=1,
+                      translation=(pmc.xform(finger[2], q=1, ws=1, translation=1)[0],
+                                   pmc.xform(finger[2], q=1, ws=1, translation=1)[1] + finger[2].getAttr("translateY"),
+                                   pmc.xform(finger[2], q=1, ws=1, translation=1)[2]))
+
+            self.parent_option_ctrl.fkIk >> start_ik_handle.ikBlend
+            self.parent_option_ctrl.fkIk >> end_ik_handle.ikBlend
+
     # TODO : remake the ctrls creation to copy the quadruped_front_leg ik/fk, cause to put an ik and each finger we need
     # TODO : to considerate them as a 4jnt ik setup
 

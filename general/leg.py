@@ -1035,6 +1035,7 @@ class Controller(RigController):
                                             pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[1],
                                             pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)[2] + (
                                                 (pmc.xform(self.created_ctrtl_jnts[1], q=1, translation=1)[1]) * self.side_coef)))
+
         auto_pole_vector_shape = rig_lib.jnt_shape_curve("{0}_auto_poleVector_CTRL_shape".format(self.model.module_name))
         auto_pole_vector = rig_lib.create_jnttype_ctrl("{0}_auto_poleVector_CTRL".format(self.model.module_name),
                                                        auto_pole_vector_shape, drawstyle=2)
