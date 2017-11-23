@@ -953,7 +953,11 @@ def change_shape_color(selection, color):
     """ 2=dark_grey, 3=light_grey, 6=blue, 9=purple, 13=red, 14=green, 17=yellow, 20=pink """
     if isinstance(selection, list):
         for obj in selection:
-            shape = obj.getShape()
+            if pmc.nodeType(obj) == "nurbsCurve":
+                shape = obj
+            else:
+                shape = obj.getShape()
+
             if shape is not None:
                 pmc.setAttr(shape + ".overrideEnabled", 1)
                 pmc.setAttr(shape + ".overrideColor", color)
@@ -961,7 +965,10 @@ def change_shape_color(selection, color):
                 pmc.setAttr(obj + ".overrideEnabled", 1)
                 pmc.setAttr(obj + ".overrideColor", color)
     else:
-        shape = selection.getShape()
+        if pmc.nodeType(selection) == "nurbsCurve":
+            shape = selection
+        else:
+            shape = selection.getShape()
         if shape is not None:
             pmc.setAttr(shape + ".overrideEnabled", 1)
             pmc.setAttr(shape + ".overrideColor", color)

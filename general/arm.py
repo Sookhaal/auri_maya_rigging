@@ -628,7 +628,8 @@ class Controller(RigController):
         wrist_ctrl.scale >> self.created_fk_jnts[-1].scale
 
         if self.model.clavicle_creation_switch:
-            pmc.pointConstraint(pmc.listRelatives(self.clavicle_jnt, children=1)[0], shoulder_ofs, maintainOffset=1)
+            # pmc.pointConstraint(pmc.listRelatives(self.clavicle_jnt, children=1)[0], shoulder_ofs, maintainOffset=1)
+            pmc.parent(shoulder_ofs, self.clavicle_ik_ctrl)
 
     def create_ik(self):
         ik_handle = pmc.ikHandle(n=("{0}_ik_HDL".format(self.model.module_name)),
@@ -782,7 +783,8 @@ class Controller(RigController):
 
         if self.model.clavicle_creation_switch:
             rig_lib.clean_ctrl(self.clavicle_ctrl, color_value, trs="s")
-            rig_lib.clean_ctrl(self.clavicle_ik_ctrl, color_value, trs="rs",
+            rig_lib.clean_ctrl(self.clavicle_ik_ctrl, color_value, trs="rs")
+            rig_lib.clean_ctrl(self.clavicle_ik_ctrl.getShape(), color_value, trs="",
                                visibility_dependence=self.option_ctrl.clavicleIkCtrl)
 
         if self.model.fk_ik_type == "three_chains":
@@ -920,7 +922,8 @@ class Controller(RigController):
                                   self.created_ctrtl_jnts[2].getShape()]
 
         if self.model.clavicle_creation_switch:
-            pmc.pointConstraint(pmc.listRelatives(self.clavicle_jnt, children=1)[0], shoulder_ofs, maintainOffset=1)
+            # pmc.pointConstraint(pmc.listRelatives(self.clavicle_jnt, children=1)[0], shoulder_ofs, maintainOffset=1)
+            pmc.parent(shoulder_ofs, self.clavicle_ik_ctrl)
 
     def create_one_chain_ik(self):
         fk_ctrl_01_value = pmc.xform(self.created_ctrtl_jnts[0], q=1, rotation=1)
