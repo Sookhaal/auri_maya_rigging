@@ -357,7 +357,7 @@ class Controller(RigController):
             self.create_fk()
             if self.model.ik_creation_switch:
                 self.create_ik()
-            if self.model.stretch_creation_switch == 1:
+            if self.model.stretch_creation_switch:
                 self.connect_fk_stretch(self.created_fk_jnts, self.created_fk_ctrls)
                 if self.model.ik_creation_switch:
                     self.connect_ik_stretch(self.created_ik_jnts, self.created_ik_ctrls, self.side_coef,
@@ -368,7 +368,7 @@ class Controller(RigController):
             self.create_and_connect_ctrl_jnts()
             self.create_one_chain_fk()
             self.create_one_chain_ik()
-            if self.model.stretch_creation_switch == 1:
+            if self.model.stretch_creation_switch:
                 self.connect_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0],
                                                      self.option_ctrl, self.created_skn_jnts)
 
@@ -710,6 +710,9 @@ class Controller(RigController):
             if "local_ctrl" in name:
                 name = "world"
             spaces_names.append(name)
+
+            if pmc.objExists("{0}_{1}_SPACELOC".format(self.model.module_name, name)):
+                pmc.delete("{0}_{1}_SPACELOC".format(self.model.module_name, name))
 
             space_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_{1}_SPACELOC".format(self.model.module_name, name))
             space_locs.append(space_loc)

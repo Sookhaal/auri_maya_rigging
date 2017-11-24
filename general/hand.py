@@ -20,6 +20,7 @@ class View(AuriScriptView):
         self.how_many_fingers = QtWidgets.QSpinBox()
         self.how_many_phalanges = QtWidgets.QSpinBox()
         self.ik_creation_switch = QtWidgets.QCheckBox()
+        self.stretch_creation_switch = QtWidgets.QCheckBox()
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -35,6 +36,7 @@ class View(AuriScriptView):
         self.how_many_phalanges.setValue(self.model.how_many_phalanges)
         self.ctrl.look_for_parent()
         self.ik_creation_switch.setChecked(self.model.ik_creation_switch)
+        self.stretch_creation_switch.setChecked(self.model.stretch_creation_switch)
 
     def setup_ui(self):
         self.modules_cbbox.setModel(self.ctrl.modules_with_output)
@@ -55,6 +57,8 @@ class View(AuriScriptView):
         self.how_many_phalanges.valueChanged.connect(self.ctrl.on_how_many_phalanges_changed)
 
         self.ik_creation_switch.stateChanged.connect(self.ctrl.on_ik_creation_switch_changed)
+
+        self.stretch_creation_switch.stateChanged.connect(self.ctrl.on_stretch_creation_switch_changed)
 
         self.refresh_btn.clicked.connect(self.ctrl.look_for_parent)
         self.prebuild_btn.clicked.connect(self.ctrl.prebuild)
@@ -98,8 +102,14 @@ class View(AuriScriptView):
         ik_creation_layout.addWidget(ik_creation_text)
         ik_creation_layout.addWidget(self.ik_creation_switch)
 
+        stretch_layout = QtWidgets.QHBoxLayout()
+        stretch_text = QtWidgets.QLabel("stretch/squash :")
+        stretch_layout.addWidget(stretch_text)
+        stretch_layout.addWidget(self.stretch_creation_switch)
+
         options_layout.addLayout(thumb_layout)
         options_layout.addLayout(ik_creation_layout)
+        options_layout.addLayout(stretch_layout)
         options_layout.addLayout(fingers_layout)
 
         main_layout.addLayout(select_parent_and_object_layout)
@@ -408,22 +418,25 @@ class Controller(RigController):
         self.create_skn_jnts()
         self.create_fk_ctrls()
 
-        if self.model.ik_creation_switch and self.model.how_many_phalanges == 3:
-            if self.model.thumb_creation_switch:
+        if self.model.ik_creation_switch:
+            if self.model.how_many_phalanges == 2:
+                self.create_2phalanges_ik(self.created_fk_ctrls)
+
+            elif self.model.how_many_phalanges == 3 and self.model.thumb_creation_switch:
                 self.create_2phalanges_ik(self.created_fk_ctrls[:1])
                 self.create_3phalanges_ik(self.created_fk_ctrls[1:], 2)
-            else:
+
+            elif self.model.how_many_phalanges == 3:
                 self.create_3phalanges_ik(self.created_fk_ctrls[:], 1)
 
-        elif self.model.ik_creation_switch and self.model.how_many_phalanges == 2:
-            self.create_2phalanges_ik(self.created_fk_ctrls)
-
-        elif self.model.ik_creation_switch:
-            if self.model.thumb_creation_switch:
+            elif self.model.thumb_creation_switch:
                 self.create_2phalanges_ik(self.created_fk_ctrls[:1])
                 self.create_x_phalanges_ik(self.created_fk_ctrls[1:], 2)
+
             else:
                 self.create_x_phalanges_ik(self.created_fk_ctrls[:], 1)
+
+            self.create_ik_local_spaces()
 
         self.create_options_attributes()
         self.clean_rig()
@@ -546,7 +559,7 @@ class Controller(RigController):
         for n, finger in enumerate(self.created_skn_jnts):
             created_finger_ctrls = []
             for i, jnt in enumerate(finger):
-                if 1 < i < len(finger):
+                if 1 < i < len(finger) - 1:
                     ctrl_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=0.5, d=3, s=8,
                                             n="{0}_finger{1}_{2}_fk_CTRL_shape".format(self.model.module_name,
                                                                                        (n + 1), i), ch=0)[0]
@@ -556,10 +569,7 @@ class Controller(RigController):
                     ctrl.setAttr("radius", 0)
                     ctrl.setAttr("translate", pmc.xform(jnt, q=1, ws=1, translation=1))
                     pmc.parent(ctrl, created_finger_ctrls[i - 1], r=0)
-                    if i == len(finger) - 1:
-                        ctrl.setAttr("visibility", 0)
-                    else:
-                        pmc.reorder(ctrl, front=1)
+                    pmc.reorder(ctrl, front=1)
 
                     ctrl.setAttr("jointOrient", (0, 0, 0))
 
@@ -628,6 +638,21 @@ class Controller(RigController):
                     # jnt_offset.output1D >> self.created_skn_jnts[n][i].rotateX
                     # ctrl.rotateY >> self.created_skn_jnts[n][i].rotateY
                     # ctrl.rotateZ >> self.created_skn_jnts[n][i].rotateZ
+
+                    created_finger_ctrls.append(ctrl)
+
+                elif i == len(finger) - 1:
+                    pmc.select(d=1)
+                    ctrl = pmc.joint(p=(0, 0, 0), n="{0}_finger{1}_{2}_fk_JNT".format(self.model.module_name, (n + 1), i))
+                    ctrl.setAttr("drawStyle", 2)
+                    ctrl.setAttr("rotateOrder", 1)
+                    ctrl.setAttr("translate", pmc.xform(jnt, q=1, ws=1, translation=1))
+                    pmc.parent(ctrl, created_finger_ctrls[i - 1], r=0)
+                    ctrl.setAttr("visibility", 0)
+
+                    ctrl.setAttr("jointOrient", (0, 0, 0))
+
+                    ctrl.setAttr("rotate", pmc.xform(self.created_skn_jnts[n][i], q=1, rotation=1))
 
                     created_finger_ctrls.append(ctrl)
 
@@ -759,7 +784,7 @@ class Controller(RigController):
                                                                                     self.model.module_name, (n + x)))[0]
             third_phalanx_ik_setup_jnt = pmc.ls("{0}_finger{1}_0_ik_setup_JNT|{0}_finger{1}_1_fk_CTRL|{0}_finger{1}_2_fk_CTRL|{0}_finger{1}_3_fk_CTRL".format(
                                                                                     self.model.module_name, (n + x)))[0]
-            end_ik_setup_jnt = pmc.ls("{0}_finger{1}_0_ik_setup_JNT|{0}_finger{1}_1_fk_CTRL|{0}_finger{1}_2_fk_CTRL|{0}_finger{1}_3_fk_CTRL|{0}_finger{1}_4_fk_CTRL".format(
+            end_ik_setup_jnt = pmc.ls("{0}_finger{1}_0_ik_setup_JNT|{0}_finger{1}_1_fk_CTRL|{0}_finger{1}_2_fk_CTRL|{0}_finger{1}_3_fk_CTRL|{0}_finger{1}_4_fk_JNT".format(
                                                                                     self.model.module_name, (n + x)))[0]
 
             first_phalanx_ik_setup_jnt.rename("{0}_finger{1}_1_ik_setup_JNT".format(self.model.module_name, (n + x)))
@@ -771,7 +796,8 @@ class Controller(RigController):
                               second_phalanx_ik_setup_jnt, third_phalanx_ik_setup_jnt, end_ik_setup_jnt]
 
             for jnt in ik_setup_chain:
-                pmc.delete(jnt.getShape())
+                if jnt != ik_setup_chain[-1]:
+                    pmc.delete(jnt.getShape())
                 jnt.setAttr("radius", 0.1)
 
             metacarpus_ik_setup_jnt.setAttr("visibility", 0)
@@ -911,33 +937,36 @@ class Controller(RigController):
             ik_stretch_value = pmc.createNode("multiplyDivide", n="{0}_finger{1}_ik_stretch_value_MDV".format(
                                                                                        self.model.module_name, (n + x)))
             global_scale = pmc.ls(regex=".*_global_mult_local_scale_MDL$")[0]
-            base_lenght = pmc.createNode("plusMinusAverage", n="{0}_finger{1}_ik_base_length_PMA".format(
+            base_length = pmc.createNode("plusMinusAverage", n="{0}_finger{1}_ik_base_length_PMA".format(
                                                                                        self.model.module_name, (n + x)))
 
             ik_global_scale.setAttr("operation", 2)
             length_measure.distance >> ik_global_scale.input1X
             global_scale.output >> ik_global_scale.input2X
             ik_stretch_value.setAttr("operation", 2)
-            base_lenght.output1D >> ik_stretch_value.input2X
+            base_length.output1D >> ik_stretch_value.input2X
             ik_global_scale.outputX >> ik_stretch_value.input1X
 
-            for i, ctrl in enumerate(finger):
-                if i < (len(finger) - 1):
+            for i, ctrl in enumerate(finger[1:]):
+                if i < (len(finger) - 2):
                     ctrl.addAttr("baseLength", attributeType="float",
-                                 defaultValue=pmc.xform(finger[i + 1], q=1, translation=1)[1] * self.side_coef,
+                                 defaultValue=pmc.xform(finger[i + 2], q=1, translation=1)[1] * self.side_coef,
                                  hidden=0, keyable=0)
                     ctrl.setAttr("baseLength", lock=1, channelBox=0)
-                    ctrl.addAttr("stretch", attributeType="float", defaultValue=1, hidden=0, keyable=1,
-                                 hasMinValue=1, minValue=0)
-                    jnt_lenght = pmc.createNode("multiplyDivide",
-                                                n="{0}_finger{1}_jnt_{2}_length_MDV".format(self.model.module_name,
-                                                                                            (n + x), i))
-                    ctrl.baseLength >> jnt_lenght.input1Y
-                    ctrl.stretch >> jnt_lenght.input2Y
-                    jnt_lenght.outputY >> base_lenght.input1D[i]
+                    if self.model.stretch_creation_switch:
+                        ctrl.addAttr("stretch", attributeType="float", defaultValue=1, hidden=0, keyable=1,
+                                     hasMinValue=1, minValue=0)
+                        jnt_length = pmc.createNode("multiplyDivide",
+                                                    n="{0}_finger{1}_jnt_{2}_length_MDV".format(self.model.module_name,
+                                                                                                (n + x), i))
+                        ctrl.baseLength >> jnt_length.input1Y
+                        ctrl.stretch >> jnt_length.input2Y
+                        jnt_length.outputY >> base_length.input1D[i]
+                    else:
+                        ctrl.baseLength >> base_length.input1D[i]
 
             ik_ctrl.addAttr("lastPhalanxBend", attributeType="float", defaultValue=0, hidden=0, keyable=1)
-            ik_ctrl.addAttr("lastPhalanxBend_decrease_range_start", attributeType="float", defaultValue=0.9, hidden=0,
+            ik_ctrl.addAttr("lastPhalanxBend_decrease_range_start", attributeType="float", defaultValue=0.8, hidden=0,
                             keyable=0, readable=1, writable=1, hasMinValue=1, minValue=0, hasMaxValue=1, maxValue=1)
             last_phalanx_bend_decrease_range = pmc.createNode("clamp",
                                                                      n="{0}_finger{1}_bend_decrease_range_CLAMP".format(
@@ -1005,6 +1034,13 @@ class Controller(RigController):
             finger[0].setAttr("fkIk", 0)
 
             self.ik_ctrls.append(created_ik_ctrls)
+
+            if self.model.stretch_creation_switch:
+                self.connect_quadruped_one_chain_fk_ik_stretch(finger[1:], created_ik_ctrls[0], finger[0],
+                                                               ik_setup_chain[1:], self.created_skn_jnts[n+x-1][1:],
+                                                               self.side_coef,
+                                                               name="{0}_finger{1}".format(self.model.module_name, n+x),
+                                                               finger=1)
 
     def create_2phalanges_ik(self, fk_ctrls):
         for n, finger in enumerate(fk_ctrls):
@@ -1123,6 +1159,11 @@ class Controller(RigController):
 
             self.ik_ctrls.append(created_ik_ctrls)
 
+            if self.model.stretch_creation_switch:
+                self.connect_one_chain_fk_ik_stretch(finger[1:], created_ik_ctrls[0], finger[0],
+                                                     self.created_skn_jnts[n][1:],
+                                                     name="{0}_finger{1}".format(self.model.module_name, n+1), finger=1)
+
     def create_x_phalanges_ik(self, fk_ctrls, x):
         for n, finger in enumerate(fk_ctrls):
             finger_fk_ctrl_values = []
@@ -1240,6 +1281,27 @@ class Controller(RigController):
 
             self.ik_ctrls.append(created_ik_ctrls)
 
+            if self.model.stretch_creation_switch:
+                self.connect_one_chain_fk_ik_stretch(finger[1:], created_ik_ctrls[0], finger[0],
+                                                     self.created_skn_jnts[n+x-1][1:],
+                                                     name="{0}_finger{1}".format(self.model.module_name, n+x), finger=1)
+
+    def create_ik_local_spaces(self):
+        for n, finger in enumerate(self.ik_ctrls):
+            finger[0].addAttr("space", attributeType="enum", enumName=["world", "local"], hidden=0, keyable=1)
+
+            if pmc.objExists("{0}_finger{1}_world_SPACELOC".format(self.model.module_name, n+1)):
+                pmc.delete("{0}_finger{1}_world_SPACELOC".format(self.model.module_name, n+1))
+
+            world_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_finger{1}_world_SPACELOC".format(self.model.module_name, n+1))
+            world_loc.setAttr("translate", pmc.xform(self.created_skn_jnts[n][1], q=1, ws=1, translation=1))
+            world_parent = pmc.ls(regex=".*_local_ctrl_OUTPUT$")[0]
+            pmc.parent(world_loc, world_parent)
+
+            ik_const = pmc.parentConstraint(world_loc, finger[0].getParent(), maintainOffset=1)
+            rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(ik_const, world_loc, 0), finger[0].space, 0,
+                                                    "{0}_worldSpace_COND".format(finger[0]))
+
 
 class Model(AuriScriptModel):
     def __init__(self):
@@ -1251,3 +1313,4 @@ class Model(AuriScriptModel):
         self.thumb_creation_switch = True
         self.how_many_phalanges = 3
         self.ik_creation_switch = False
+        self.stretch_creation_switch = False

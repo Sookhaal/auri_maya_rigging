@@ -904,6 +904,9 @@ class Controller(RigController):
                 name = "world"
             spaces_names.append(name)
 
+            if pmc.objExists("{0}_{1}_SPACELOC".format(self.model.module_name, name)):
+                pmc.delete("{0}_{1}_SPACELOC".format(self.model.module_name, name))
+
             space_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_{1}_SPACELOC".format(self.model.module_name, name))
             space_locs.append(space_loc)
 
