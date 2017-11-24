@@ -757,8 +757,11 @@ class Controller(RigController):
         fk_rotation_effector.rename("{0}_ankle_rotation_ik_EFF".format(self.model.module_name))
         fk_rotation_hdl.setAttr("snapEnable", 0)
         fk_rotation_hdl.setAttr("ikBlend", 0)
+        fk_rotation_hdl.setAttr("poleVector", (-1 * self.side_coef, 0, 0))
         pmc.parent(fk_rotation_hdl, ik_ctrl, r=0)
+
         self.option_ctrl.fkIk >> fk_rotation_hdl.ikBlend
+
         fk_rotation_hdl.setAttr("visibility", 0)
         fk_rotation_jnt.setAttr("visibility", 0)
 

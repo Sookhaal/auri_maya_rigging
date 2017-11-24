@@ -973,7 +973,9 @@ class Controller(RigController):
         fk_rotation_hdl.setAttr("ikBlend", 0)
         fk_rotation_hdl.setAttr("poleVector", (0, -1, 0))
         pmc.parent(fk_rotation_hdl, ik_ctrl, r=0)
+
         self.option_ctrl.fkIk >> fk_rotation_hdl.ikBlend
+
         fk_rotation_hdl.setAttr("visibility", 0)
         fk_rotation_jnt.setAttr("visibility", 0)
 
