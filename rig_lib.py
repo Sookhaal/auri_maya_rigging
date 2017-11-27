@@ -166,16 +166,25 @@ class RigController(AuriScriptController):
         if not pmc.objExists("guide_GRP|{0}_guides".format(self.model.module_name)):
             return False
         if isinstance(guides_names, (str, unicode)):
-            if not pmc.objExists("guide_GRP|{0}_guides|{1}".format(self.model.module_name, guides_names)):
+            # if not pmc.objExists("guide_GRP|{0}_guides|{1}".format(self.model.module_name, guides_names)):
+            try:
+                pmc.ls(regex="guide_GRP\|{0}_guides\|.*{1}$".format(self.model.module_name, guides_names))[0]
+            except:
                 return False
         elif type(guides_names) == list:
             for guide in guides_names:
                 if isinstance(guide, (str, unicode)):
-                    if not pmc.objExists("guide_GRP|{0}_guides|{1}".format(self.model.module_name, guide)):
+                    # if not pmc.objExists("guide_GRP|{0}_guides|{1}".format(self.model.module_name, guide)):
+                    try:
+                        pmc.ls(regex="guide_GRP\|{0}_guides\|.*{1}$".format(self.model.module_name, guide))[0]
+                    except:
                         return False
                 elif type(guide) == list:
                     for obj in guide:
-                        if not pmc.objExists("guide_GRP|{0}_guides|{1}".format(self.model.module_name, obj)):
+                        # if not pmc.objExists("guide_GRP|{0}_guides|{1}".format(self.model.module_name, obj)):
+                        try:
+                            pmc.ls(regex="guide_GRP\|{0}_guides\|.*{1}$".format(self.model.module_name, obj))[0]
+                        except:
                             return False
                 else:
                     print("Wrong argument given to guide_check fonction")
@@ -1177,6 +1186,7 @@ def raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, skn_jnt, raz_ctrl_shape_axe="y"):
 
     ctrl.setAttr("jointOrient", (loc.getAttr("rotateX"), loc.getAttr("rotateY"), loc.getAttr("rotateZ")))
 
+    skn_jnt.disconnectAttr("jointOrient")
     ctrl.jointOrient >> skn_jnt.jointOrient
 
     ctrl.setAttr("rotate", (0, 0, 0))
@@ -1184,20 +1194,21 @@ def raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, skn_jnt, raz_ctrl_shape_axe="y"):
     # VERY IMPORTANT IF YOU DONT WANT TO HAVE FUCKING FLIP IN YOUR JNT_CHAIN :
     ctrl.setAttr("preferredAngle", (0, 0, 0))
 
-    ctrl_cvs = ctrl.cv[:]
-    for i, cv in enumerate(ctrl_cvs):
-        if raz_ctrl_shape_axe == "x":
-            pmc.xform(ctrl.getShape().controlPoints[i], ws=1, translation=(pmc.xform(ctrl, q=1, ws=1, translation=1)[0],
-                                                                           pmc.xform(cv, q=1, ws=1, translation=1)[1],
-                                                                           pmc.xform(cv, q=1, ws=1, translation=1)[2]))
-        elif raz_ctrl_shape_axe == "y":
-            pmc.xform(ctrl.getShape().controlPoints[i], ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0],
-                                                                           pmc.xform(ctrl, q=1, ws=1, translation=1)[1],
-                                                                           pmc.xform(cv, q=1, ws=1, translation=1)[2]))
-        elif raz_ctrl_shape_axe == "z":
-            pmc.xform(ctrl.getShape().controlPoints[i], ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0],
-                                                                           pmc.xform(cv, q=1, ws=1, translation=1)[1],
-                                                                           pmc.xform(ctrl, q=1, ws=1, translation=1)[2]))
+    if ctrl.getShape() is not None:
+        ctrl_cvs = ctrl.cv[:]
+        for i, cv in enumerate(ctrl_cvs):
+            if raz_ctrl_shape_axe == "x":
+                pmc.xform(ctrl.getShape().controlPoints[i], ws=1, translation=(pmc.xform(ctrl, q=1, ws=1, translation=1)[0],
+                                                                               pmc.xform(cv, q=1, ws=1, translation=1)[1],
+                                                                               pmc.xform(cv, q=1, ws=1, translation=1)[2]))
+            elif raz_ctrl_shape_axe == "y":
+                pmc.xform(ctrl.getShape().controlPoints[i], ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0],
+                                                                               pmc.xform(ctrl, q=1, ws=1, translation=1)[1],
+                                                                               pmc.xform(cv, q=1, ws=1, translation=1)[2]))
+            elif raz_ctrl_shape_axe == "z":
+                pmc.xform(ctrl.getShape().controlPoints[i], ws=1, translation=(pmc.xform(cv, q=1, ws=1, translation=1)[0],
+                                                                               pmc.xform(cv, q=1, ws=1, translation=1)[1],
+                                                                               pmc.xform(ctrl, q=1, ws=1, translation=1)[2]))
 
     pmc.delete(loc)
 

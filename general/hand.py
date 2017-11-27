@@ -21,6 +21,9 @@ class View(AuriScriptView):
         self.how_many_phalanges = QtWidgets.QSpinBox()
         self.ik_creation_switch = QtWidgets.QCheckBox()
         self.stretch_creation_switch = QtWidgets.QCheckBox()
+        self.raz_ik_ctrls = QtWidgets.QCheckBox()
+        self.raz_fk_ctrls = QtWidgets.QCheckBox()
+        self.roll_creation_switch = QtWidgets.QCheckBox()
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -37,6 +40,9 @@ class View(AuriScriptView):
         self.ctrl.look_for_parent()
         self.ik_creation_switch.setChecked(self.model.ik_creation_switch)
         self.stretch_creation_switch.setChecked(self.model.stretch_creation_switch)
+        self.raz_ik_ctrls.setChecked(self.model.raz_ik_ctrls)
+        self.raz_fk_ctrls.setChecked(self.model.raz_fk_ctrls)
+        self.roll_creation_switch.setChecked(self.model.roll_creation_switch)
 
     def setup_ui(self):
         self.modules_cbbox.setModel(self.ctrl.modules_with_output)
@@ -59,6 +65,11 @@ class View(AuriScriptView):
         self.ik_creation_switch.stateChanged.connect(self.ctrl.on_ik_creation_switch_changed)
 
         self.stretch_creation_switch.stateChanged.connect(self.ctrl.on_stretch_creation_switch_changed)
+
+        self.raz_ik_ctrls.stateChanged.connect(self.ctrl.on_raz_ik_ctrls_changed)
+        self.raz_fk_ctrls.stateChanged.connect(self.ctrl.on_raz_fk_ctrls_changed)
+
+        self.roll_creation_switch.stateChanged.connect(self.ctrl.on_roll_creation_switch_changed)
 
         self.refresh_btn.clicked.connect(self.ctrl.look_for_parent)
         self.prebuild_btn.clicked.connect(self.ctrl.prebuild)
@@ -107,9 +118,26 @@ class View(AuriScriptView):
         stretch_layout.addWidget(stretch_text)
         stretch_layout.addWidget(self.stretch_creation_switch)
 
+        roll_creation_layout = QtWidgets.QHBoxLayout()
+        roll_creation_text = QtWidgets.QLabel("Hand Roll :")
+        roll_creation_layout.addWidget(roll_creation_text)
+        roll_creation_layout.addWidget(self.roll_creation_switch)
+
+        raz_ik_ctrls_layout = QtWidgets.QHBoxLayout()
+        raz_ik_ctrls_text = QtWidgets.QLabel("\"Freez\" ik ctrls :")
+        raz_ik_ctrls_layout.addWidget(raz_ik_ctrls_text)
+        raz_ik_ctrls_layout.addWidget(self.raz_ik_ctrls)
+        raz_fk_ctrls_layout = QtWidgets.QHBoxLayout()
+        raz_fk_ctrls_text = QtWidgets.QLabel("\"Freez\" fk ctrls :")
+        raz_fk_ctrls_layout.addWidget(raz_fk_ctrls_text)
+        raz_fk_ctrls_layout.addWidget(self.raz_fk_ctrls)
+
         options_layout.addLayout(thumb_layout)
         options_layout.addLayout(ik_creation_layout)
         options_layout.addLayout(stretch_layout)
+        options_layout.addLayout(roll_creation_layout)
+        options_layout.addLayout(raz_ik_ctrls_layout)
+        options_layout.addLayout(raz_fk_ctrls_layout)
         options_layout.addLayout(fingers_layout)
 
         main_layout.addLayout(select_parent_and_object_layout)
@@ -129,7 +157,9 @@ class Controller(RigController):
         """
         self.guides_grp = None
         self.guides = []
+        self.roll_guides = []
         self.guides_names = []
+        self.roll_guides_names = []
         self.side = {}
         self.side_coef = 0
         self.created_skn_jnts = []
@@ -137,8 +167,12 @@ class Controller(RigController):
         self.parent_wrist_fk_ctrl = None
         self.parent_wrist_ik_ctrl = None
         self.parent_option_ctrl = None
+        self.parent_ik_handle = None
+        self.parent_ik_length_end_loc = None
+        self.parent_wrist_rotation_handle = None
         self.jnts_to_skin = []
         self.ik_ctrls = []
+        self.ik_setup_chain = []
         RigController.__init__(self, model, view)
 
     def on_how_many_fingers_changed(self, value):
@@ -149,6 +183,9 @@ class Controller(RigController):
 
     def on_thumb_creation_switch_changed(self, state):
         self.model.thumb_creation_switch = is_checked(state)
+
+    def on_roll_creation_switch_changed(self, state):
+        self.model.roll_creation_switch = is_checked(state)
 
     def prebuild(self):
         self.guides_names = []
@@ -268,6 +305,9 @@ class Controller(RigController):
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
             pmc.parent(planes_group, self.guides_grp)
             self.guides_grp.setAttr("visibility", 1)
+
+            self.roll_prebuild()
+
             self.view.refresh_view()
             pmc.select(d=1)
             return
@@ -285,10 +325,10 @@ class Controller(RigController):
 
         if self.model.thumb_creation_switch:
             thumb_wrist_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[0][0])
-            thumb_wrist_guide.setAttr("translate", (7.5 * self.side_coef, 14, 2))
+            thumb_wrist_guide.setAttr("translate", (7.5 * self.side_coef, 14, 2.5))
             thumb_guide = rig_lib.create_curve_guide(d=1, number_of_points=3, name=self.guides_names[0][1],
                                                      hauteur_curve=2)
-            thumb_guide.setAttr("translate", (8 * self.side_coef, 14, 2))
+            thumb_guide.setAttr("translate", (8 * self.side_coef, 14, 2.5))
             thumb_guide.setAttr("rotate", (0, 0, -90 * self.side_coef))
             thumb = [thumb_wrist_guide, thumb_guide]
             self.guides.append(thumb)
@@ -402,11 +442,49 @@ class Controller(RigController):
 
         self.guides_grp = self.group_guides(self.guides)
         pmc.parent(planes_group, self.guides_grp)
+
+        self.roll_prebuild()
+
         self.view.refresh_view()
         pmc.select(d=1)
 
+    def roll_prebuild(self):
+        self.roll_guides_names = ["{0}_ball_GUIDE".format(self.model.module_name),
+                                  "{0}_fingers_roll_GUIDE".format(self.model.module_name),
+                                  "{0}_inHand_GUIDE".format(self.model.module_name),
+                                  "{0}_ouHhand_GUIDE".format(self.model.module_name)]
+
+        if self.model.roll_creation_switch and self.guide_check(self.roll_guides_names):
+            self.roll_guides = pmc.ls(self.roll_guides_names)
+            return
+
+        elif self.model.roll_creation_switch:
+            ball_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.roll_guides_names[0])
+            fingers_roll_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.roll_guides_names[1])
+            inhand_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.roll_guides_names[2])
+            outhand_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.roll_guides_names[3])
+
+            ball_guide.setAttr("translate", (8.5 * self.side_coef, 14, 1.75 - (0.25 * self.model.how_many_fingers)))
+            fingers_roll_guide.setAttr("translate", (12.5 * self.side_coef, 14, 1.75 - (0.25 * self.model.how_many_fingers)))
+            inhand_guide.setAttr("translate", (8 * self.side_coef, 14, 2))
+            outhand_guide.setAttr("translate", (8 * self.side_coef, 14, 1.5 - (0.5 * self.model.how_many_fingers)))
+
+            self.roll_guides = [ball_guide, fingers_roll_guide, inhand_guide, outhand_guide]
+
+            roll_group = pmc.group(em=1, n="{0}_roll_guides".format(self.model.module_name))
+
+            for guide in self.roll_guides:
+                pmc.parent(guide, roll_group)
+
+            pmc.parent(roll_group, self.guides_grp)
+
+        else:
+            if pmc.objExists("{0}_roll_guides".format(self.model.module_name)):
+                pmc.delete("{0}_roll_guides".format(self.model.module_name))
+
     def execute(self):
         self.ik_ctrls = []
+        self.ik_setup_chain = []
 
         self.prebuild()
 
@@ -436,8 +514,28 @@ class Controller(RigController):
             else:
                 self.create_x_phalanges_ik(self.created_fk_ctrls[:], 1)
 
+            if self.model.roll_creation_switch:
+                self.create_ik_roll()
+
+            if self.model.raz_ik_ctrls:
+                for n, finger in enumerate(self.ik_ctrls):
+                    rig_lib.raz_one_chain_ik_ctrl_translate_rotate(finger[0])
+                    pmc.xform(finger[1], ws=1, translation=(pmc.xform(self.created_fk_ctrls[n][len(self.created_fk_ctrls[n])/2],
+                                                                      q=1, ws=1, translation=1)))
+
             self.create_ik_local_spaces()
 
+            if self.model.raz_fk_ctrls:
+                for n, finger in enumerate(self.created_fk_ctrls):
+                    for i, ctrl in enumerate(finger):
+                        if i == 0:
+                            rig_lib.raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, self.created_skn_jnts[n][i],
+                                                                      raz_ctrl_shape_axe="")
+                        else:
+                            rig_lib.raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, self.created_skn_jnts[n][i],
+                                                                      raz_ctrl_shape_axe="x")
+
+        return
         self.create_options_attributes()
         self.clean_rig()
         pmc.select(d=1)
@@ -446,6 +544,10 @@ class Controller(RigController):
         self.parent_wrist_fk_ctrl = pmc.ls("{0}_wrist_fk_CTRL".format(self.model.selected_module))[0]
         self.parent_wrist_ik_ctrl = pmc.ls("{0}_wrist_ik_CTRL".format(self.model.selected_module))[0]
         self.parent_option_ctrl = pmc.ls("{0}_option_CTRL".format(self.model.selected_module))[0]
+        self.parent_ik_handle = pmc.ls("{0}_ik_HDL".format(self.model.selected_module))[0]
+        self.parent_ik_length_end_loc = pmc.ls("{0}_ik_length_end_LOC".format(self.model.selected_module))[0]
+        if pmc.objExists("{0}_wrist_rotation_ik_HDL".format(self.model.selected_module)):
+            self.parent_wrist_rotation_handle = pmc.ls("{0}_wrist_rotation_ik_HDL".format(self.model.selected_module))[0]
 
     def create_skn_jnts(self):
         duplicate_guides = []
@@ -794,6 +896,8 @@ class Controller(RigController):
 
             ik_setup_chain = [metacarpus_ik_setup_jnt, first_phalanx_ik_setup_jnt,
                               second_phalanx_ik_setup_jnt, third_phalanx_ik_setup_jnt, end_ik_setup_jnt]
+
+            self.ik_setup_chain.append(ik_setup_chain)
 
             for jnt in ik_setup_chain:
                 if jnt != ik_setup_chain[-1]:
@@ -1302,6 +1406,160 @@ class Controller(RigController):
             rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(ik_const, world_loc, 0), finger[0].space, 0,
                                                     "{0}_worldSpace_COND".format(finger[0]))
 
+    def create_ik_roll(self):
+        duplicates_guides = []
+        for guide in self.roll_guides:
+            duplicate = guide.duplicate(n="{0}_duplicate".format(guide))[0]
+            duplicates_guides.append(duplicate)
+
+        if self.model.thumb_creation_switch:
+            fk_ctrls = self.created_fk_ctrls[1:]
+        else:
+            fk_ctrls = self.created_fk_ctrls[:]
+
+        fingers_ball_ik_handles = []
+        for n, finger in enumerate(fk_ctrls):
+            ball_ik_handle = pmc.ikHandle(n=("{0}_ball_ik_HDL".format(finger[0])), startJoint=finger[0],
+                                          endEffector=finger[1], solver="ikSCsolver")[0]
+            ik_effector = pmc.listRelatives(finger[0], children=1)[-1]
+            ik_effector.rename("{0}_ball_ik_EFF".format(finger[0]))
+
+            fingers_ball_ik_handles.append(ball_ik_handle)
+
+            if self.model.how_many_phalanges == 3:
+                ik_setup_ball_ik_handle = pmc.ikHandle(n=("{0}_ball_ik_HDL".format(self.ik_setup_chain[n][0])), startJoint=self.ik_setup_chain[n][0],
+                                                       endEffector=self.ik_setup_chain[n][1], solver="ikSCsolver")[0]
+                ik_setup_ik_effector = pmc.listRelatives(self.ik_setup_chain[n][0], children=1)[-1]
+                ik_setup_ik_effector.rename("{0}_ball_ik_EFF".format(self.ik_setup_chain[n][0]))
+
+                fingers_ball_ik_handles.append(ik_setup_ball_ik_handle)
+
+        ball_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ball_LOC".format(self.model.module_name))
+        finger_roll_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_finger_roll_LOC".format(self.model.module_name))
+        inhand_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_inhand_LOC".format(self.model.module_name))
+        inhand_loc.setAttr("rotateOrder", 3)
+        outhand_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_outhand_LOC".format(self.model.module_name))
+        outhand_loc.setAttr("rotateOrder", 3)
+
+        ball_loc.setAttr("translate", pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1))
+        finger_roll_loc.setAttr("translate", pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1))
+        inhand_loc.setAttr("translate", pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1))
+        inhand_loc.setAttr("rotateY", pmc.xform(duplicates_guides[2], q=1, ws=1, rotation=1)[1])
+        outhand_loc.setAttr("translate", pmc.xform(duplicates_guides[3], q=1, ws=1, translation=1))
+        outhand_loc.setAttr("rotateY", pmc.xform(duplicates_guides[3], q=1, ws=1, rotation=1)[1])
+
+        pmc.parent(outhand_loc, self.ctrl_input_grp)
+        pmc.parent(inhand_loc, outhand_loc)
+        pmc.parent(finger_roll_loc, inhand_loc)
+        pmc.parent(ball_loc, finger_roll_loc)
+        for ik_hdl in fingers_ball_ik_handles:
+            pmc.parent(ik_hdl, ball_loc, r=0)
+
+        created_locs = [ball_loc, finger_roll_loc, inhand_loc, outhand_loc]
+
+        pmc.delete(duplicates_guides[:])
+
+        pmc.parent(self.parent_ik_handle, world=1)
+        pmc.parent(self.parent_ik_length_end_loc, world=1)
+        if pmc.objExists("{0}_roll_OFS".format(self.model.module_name)):
+            pmc.delete("{0}_roll_OFS".format(self.model.module_name))
+        locs_offset = pmc.group(em=1, n="{0}_roll_OFS".format(self.model.module_name))
+        locs_offset.setAttr("translate", pmc.xform(self.parent_wrist_ik_ctrl, q=1, ws=1, translation=1))
+        locs_offset.setAttr("rotateOrder", 3)
+        pmc.parent(locs_offset, self.parent_wrist_ik_ctrl, r=0)
+        pmc.parent(outhand_loc, locs_offset, r=0)
+        pmc.parent(self.parent_ik_handle, ball_loc, r=0)
+        pmc.parent(self.parent_ik_length_end_loc, ball_loc, r=0)
+
+        if self.parent_wrist_rotation_handle is not None:
+            pmc.pointConstraint(self.parent_ik_handle, self.parent_wrist_rotation_handle, maintainOffset=1)
+
+        if "roll" in pmc.listAttr(self.parent_wrist_ik_ctrl, keyable=1):
+            self.parent_wrist_ik_ctrl.deleteAttr("roll")
+        self.parent_wrist_ik_ctrl.addAttr("roll", attributeType="float", defaultValue=0, hasMinValue=1, minValue=0,
+                                          hidden=0, keyable=1)
+        if "bendLimitAngle" in pmc.listAttr(self.parent_wrist_ik_ctrl, keyable=1):
+            self.parent_wrist_ik_ctrl.deleteAttr("bendLimitAngle")
+        self.parent_wrist_ik_ctrl.addAttr("bendLimitAngle", attributeType="float", defaultValue=45, hidden=0, keyable=1)
+        if "palmStraightAngle" in pmc.listAttr(self.parent_wrist_ik_ctrl, keyable=1):
+            self.parent_wrist_ik_ctrl.deleteAttr("palmStraightAngle")
+        self.parent_wrist_ik_ctrl.addAttr("palmStraightAngle", attributeType="float", defaultValue=70, hidden=0, keyable=1)
+        if "bank" in pmc.listAttr(self.parent_wrist_ik_ctrl, keyable=1):
+            self.parent_wrist_ik_ctrl.deleteAttr("bank")
+        self.parent_wrist_ik_ctrl.addAttr("bank", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        if "lean" in pmc.listAttr(self.parent_wrist_ik_ctrl, keyable=1):
+            self.parent_wrist_ik_ctrl.deleteAttr("lean")
+        self.parent_wrist_ik_ctrl.addAttr("lean", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+        if "fingerTwist" in pmc.listAttr(self.parent_wrist_ik_ctrl, keyable=1):
+            self.parent_wrist_ik_ctrl.deleteAttr("fingerTwist")
+        self.parent_wrist_ik_ctrl.addAttr("fingerTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+
+        roll_zerotobend_limit = pmc.createNode("clamp", n="{0}_zero_to_bend_CLAMP".format(self.model.module_name))
+        roll_zerotobend_percent = pmc.createNode("setRange",
+                                                 n="{0}_zero_to_bend_percent_RANGE".format(self.model.module_name))
+        roll_bendtostraight_limit = pmc.createNode("clamp",
+                                                   n="{0}_bend_to_straight_CLAMP".format(self.model.module_name))
+        roll_bendtostraight_percent = pmc.createNode("setRange",
+                                                     n="{0}_bend_to_straight_percent_RANGE".format(
+                                                         self.model.module_name))
+        roll_finger_mult = pmc.createNode("multiplyDivide", n="{0}_finger_roll_mult_MDV".format(self.model.module_name))
+        roll_bendtostraight_invertpercent = pmc.createNode("plusMinusAverage",
+                                                           n="{0}_invert_percent_RANGE".format(
+                                                               self.model.module_name))
+        roll_ball_percent_mult = pmc.createNode("multiplyDivide",
+                                                n="{0}_ball_percent_mult_MDV".format(self.model.module_name))
+        roll_ball_mult = pmc.createNode("multiplyDivide", n="{0}_ball_roll_mult_MDV".format(self.model.module_name))
+        roll_finger_invert_value = pmc.createNode("multDoubleLinear", n="{0}_finger_roll_invert_value_MDL".format(self.model.module_name))
+        roll_ball_invert_value = pmc.createNode("multDoubleLinear", n="{0}_ball_roll_invert_value_MDL".format(self.model.module_name))
+
+        self.parent_wrist_ik_ctrl.bendLimitAngle >> roll_bendtostraight_limit.minR
+        self.parent_wrist_ik_ctrl.palmStraightAngle >> roll_bendtostraight_limit.maxR
+        self.parent_wrist_ik_ctrl.roll >> roll_bendtostraight_limit.inputR
+
+        roll_bendtostraight_percent.setAttr("minX", 0)
+        roll_bendtostraight_percent.setAttr("maxX", 1)
+        roll_bendtostraight_limit.inputR >> roll_bendtostraight_percent.valueX
+        roll_bendtostraight_limit.minR >> roll_bendtostraight_percent.oldMinX
+        roll_bendtostraight_limit.maxR >> roll_bendtostraight_percent.oldMaxX
+
+        roll_finger_mult.setAttr("operation", 1)
+        roll_bendtostraight_percent.outValueX >> roll_finger_mult.input1X
+        roll_bendtostraight_limit.inputR >> roll_finger_mult.input2X
+
+        roll_finger_invert_value.setAttr("input2", -1)
+        roll_finger_mult.outputX >> roll_finger_invert_value.input1
+        roll_finger_invert_value.output >> finger_roll_loc.rotateZ
+
+        roll_bendtostraight_invertpercent.setAttr("operation", 2)
+        roll_bendtostraight_invertpercent.setAttr("input1D[0]", 1)
+        roll_bendtostraight_percent.outValueX >> roll_bendtostraight_invertpercent.input1D[1]
+
+        roll_zerotobend_limit.setAttr("minR", 0)
+        self.parent_wrist_ik_ctrl.bendLimitAngle >> roll_zerotobend_limit.maxR
+        self.parent_wrist_ik_ctrl.roll >> roll_zerotobend_limit.inputR
+
+        roll_zerotobend_percent.setAttr("minX", 0)
+        roll_zerotobend_percent.setAttr("maxX", 1)
+        roll_zerotobend_limit.inputR >> roll_zerotobend_percent.valueX
+        roll_zerotobend_limit.minR >> roll_zerotobend_percent.oldMinX
+        roll_zerotobend_limit.maxR >> roll_zerotobend_percent.oldMaxX
+
+        roll_ball_percent_mult.setAttr("operation", 1)
+        roll_zerotobend_percent.outValueX >> roll_ball_percent_mult.input1X
+        roll_bendtostraight_invertpercent.output1D >> roll_ball_percent_mult.input2X
+
+        roll_ball_mult.setAttr("operation", 1)
+        roll_ball_percent_mult.outputX >> roll_ball_mult.input1X
+        self.parent_wrist_ik_ctrl.roll >> roll_ball_mult.input2X
+
+        roll_ball_invert_value.setAttr("input2", -1)
+        roll_ball_mult.outputX >> roll_ball_invert_value.input1
+        roll_ball_invert_value.output >> ball_loc.rotateZ
+# TODO: make the ik_blend of the balls_ik_handles to turn off when switching to fk
+# TODO: finish to add the bank and lean nodes-connections
+# TODO: check if the ik of the metacarpus dont create issues with hand mouvement
+# TODO: make the ball_loc and finger_roll_loc to follow the hand and the fingers to always be at the right spot
+# TODO: make the ik_hdl of the metacarpus to follow the metacarpus when ik is disable
 
 class Model(AuriScriptModel):
     def __init__(self):
@@ -1314,3 +1572,6 @@ class Model(AuriScriptModel):
         self.how_many_phalanges = 3
         self.ik_creation_switch = False
         self.stretch_creation_switch = False
+        self.raz_ik_ctrls = False
+        self.raz_fk_ctrls = False
+        self.roll_creation_switch = False

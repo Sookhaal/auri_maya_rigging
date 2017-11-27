@@ -106,7 +106,7 @@ class Controller(RigController):
     def prebuild(self):
         self.guides_names = ["{0}_ankle_GUIDE".format(self.model.module_name), "{0}_ball_GUIDE".format(self.model.module_name),
                              "{0}_toe_GUIDE".format(self.model.module_name), "{0}_heel_GUIDE".format(self.model.module_name),
-                             "{0}_infoot_GUIDE".format(self.model.module_name), "{0}_outfoot_GUIDE".format(self.model.module_name), ]
+                             "{0}_infoot_GUIDE".format(self.model.module_name), "{0}_outfoot_GUIDE".format(self.model.module_name)]
 
         self.side = {"Left": 1, "Right": -1}
         self.side_coef = self.side.get(self.model.side)
