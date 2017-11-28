@@ -328,6 +328,7 @@ class Controller(RigController):
         pmc.parent(self.created_locs[0], start_ctrl, r=0)
 
         self.created_fk_ctrls[-1].setAttr("visibility", 0)
+        self.created_fk_ctrls[-1].disconnectAttr("inverseScale")
 
         self.created_ik_ctrls.append(start_ctrl)
         self.created_ik_ctrls.append(end_ctrl)
