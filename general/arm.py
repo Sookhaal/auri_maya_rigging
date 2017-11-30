@@ -231,6 +231,7 @@ class Controller(RigController):
         self.created_half_bones = []
         self.jnts_to_skin = []
         self.wrist_output = None
+        self.elbow_bend_ctrl = None
         RigController.__init__(self,  model, view)
 
     def on_how_many_arm_jnts_changed(self, value):
@@ -372,15 +373,17 @@ class Controller(RigController):
                 self.connect_one_chain_fk_ik_stretch(self.created_ctrtl_jnts, self.created_ik_ctrls[0],
                                                      self.option_ctrl, self.created_skn_jnts)
 
+            self.create_ik_elbow_snap()
+
             if self.model.deform_chain_creation_switch:
                 self.create_one_chain_half_bones()
 
                 self.jnts_to_skin.append(self.create_deformation_chain("{0}_shoulder_to_elbow".format(self.model.module_name),
-                                              self.created_half_bones[0], self.created_half_bones[1],
+                                              self.created_skn_jnts[0], self.created_skn_jnts[1],
                                               self.created_ctrtl_jnts[0], self.created_ctrtl_jnts[1],
                                               self.option_ctrl, self.model.how_many_arm_jnts, self.side_coef)[1:-1])
                 self.jnts_to_skin.append(self.create_deformation_chain("{0}_elbow_to_wrist".format(self.model.module_name),
-                                              self.created_half_bones[1], self.created_half_bones[2],
+                                              self.created_skn_jnts[1], self.created_skn_jnts[2],
                                               self.created_ctrtl_jnts[1], self.created_ctrtl_jnts[2],
                                               self.option_ctrl, self.model.how_many_forearm_jnts, self.side_coef)[1:-1])
 
@@ -819,6 +822,10 @@ class Controller(RigController):
             blend_scale.outputG >> self.wrist_output.scaleY
             blend_scale.outputB >> self.wrist_output.scaleZ
 
+        if self.model.deform_chain_creation_switch:
+            rig_lib.clean_ctrl(self.elbow_bend_ctrl, color_value, trs="s",
+                               visibility_dependence=self.option_ctrl.elbowBendCtrl)
+
         info_crv = rig_lib.signature_shape_curve("{0}_INFO".format(self.model.module_name))
         info_crv.getShape().setAttr("visibility", 0)
         info_crv.setAttr("hiddenInOutliner", 1)
@@ -1035,7 +1042,7 @@ class Controller(RigController):
         # invert_value.connectAttr("output1D", "{0}.{1}W1".format(const, self.created_ctrtl_jnts[-1]))
 
     def create_one_chain_half_bones(self):
-        self.created_half_bones = self.created_skn_jnts[:]
+        self.created_half_bones = []
 
         fk_ctrl_01_value = pmc.xform(self.created_ctrtl_jnts[0], q=1, rotation=1)
         fk_ctrl_02_value = pmc.xform(self.created_ctrtl_jnts[1], q=1, rotation=1)
@@ -1045,26 +1052,157 @@ class Controller(RigController):
         self.created_ctrtl_jnts[1].setAttr("rotate", (0, 0, 0))
         self.created_ctrtl_jnts[2].setAttr("rotate", (0, 0, 0))
 
-        for i, jnt in enumerate(self.created_half_bones):
+        for i, jnt in enumerate(self.created_skn_jnts):
             pmc.disconnectAttr(jnt, inputs=1, outputs=0)
 
             pmc.parent(jnt, self.jnt_const_group, r=0)
 
-            pmc.parentConstraint(self.created_ctrtl_jnts[i], jnt, maintainOffset=1, skipRotate=["x", "y", "z"])
+        for i, jnt in enumerate(self.created_skn_jnts):
+            half_bone = pmc.duplicate(jnt, n=str(jnt).replace("SKN", "HALFBONE"))[0]
+
+            pmc.parent(jnt, half_bone)
+
+            self.created_half_bones.append(half_bone)
+
+            pmc.parentConstraint(self.created_ctrtl_jnts[i], half_bone, maintainOffset=1, skipRotate=["x", "y", "z"])
 
             if i == 0:
-                rot_const = pmc.parentConstraint(self.clavicle_jnt, self.created_ctrtl_jnts[i], jnt, maintainOffset=1,
+                rot_const = pmc.parentConstraint(self.clavicle_jnt, self.created_ctrtl_jnts[i], half_bone, maintainOffset=1,
                                                  skipTranslate=["x", "y", "z"])
             else:
-                rot_const = pmc.parentConstraint(self.created_ctrtl_jnts[i-1], self.created_ctrtl_jnts[i], jnt,
+                rot_const = pmc.parentConstraint(self.created_ctrtl_jnts[i-1], self.created_ctrtl_jnts[i], half_bone,
                                                  maintainOffset=1, skipTranslate=["x", "y", "z"])
 
             rot_const.setAttr("interpType", 2)
             # self.created_ctrtl_jnts[i].scale >> jnt.scale
 
+        shoulder_target_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_shoulder_skn_target_LOC".format(self.model.module_name))
+        wrist_target_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_wrist_skn_target_LOC".format(self.model.module_name))
+
+        pmc.parent(shoulder_target_loc, self.created_half_bones[0], r=1)
+        pmc.parent(wrist_target_loc, self.created_half_bones[-1], r=1)
+
+        shoulder_target_loc.setAttr("translateY", 0.1)
+        wrist_target_loc.setAttr("translateY", 0.1)
+
+        pmc.aimConstraint(shoulder_target_loc, self.created_skn_jnts[0], maintainOffset=0, aimVector=(0.0, 1.0, 0.0),
+                          upVector=(1.0, 0.0, 0.0), worldUpType="objectrotation",
+                          worldUpVector=(1.0, 0.0, 0.0), worldUpObject=self.clavicle_jnt)
+        pmc.aimConstraint(wrist_target_loc, self.created_skn_jnts[-1], maintainOffset=0, aimVector=(0.0, 1.0, 0.0),
+                          upVector=(1.0, 0.0, 0.0), worldUpType="objectrotation",
+                          worldUpVector=(1.0, 0.0, 0.0), worldUpObject=self.created_ctrtl_jnts[-1])
+
+        elbow_bend_jnt = pmc.duplicate(self.created_skn_jnts[1], n="{0}_elbow_bend_JNT".format(self.model.module_name))[0]
+        pmc.parent(self.created_skn_jnts[1], elbow_bend_jnt)
+
+        elbow_bend_ctrl_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=1.5, d=3, s=8,
+                                                 n="{0}_elbow_bend_CTRL_shape".format(self.model.module_name), ch=0)[0]
+        self.elbow_bend_ctrl = rig_lib.create_jnttype_ctrl("{0}_elbow_bend_CTRL".format(self.model.module_name),
+                                                           elbow_bend_ctrl_shape, drawstyle=2, rotateorder=4)
+
+        pmc.select(d=1)
+        elbow_bend_ctrl_ofs = pmc.joint(p=(0, 0, 0), n="{0}_elbow_bend_ctrl_OFS".format(self.model.module_name))
+        elbow_bend_ctrl_ofs.setAttr("drawStyle", 2)
+        elbow_bend_ctrl_ofs.setAttr("rotateOrder", 4)
+
+        pmc.parent(self.elbow_bend_ctrl, elbow_bend_ctrl_ofs)
+        pmc.parent(elbow_bend_ctrl_ofs, self.ctrl_input_grp)
+
+        pmc.parentConstraint(self.created_half_bones[1], elbow_bend_ctrl_ofs, maintainOffset=0)
+
+        self.elbow_bend_ctrl.translate >> elbow_bend_jnt.translate
+        self.elbow_bend_ctrl.rotate >> elbow_bend_jnt.rotate
+
+        self.option_ctrl.addAttr("elbowBendCtrl", attributeType="bool", defaultValue=0, hidden=0, keyable=1)
+
         self.created_ctrtl_jnts[0].setAttr("rotate", fk_ctrl_01_value)
         self.created_ctrtl_jnts[1].setAttr("rotate", fk_ctrl_02_value)
         self.created_ctrtl_jnts[2].setAttr("rotate", fk_ctrl_03_value)
+
+    def create_ik_elbow_snap(self):
+        if self.model.stretch_creation_switch:
+            start_loc = pmc.ls("{0}_ik_length_start_LOC".format(self.model.module_name))[0]
+            end_loc = pmc.ls("{0}_ik_length_end_LOC".format(self.model.module_name))[0]
+
+        else:
+            start_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_start_LOC".format(self.model.module_name))
+            end_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_end_LOC".format(self.model.module_name))
+            pmc.parent(start_loc, self.created_ctrtl_jnts[0].getParent(), r=1)
+            pmc.parent(end_loc, self.created_ik_ctrls[0], r=1)
+            start_loc.setAttr("visibility", 0)
+            end_loc.setAttr("visibility", 0)
+
+        pv_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_pole_vector_LOC".format(self.model.module_name))
+        pmc.parent(pv_loc, self.created_ik_ctrls[1], r=1)
+        pv_loc.setAttr("visibility", 0)
+
+        arm_distance = pmc.createNode("distanceBetween", n="{0}_ik_shoulder_to_pole_vector_length_distBetween".format(
+            self.model.module_name))
+        forearm_distance = pmc.createNode("distanceBetween", n="{0}_ik_pole_vector_to_wrist_length_distBetween".format(
+            self.model.module_name))
+
+        start_loc.getShape().worldPosition >> arm_distance.point1
+        pv_loc.getShape().worldPosition >> arm_distance.point2
+        pv_loc.getShape().worldPosition >> forearm_distance.point1
+        end_loc.getShape().worldPosition >> forearm_distance.point2
+
+        arm_blend = pmc.createNode("blendColors", n="{0}_elbow_snap_arm_BLENDCOLOR".format(self.model.module_name))
+        forearm_blend = pmc.createNode("blendColors", n="{0}_elbow_snap_forearm_BLENDCOLOR".format(self.model.module_name))
+
+        if self.model.side == "Right":
+            invert_arm_distance = pmc.createNode("multDoubleLinear",
+                                                   n="{0}_ik_shoulder_to_pole_vector_invert_length_MDL".format(
+                                                       self.model.module_name))
+            invert_forearm_distance = pmc.createNode("multDoubleLinear",
+                                                  n="{0}_ik_pole_vector_to_wrist_invert_length_MDL".format(
+                                                      self.model.module_name))
+
+            invert_arm_distance.setAttr("input1", -1)
+            arm_distance.distance >> invert_arm_distance.input2
+            invert_forearm_distance.setAttr("input1", -1)
+            forearm_distance.distance >> invert_forearm_distance.input2
+
+            invert_arm_distance.output >> arm_blend.color1R
+            invert_forearm_distance.output >> forearm_blend.color1R
+        else:
+            arm_distance.distance >> arm_blend.color1R
+            forearm_distance.distance >> forearm_blend.color1R
+
+        if self.model.stretch_creation_switch:
+            stretch_arm_output = pmc.listConnections(self.created_ctrtl_jnts[1].translateY, source=1, destination=0,
+                                                       connections=1)[0][1]
+            stretch_forearm_output = pmc.listConnections(self.created_ctrtl_jnts[2].translateY, source=1, destination=0,
+                                                      connections=1)[0][1]
+
+            stretch_arm_output.outputR >> arm_blend.color2R
+            stretch_forearm_output.outputR >> forearm_blend.color2R
+
+            stretch_arm_output.outputR // self.created_ctrtl_jnts[1].translateY
+            stretch_forearm_output.outputR // self.created_ctrtl_jnts[2].translateY
+
+        else:
+            self.created_ctrtl_jnts[1].addAttr("baseTranslateY", attributeType="float",
+                                               defaultValue=pmc.xform(self.created_ctrtl_jnts[1], q=1, translation=1)[
+                                                   1],
+                                               hidden=0, keyable=0)
+            self.created_ctrtl_jnts[1].setAttr("baseTranslateY", lock=1, channelBox=0)
+            self.created_ctrtl_jnts[2].addAttr("baseTranslateY", attributeType="float",
+                                               defaultValue=pmc.xform(self.created_ctrtl_jnts[2], q=1, translation=1)[
+                                                   1],
+                                               hidden=0, keyable=0)
+            self.created_ctrtl_jnts[2].setAttr("baseTranslateY", lock=1, channelBox=0)
+
+            self.created_ctrtl_jnts[1].baseTranslateY >> arm_blend.color2R
+            self.created_ctrtl_jnts[2].baseTranslateY >> forearm_blend.color2R
+
+        arm_blend.outputR >> self.created_ctrtl_jnts[1].translateY
+        forearm_blend.outputR >> self.created_ctrtl_jnts[2].translateY
+
+        self.created_ik_ctrls[0].addAttr("snapElbow", attributeType="float", defaultValue=0, hidden=0, keyable=1,
+                                         hasMaxValue=1, hasMinValue=1, maxValue=1, minValue=0)
+
+        self.created_ik_ctrls[0].snapElbow >> arm_blend.blender
+        self.created_ik_ctrls[0].snapElbow >> forearm_blend.blender
 
 
 class Model(AuriScriptModel):
