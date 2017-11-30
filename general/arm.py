@@ -1086,8 +1086,8 @@ class Controller(RigController):
         wrist_target_loc.setAttr("translateY", 0.1)
 
         pmc.aimConstraint(shoulder_target_loc, self.created_skn_jnts[0], maintainOffset=0, aimVector=(0.0, 1.0, 0.0),
-                          upVector=(1.0, 0.0, 0.0), worldUpType="objectrotation",
-                          worldUpVector=(1.0, 0.0, 0.0), worldUpObject=self.clavicle_jnt)
+                          upVector=(0.0, 0.0, 1.0), worldUpType="objectrotation",
+                          worldUpVector=(0.0, 0.0, 1.0), worldUpObject=self.jnt_const_group)
         pmc.aimConstraint(wrist_target_loc, self.created_skn_jnts[-1], maintainOffset=0, aimVector=(0.0, 1.0, 0.0),
                           upVector=(1.0, 0.0, 0.0), worldUpType="objectrotation",
                           worldUpVector=(1.0, 0.0, 0.0), worldUpObject=self.created_ctrtl_jnts[-1])

@@ -230,6 +230,7 @@ class Controller(RigController):
         self.created_half_bones = []
         self.jnts_to_skin = []
         self.ankle_output = None
+        self.knee_bend_ctrl = None
         RigController.__init__(self, model, view)
 
     def on_how_many_thigh_jnts_changed(self, value):
@@ -870,6 +871,10 @@ class Controller(RigController):
             blend_scale.outputG >> self.ankle_output.scaleY
             blend_scale.outputB >> self.ankle_output.scaleZ
 
+        if self.model.deform_chain_creation_switch:
+            rig_lib.clean_ctrl(self.knee_bend_ctrl, color_value, trs="s",
+                               visibility_dependence=self.option_ctrl.kneeBendCtrl)
+
         info_crv = rig_lib.signature_shape_curve("{0}_INFO".format(self.model.module_name))
         info_crv.getShape().setAttr("visibility", 0)
         info_crv.setAttr("hiddenInOutliner", 1)
@@ -1116,7 +1121,7 @@ class Controller(RigController):
         # invert_value.connectAttr("output1D", "{0}.{1}W1".format(const, self.created_ctrtl_jnts[-1]))
 
     def create_one_chain_half_bones(self):
-        self.created_half_bones = self.created_skn_jnts[:]
+        self.created_half_bones = []
 
         fk_ctrl_01_value = pmc.xform(self.created_ctrtl_jnts[0], q=1, rotation=1)
         fk_ctrl_02_value = pmc.xform(self.created_ctrtl_jnts[1], q=1, rotation=1)
@@ -1126,22 +1131,70 @@ class Controller(RigController):
         self.created_ctrtl_jnts[1].setAttr("rotate", (0, 0, 0))
         self.created_ctrtl_jnts[2].setAttr("rotate", (0, 0, 0))
 
-        for i, jnt in enumerate(self.created_half_bones):
+        for i, jnt in enumerate(self.created_skn_jnts):
             pmc.disconnectAttr(jnt, inputs=1, outputs=0)
 
             pmc.parent(jnt, self.jnt_const_group, r=0)
 
-            pmc.parentConstraint(self.created_ctrtl_jnts[i], jnt, maintainOffset=1, skipRotate=["x", "y", "z"])
+        for i, jnt in enumerate(self.created_skn_jnts):
+            half_bone = pmc.duplicate(jnt, n=str(jnt).replace("SKN", "HALFBONE"))[0]
+
+            pmc.parent(jnt, half_bone)
+
+            self.created_half_bones.append(half_bone)
+
+            pmc.parentConstraint(self.created_ctrtl_jnts[i], half_bone, maintainOffset=1, skipRotate=["x", "y", "z"])
 
             if i == 0:
-                rot_const = pmc.parentConstraint(self.clavicle_jnt, self.created_ctrtl_jnts[i], jnt, maintainOffset=1,
+                rot_const = pmc.parentConstraint(self.clavicle_jnt, self.created_ctrtl_jnts[i], half_bone, maintainOffset=1,
                                                  skipTranslate=["x", "y", "z"])
             else:
-                rot_const = pmc.parentConstraint(self.created_ctrtl_jnts[i - 1], self.created_ctrtl_jnts[i], jnt,
+                rot_const = pmc.parentConstraint(self.created_ctrtl_jnts[i - 1], self.created_ctrtl_jnts[i], half_bone,
                                                  maintainOffset=1, skipTranslate=["x", "y", "z"])
 
             rot_const.setAttr("interpType", 2)
             # self.created_ctrtl_jnts[i].scale >> jnt.scale
+
+        hip_target_loc = pmc.spaceLocator(p=(0, 0, 0),
+                                               n="{0}_hip_skn_target_LOC".format(self.model.module_name))
+        ankle_target_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ankle_skn_target_LOC".format(self.model.module_name))
+
+        pmc.parent(hip_target_loc, self.created_half_bones[0], r=1)
+        pmc.parent(ankle_target_loc, self.created_half_bones[-1], r=1)
+
+        hip_target_loc.setAttr("translateY", 0.1)
+        ankle_target_loc.setAttr("translateY", 0.1)
+
+        pmc.aimConstraint(hip_target_loc, self.created_skn_jnts[0], maintainOffset=0, aimVector=(0.0, 1.0, 0.0),
+                          upVector=(0.0, 0.0, 1.0), worldUpType="objectrotation",
+                          worldUpVector=(0.0, 0.0, 1.0), worldUpObject=self.jnt_const_group)
+        pmc.aimConstraint(ankle_target_loc, self.created_skn_jnts[-1], maintainOffset=0, aimVector=(0.0, 1.0, 0.0),
+                          upVector=(1.0, 0.0, 0.0), worldUpType="objectrotation",
+                          worldUpVector=(1.0, 0.0, 0.0), worldUpObject=self.created_ctrtl_jnts[-1])
+
+        knee_bend_jnt = pmc.duplicate(self.created_skn_jnts[1], n="{0}_knee_bend_JNT".format(self.model.module_name))[
+            0]
+        pmc.parent(self.created_skn_jnts[1], knee_bend_jnt)
+
+        knee_bend_ctrl_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=1.5, d=3, s=8,
+                                           n="{0}_knee_bend_CTRL_shape".format(self.model.module_name), ch=0)[0]
+        self.knee_bend_ctrl = rig_lib.create_jnttype_ctrl("{0}_knee_bend_CTRL".format(self.model.module_name),
+                                                          knee_bend_ctrl_shape, drawstyle=2, rotateorder=4)
+
+        pmc.select(d=1)
+        knee_bend_ctrl_ofs = pmc.joint(p=(0, 0, 0), n="{0}_knee_bend_ctrl_OFS".format(self.model.module_name))
+        knee_bend_ctrl_ofs.setAttr("drawStyle", 2)
+        knee_bend_ctrl_ofs.setAttr("rotateOrder", 4)
+
+        pmc.parent(self.knee_bend_ctrl, knee_bend_ctrl_ofs)
+        pmc.parent(knee_bend_ctrl_ofs, self.ctrl_input_grp)
+
+        pmc.parentConstraint(self.created_half_bones[1], knee_bend_ctrl_ofs, maintainOffset=0)
+
+        self.knee_bend_ctrl.translate >> knee_bend_jnt.translate
+        self.knee_bend_ctrl.rotate >> knee_bend_jnt.rotate
+
+        self.option_ctrl.addAttr("kneeBendCtrl", attributeType="bool", defaultValue=0, hidden=0, keyable=1)
 
         self.created_ctrtl_jnts[0].setAttr("rotate", fk_ctrl_01_value)
         self.created_ctrtl_jnts[1].setAttr("rotate", fk_ctrl_02_value)
