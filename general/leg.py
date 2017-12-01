@@ -389,12 +389,12 @@ class Controller(RigController):
                 self.create_one_chain_half_bones()
 
                 self.jnts_to_skin.append(self.create_deformation_chain("{0}_hip_to_knee".format(self.model.module_name),
-                                                                       self.created_half_bones[0], self.created_half_bones[1],
+                                                                       self.created_skn_jnts[0], self.created_skn_jnts[1],
                                                                        self.created_ctrtl_jnts[0], self.created_ctrtl_jnts[1],
                                                                        self.option_ctrl, self.model.how_many_thigh_jnts,
                                                                        self.side_coef)[1:-1])
                 self.jnts_to_skin.append(self.create_deformation_chain("{0}_knee_to_ankle".format(self.model.module_name),
-                                                                       self.created_half_bones[1], self.created_half_bones[2],
+                                                                       self.created_skn_jnts[1], self.created_skn_jnts[2],
                                                                        self.created_ctrtl_jnts[1], self.created_ctrtl_jnts[2],
                                                                        self.option_ctrl, self.model.how_many_calf_jnts,
                                                                        self.side_coef)[1:-1])
@@ -1157,8 +1157,7 @@ class Controller(RigController):
             rot_const.setAttr("interpType", 2)
             # self.created_ctrtl_jnts[i].scale >> jnt.scale
 
-        hip_target_loc = pmc.spaceLocator(p=(0, 0, 0),
-                                               n="{0}_hip_skn_target_LOC".format(self.model.module_name))
+        hip_target_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_hip_skn_target_LOC".format(self.model.module_name))
         ankle_target_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ankle_skn_target_LOC".format(self.model.module_name))
 
         pmc.parent(hip_target_loc, self.created_half_bones[0], r=1)
