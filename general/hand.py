@@ -1014,14 +1014,13 @@ class Controller(RigController):
             finger[2].setAttr("preferredAngleZ", finger_fk_ctrl_02_value[2])
             finger[3].setAttr("preferredAngleZ", finger_fk_ctrl_03_value[2])
 
-            pmc.pointConstraint(finger[0], auto_pv_ofs, maintainOffset=1)
+            pmc.pointConstraint(finger[1], auto_pv_ofs, maintainOffset=1)
 
             ik_ctrl.addAttr("fingerTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
             pmc.aimConstraint(global_ik_handle, auto_pv_ofs,
                               maintainOffset=0, aimVector=(self.side_coef, 0.0, 0.0),
                               upVector=(0.0, 0.0, 1.0), worldUpType="objectrotation",
                               worldUpVector=(0.0, 0.0, 1.0), worldUpObject=ik_ctrl)
-            pmc.pointConstraint(finger[1], auto_pv_ofs, maintainOffset=1)
 
             ik_ctrl.fingerTwist >> global_ik_handle.twist
 
