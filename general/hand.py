@@ -1233,7 +1233,7 @@ class Controller(RigController):
 
             finger[2].setAttr("preferredAngleZ", -90)
 
-            pmc.pointConstraint(finger[0], pv_ofs, maintainOffset=1)
+            pmc.pointConstraint(finger[1], pv_ofs, maintainOffset=1)
 
             ik_ctrl.addAttr("fingerTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
             pmc.aimConstraint(ik_handle, pv_ofs, maintainOffset=0, aimVector=(self.side_coef, 0.0, 0.0),
@@ -1358,7 +1358,7 @@ class Controller(RigController):
                 if 1 < i < len(finger)-1:
                     phalanx.setAttr("preferredAngleZ", finger_fk_ctrl_values[i][2])
 
-            pmc.pointConstraint(finger[0], pv_ofs, maintainOffset=1)
+            pmc.pointConstraint(finger[1], pv_ofs, maintainOffset=1)
 
             ik_ctrl.addAttr("fingerTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
             pmc.aimConstraint(ik_handle, pv_ofs, maintainOffset=0, aimVector=(self.side_coef, 0.0, 0.0),
