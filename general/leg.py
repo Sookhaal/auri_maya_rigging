@@ -1073,6 +1073,8 @@ class Controller(RigController):
 
         self.created_ctrtl_jnts[1].setAttr("preferredAngleX", -90)
 
+        pmc.pointConstraint(self.clavicle_ik_ctrl, auto_pv_ofs, maintainOffset=1)
+
         ik_ctrl.addAttr("legTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
         pmc.aimConstraint(ik_handle, auto_pv_ofs,
                           maintainOffset=1, aimVector=(0.0, -1.0, 0.0),
@@ -1167,7 +1169,7 @@ class Controller(RigController):
 
         pmc.aimConstraint(hip_target_loc, self.created_skn_jnts[0], maintainOffset=0, aimVector=(0.0, 1.0, 0.0),
                           upVector=(0.0, 0.0, 1.0), worldUpType="objectrotation",
-                          worldUpVector=(0.0, 0.0, 1.0), worldUpObject=self.jnt_const_group)
+                          worldUpVector=(0.0, 0.0, 1.0*self.side_coef), worldUpObject=self.jnt_const_group)
         pmc.aimConstraint(ankle_target_loc, self.created_skn_jnts[-1], maintainOffset=0, aimVector=(0.0, 1.0, 0.0),
                           upVector=(1.0, 0.0, 0.0), worldUpType="objectrotation",
                           worldUpVector=(1.0, 0.0, 0.0), worldUpObject=self.created_ctrtl_jnts[-1])

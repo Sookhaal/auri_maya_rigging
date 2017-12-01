@@ -460,9 +460,12 @@ class Controller(RigController):
 
         elif self.model.roll_creation_switch:
             ball_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.roll_guides_names[0])
+            ball_guide.setAttr("rotateOrder", 3)
             # fingers_roll_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.roll_guides_names[1])
             inhand_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.roll_guides_names[1])
+            inhand_guide.setAttr("rotateOrder", 3)
             outhand_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.roll_guides_names[2])
+            outhand_guide.setAttr("rotateOrder", 3)
 
             ball_guide.setAttr("translate", (8.5 * self.side_coef, 14, 1.75 - (0.25 * self.model.how_many_fingers)))
             # fingers_roll_guide.setAttr("translate", (12.5 * self.side_coef, 14, 1.75 - (0.25 * self.model.how_many_fingers)))
@@ -1011,6 +1014,8 @@ class Controller(RigController):
             finger[2].setAttr("preferredAngleZ", finger_fk_ctrl_02_value[2])
             finger[3].setAttr("preferredAngleZ", finger_fk_ctrl_03_value[2])
 
+            pmc.pointConstraint(finger[0], auto_pv_ofs, maintainOffset=1)
+
             ik_ctrl.addAttr("fingerTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
             pmc.aimConstraint(global_ik_handle, auto_pv_ofs,
                               maintainOffset=0, aimVector=(self.side_coef, 0.0, 0.0),
@@ -1229,6 +1234,8 @@ class Controller(RigController):
 
             finger[2].setAttr("preferredAngleZ", -90)
 
+            pmc.pointConstraint(finger[0], pv_ofs, maintainOffset=1)
+
             ik_ctrl.addAttr("fingerTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
             pmc.aimConstraint(ik_handle, pv_ofs, maintainOffset=0, aimVector=(self.side_coef, 0.0, 0.0),
                               upVector=(0.0, 0.0, 1.0), worldUpType="objectrotation",
@@ -1352,6 +1359,8 @@ class Controller(RigController):
                 if 1 < i < len(finger)-1:
                     phalanx.setAttr("preferredAngleZ", finger_fk_ctrl_values[i][2])
 
+            pmc.pointConstraint(finger[0], pv_ofs, maintainOffset=1)
+
             ik_ctrl.addAttr("fingerTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
             pmc.aimConstraint(ik_handle, pv_ofs, maintainOffset=0, aimVector=(self.side_coef, 0.0, 0.0),
                               upVector=(0.0, 0.0, 1.0), worldUpType="objectrotation",
@@ -1447,6 +1456,7 @@ class Controller(RigController):
         # #         fingers_ball_ik_handles.append(ik_setup_ball_ik_handle)
 
         ball_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ball_LOC".format(self.model.module_name))
+        ball_loc.setAttr("rotateOrder", 3)
         # finger_roll_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_finger_roll_LOC".format(self.model.module_name))
         inhand_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_inhand_LOC".format(self.model.module_name))
         inhand_loc.setAttr("rotateOrder", 3)
@@ -1454,11 +1464,12 @@ class Controller(RigController):
         outhand_loc.setAttr("rotateOrder", 3)
 
         ball_loc.setAttr("translate", pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1))
+        ball_loc.setAttr("rotate", pmc.xform(duplicates_guides[0], q=1, ws=1, rotation=1))
         # finger_roll_loc.setAttr("translate", pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1))
         inhand_loc.setAttr("translate", pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1))
-        inhand_loc.setAttr("rotateY", pmc.xform(duplicates_guides[1], q=1, ws=1, rotation=1)[1])
+        inhand_loc.setAttr("rotate", pmc.xform(duplicates_guides[1], q=1, ws=1, rotation=1))
         outhand_loc.setAttr("translate", pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1))
-        outhand_loc.setAttr("rotateY", pmc.xform(duplicates_guides[2], q=1, ws=1, rotation=1)[1])
+        outhand_loc.setAttr("rotate", pmc.xform(duplicates_guides[2], q=1, ws=1, rotation=1))
 
         pmc.parent(outhand_loc, self.ctrl_input_grp)
         pmc.parent(inhand_loc, outhand_loc)
