@@ -1597,7 +1597,12 @@ class Controller(RigController):
         # roll_ball_mult.outputX >> roll_ball_invert_value.input1
         # roll_ball_invert_value.output >> ball_loc.rotateZ
 
-        self.parent_wrist_ik_ctrl.roll >> ball_loc.rotateZ
+        roll_ofs = pmc.createNode("plusMinusAverage", n="{0}_roll_ofs_PMA".format(self.model.module_name))
+        roll_ofs.setAttr("input1D[0]", ball_loc.getAttr("rotateZ"))
+
+        self.parent_wrist_ik_ctrl.roll >> roll_ofs.input1D[1]
+        roll_ofs.output1D >> ball_loc.rotateZ
+        # self.parent_wrist_ik_ctrl.roll >> ball_loc.rotateZ
 
         # finger_roll_offset = pmc.createNode("plusMinusAverage", n="{0}_fingertwist_offset_PMA".format(finger_roll_loc))
         # finger_roll_offset.setAttr("operation", 1)
@@ -1605,19 +1610,33 @@ class Controller(RigController):
         # self.parent_wrist_ik_ctrl.fingerTwist >> finger_roll_offset.input1D[1]
         # finger_roll_offset.output1D >> finger_roll_loc.rotateY
 
-        self.parent_wrist_ik_ctrl.lean >> ball_loc.rotateX
+        lean_ofs = pmc.createNode("plusMinusAverage", n="{0}_lean_ofs_PMA".format(self.model.module_name))
+        lean_ofs.setAttr("input1D[0]", ball_loc.getAttr("rotateX"))
+
+        self.parent_wrist_ik_ctrl.lean >> lean_ofs.input1D[1]
+        lean_ofs.output1D >> ball_loc.rotateX
+        # self.parent_wrist_ik_ctrl.lean >> ball_loc.rotateX
 
         bank_in_limit = pmc.createNode("clamp", n="{0}_bank_in_CLAMP".format(self.model.module_name))
         bank_out_limit = pmc.createNode("clamp", n="{0}_bank_out_CLAMP".format(self.model.module_name))
 
+        bank_in_ofs = pmc.createNode("plusMinusAverage", n="{0}_bank_in_ofs_PMA".format(self.model.module_name))
+        bank_in_ofs.setAttr("input1D[0]", inhand_loc.getAttr("rotateX"))
+        bank_out_ofs = pmc.createNode("plusMinusAverage", n="{0}_bank_out_ofs_PMA".format(self.model.module_name))
+        bank_out_ofs.setAttr("input1D[0]", outhand_loc.getAttr("rotateX"))
+
         bank_in_limit.setAttr("minR", 0)
         bank_in_limit.setAttr("maxR", 90)
         self.parent_wrist_ik_ctrl.bank >> bank_in_limit.inputR
-        bank_in_limit.outputR >> inhand_loc.rotateX
+        bank_in_limit.outputR >> bank_in_ofs.input1D[1]
+        bank_in_ofs.output1D >> inhand_loc.rotateX
+        # bank_in_limit.outputR >> inhand_loc.rotateX
         bank_out_limit.setAttr("minR", -90)
         bank_out_limit.setAttr("maxR", 0)
         self.parent_wrist_ik_ctrl.bank >> bank_out_limit.inputR
-        bank_out_limit.outputR >> outhand_loc.rotateX
+        bank_out_limit.outputR >> bank_out_ofs.input1D[1]
+        bank_out_ofs.output1D >> outhand_loc.rotateX
+        # bank_out_limit.outputR >> outhand_loc.rotateX
 
         # if self.model.thumb_creation_switch:
         #     self.ik_ctrls[0][0].addAttr("thumb", dataType="string", hidden=0, keyable=0, readable=1, writable=1)
