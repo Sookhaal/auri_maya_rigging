@@ -1073,7 +1073,7 @@ class Controller(RigController):
 
         self.created_ctrtl_jnts[1].setAttr("preferredAngleX", -90)
 
-        pmc.pointConstraint(self.clavicle_ik_ctrl, auto_pv_ofs, maintainOffset=1)
+        pmc.pointConstraint(self.created_ctrtl_jnts[0].getParent(), auto_pv_ofs, maintainOffset=1)
 
         ik_ctrl.addAttr("legTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
         pmc.aimConstraint(ik_handle, auto_pv_ofs,
@@ -1148,8 +1148,8 @@ class Controller(RigController):
             pmc.parentConstraint(self.created_ctrtl_jnts[i], half_bone, maintainOffset=1, skipRotate=["x", "y", "z"])
 
             if i == 0:
-                rot_const = pmc.parentConstraint(self.clavicle_jnt, self.created_ctrtl_jnts[i], half_bone, maintainOffset=1,
-                                                 skipTranslate=["x", "y", "z"])
+                rot_const = pmc.parentConstraint(self.created_ctrtl_jnts[i].getParent(), self.created_ctrtl_jnts[i],
+                                                 half_bone, maintainOffset=1, skipTranslate=["x", "y", "z"])
             else:
                 rot_const = pmc.parentConstraint(self.created_ctrtl_jnts[i - 1], self.created_ctrtl_jnts[i], half_bone,
                                                  maintainOffset=1, skipTranslate=["x", "y", "z"])

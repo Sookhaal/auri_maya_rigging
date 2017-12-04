@@ -839,7 +839,7 @@ class Controller(RigController):
         self.created_ctrtl_jnts[1].setAttr("preferredAngleX", fk_ctrl_02_value[0])
         self.created_ctrtl_jnts[2].setAttr("preferredAngleX", fk_ctrl_03_value[0])
 
-        pmc.pointConstraint(self.clavicle_ik_ctrl, auto_pv_ofs, maintainOffset=1)
+        pmc.pointConstraint(self.created_ctrtl_jnts[0].getParent(), auto_pv_ofs, maintainOffset=1)
 
         ik_ctrl.addAttr("legTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
         pmc.aimConstraint(global_ik_handle, auto_pv_ofs,
@@ -1046,7 +1046,8 @@ class Controller(RigController):
 
         if self.model.clavicle_creation_switch:
             rig_lib.clean_ctrl(self.clavicle_ctrl, color_value, trs="s")
-            rig_lib.clean_ctrl(self.clavicle_ik_ctrl, color_value, trs="rs",
+            rig_lib.clean_ctrl(self.clavicle_ik_ctrl, color_value, trs="rs")
+            rig_lib.clean_ctrl(self.clavicle_ik_ctrl.getShape(), color_value, trs="",
                                visibility_dependence=self.option_ctrl.hipClavicleIkCtrl)
 
         rig_lib.clean_ctrl(self.created_ctrtl_jnts[0], color_value, trs="ts",
@@ -1173,8 +1174,8 @@ class Controller(RigController):
             pmc.parentConstraint(self.created_ctrtl_jnts[i], half_bone, maintainOffset=1, skipRotate=["x", "y", "z"])
 
             if i == 0:
-                rot_const = pmc.parentConstraint(self.clavicle_jnt, self.created_ctrtl_jnts[i], half_bone,
-                                                 maintainOffset=1, skipTranslate=["x", "y", "z"])
+                rot_const = pmc.parentConstraint(self.created_ctrtl_jnts[i].getParent(), self.created_ctrtl_jnts[i],
+                                                 half_bone, maintainOffset=1, skipTranslate=["x", "y", "z"])
             else:
                 rot_const = pmc.parentConstraint(self.created_ctrtl_jnts[i - 1], self.created_ctrtl_jnts[i], half_bone,
                                                  maintainOffset=1, skipTranslate=["x", "y", "z"])
@@ -1197,6 +1198,8 @@ class Controller(RigController):
         pmc.aimConstraint(ankle_target_loc, self.created_skn_jnts[-1], maintainOffset=0, aimVector=(0.0, 1.0, 0.0),
                           upVector=(1.0, 0.0, 0.0), worldUpType="objectrotation",
                           worldUpVector=(1.0, 0.0, 0.0), worldUpObject=self.created_ctrtl_jnts[-1])
+
+# TODO: trouver le probleme avec l'orientation du joint de cheville, et de la saute lorsque le polevector depasse les 180degrees
 
         knee_bend_jnt = pmc.duplicate(self.created_skn_jnts[1], n="{0}_knee_bend_JNT".format(self.model.module_name))[0]
         pmc.parent(self.created_skn_jnts[1], knee_bend_jnt)

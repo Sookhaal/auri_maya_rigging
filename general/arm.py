@@ -1067,8 +1067,8 @@ class Controller(RigController):
             pmc.parentConstraint(self.created_ctrtl_jnts[i], half_bone, maintainOffset=1, skipRotate=["x", "y", "z"])
 
             if i == 0:
-                rot_const = pmc.parentConstraint(self.clavicle_jnt, self.created_ctrtl_jnts[i], half_bone, maintainOffset=1,
-                                                 skipTranslate=["x", "y", "z"])
+                rot_const = pmc.parentConstraint(self.created_ctrtl_jnts[i].getParent(), self.created_ctrtl_jnts[i],
+                                                 half_bone, maintainOffset=1, skipTranslate=["x", "y", "z"])
             else:
                 rot_const = pmc.parentConstraint(self.created_ctrtl_jnts[i-1], self.created_ctrtl_jnts[i], half_bone,
                                                  maintainOffset=1, skipTranslate=["x", "y", "z"])
