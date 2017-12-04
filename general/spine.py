@@ -221,7 +221,7 @@ class Controller(RigController):
         ik_effector = pmc.listRelatives(self.created_spine_jnts[-2], children=1)[1]
         ik_effector.rename("{0}_ik_EFF".format(self.model.module_name))
 
-        pmc.parent(ik_effector, self.created_spine_jnts[-1])
+        # pmc.parent(ik_effector, self.created_spine_jnts[-1])
 
     def create_fk(self):
         ik_spline_cv_list = []
@@ -364,6 +364,8 @@ class Controller(RigController):
                     const.setAttr("{0}W1".format(end_ctrl), 1)
 
         pmc.parent(self.created_pelvis_ctrl, start_ctrl)
+
+        pmc.parentConstraint(end_ctrl, self.created_spine_jnts[-1], maintainOffset=1, skipTranslate=["x", "y", "z"])
 
     def activate_twist(self):
         ik_handle = pmc.ls("{0}_ik_HDL".format(self.model.module_name))[0]

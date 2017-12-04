@@ -1505,6 +1505,7 @@ class Controller(RigController):
         locs_offset = pmc.group(em=1, n="{0}_roll_OFS".format(self.model.module_name))
         locs_offset.setAttr("translate", pmc.xform(self.parent_wrist_ik_ctrl, q=1, ws=1, translation=1))
         locs_offset.setAttr("rotateOrder", 3)
+        locs_offset.setAttr("visibility", 0)
         pmc.parent(locs_offset, self.parent_wrist_ik_ctrl, r=0)
         pmc.parent(outhand_loc, locs_offset, r=0)
         pmc.parent(self.parent_ik_handle, ball_loc, r=0)
