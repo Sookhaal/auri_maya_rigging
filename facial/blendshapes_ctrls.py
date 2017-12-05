@@ -96,8 +96,8 @@ class Controller(RigController):
         self.guides_grp = None
         self.guides = []
         self.guides_names = []
-        self.side = {}
-        self.side_coef = 0
+        # self.side = {}
+        # self.side_coef = 0
         self.mesh_to_follow = None
         self.have_a_mesh = False
         self.follicles = []
