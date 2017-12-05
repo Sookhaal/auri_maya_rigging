@@ -447,6 +447,11 @@ class Controller(RigController):
 
         rig_lib.clean_ctrl(self.created_pelvis_ctrl, 14, trs="t")
 
+        if self.model.ik_creation_switch == 0:
+            self.created_fk_ctrls[-1].setAttr("space", len(self.model.space_list))
+        else:
+            self.created_ik_ctrls[-1].setAttr("space", len(self.model.space_list))
+
         info_crv = rig_lib.signature_shape_curve("{0}_INFO".format(self.model.module_name))
         info_crv.getShape().setAttr("visibility", 0)
         info_crv.setAttr("hiddenInOutliner", 1)
