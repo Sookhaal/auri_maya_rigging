@@ -72,6 +72,8 @@ class Controller(RigController):
         RigController.__init__(self, model, view)
 
     def prebuild(self):
+        self.create_temporary_outputs(["head_OUTPUT", "jaw_OUTPUT"])
+
         self.guides_names = ["{0}_head_base_GUIDE".format(self.model.module_name), "{0}_head_top_GUIDE".format(self.model.module_name),
                              "{0}_jaw_rotation_GUIDE".format(self.model.module_name), "{0}_jaw_end_GUIDE".format(self.model.module_name),
                              "{0}_left_eye_GUIDE".format(self.model.module_name), "{0}_right_eye_GUIDE".format(self.model.module_name)]
@@ -111,6 +113,8 @@ class Controller(RigController):
 
         self.create_skn_jnts()
         self.create_ctrls()
+
+        self.create_outputs()
 
         self.clean_rig()
         pmc.select(d=1)
@@ -255,6 +259,10 @@ class Controller(RigController):
                     skn_set.add(obj)
             else:
                 skn_set.add(jnt)
+
+    def create_outputs(self):
+        rig_lib.create_output(name="{0}_head_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[0])
+        rig_lib.create_output(name="{0}_jaw_OUTPUT".format(self.model.module_name), parent=self.created_skn_jnts[2])
 
 
 class Model(AuriScriptModel):
