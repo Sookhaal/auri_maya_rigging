@@ -1178,7 +1178,7 @@ def raz_one_chain_ik_ctrl_translate_rotate(ctrl):
     ctrl.setAttr("jointOrient", (0, 0, 0))
 
 
-def raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, skn_jnt, raz_ctrl_shape_axe="y"):
+def raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, skn_jnt=None, raz_ctrl_shape_axe="y"):
     loc = pmc.spaceLocator(p=(0, 0, 0), n="get_xyz_orient_temp_loc")
 
     pmc.parent(loc, ctrl, r=1)
@@ -1186,8 +1186,9 @@ def raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, skn_jnt, raz_ctrl_shape_axe="y"):
 
     ctrl.setAttr("jointOrient", (loc.getAttr("rotateX"), loc.getAttr("rotateY"), loc.getAttr("rotateZ")))
 
-    skn_jnt.disconnectAttr("jointOrient")
-    ctrl.jointOrient >> skn_jnt.jointOrient
+    if skn_jnt:
+        skn_jnt.disconnectAttr("jointOrient")
+        ctrl.jointOrient >> skn_jnt.jointOrient
 
     ctrl.setAttr("rotate", (0, 0, 0))
 
