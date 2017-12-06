@@ -99,7 +99,6 @@ class Controller(RigController):
         # self.side = {}
         # self.side_coef = 0
         self.mesh_to_follow = None
-        self.have_a_mesh = False
         self.follicles = []
         self.ctrls = []
         RigController.__init__(self,  model, view)
@@ -113,17 +112,16 @@ class Controller(RigController):
 
         mesh_to_follow_list = pmc.ls(self.model.mesh_to_follow)
         if not mesh_to_follow_list:
-            print "no mesh given, need one to attach the ctrls"
-            self.have_a_mesh = False
+            pmc.error("no mesh given, need one to attach the ctrls")
+            return False
         elif len(mesh_to_follow_list) > 1:
-            print "multiple objects match given name, give the long_name of the object to find the chosen one"
-            self.have_a_mesh = False
+            pmc.error("multiple objects match given name, give the long_name of the object to find the chosen one")
+            return False
         elif mesh_to_follow_list[0].getShape() is None or pmc.nodeType(mesh_to_follow_list[0].getShape()) != "mesh":
-            print "given object isn't a mesh"
-            self.have_a_mesh = False
+            pmc.error("given object isn't a mesh")
+            return False
         else:
             self.mesh_to_follow = mesh_to_follow_list[0]
-            self.have_a_mesh = True
 
         self.guides_names = []
         for i in range(self.model.how_many_ctrls):
@@ -141,7 +139,7 @@ class Controller(RigController):
             self.guides_grp.setAttr("visibility", 1)
             self.view.refresh_view()
             pmc.select(d=1)
-            return
+            return True
 
         self.guides = []
         for guide in self.guides_names:
@@ -150,11 +148,10 @@ class Controller(RigController):
         self.guides_grp = self.group_guides(self.guides)
         self.view.refresh_view()
         pmc.select(d=1)
+        return True
 
     def execute(self):
-        self.prebuild()
-
-        if not self.have_a_mesh:
+        if not self.prebuild():
             return
 
         self.create_follicles()
