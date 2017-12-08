@@ -103,3 +103,7 @@ ENV/
 EnDev/*
 
 folder_to_push_path.bat
+
+general/test_ui.py
+
+tools/new_script.py
