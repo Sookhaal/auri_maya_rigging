@@ -6,7 +6,7 @@ from auri.auri_lib import AuriScriptView, AuriScriptController, AuriScriptModel,
 
 pmc.loadPlugin("matrixNodes", qt=1)
 
-
+# Test
 class RigController(AuriScriptController):
     def __init__(self, model, view):
         self.model = model
