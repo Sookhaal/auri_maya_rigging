@@ -296,6 +296,42 @@ class Controller(RigController):
             print self.bot_components
             print self.bot_components_type
 
+        if self.model.top_creation_switch:
+            self.create_ribbons("top", self.top_components_type, self.top_components)
+
+        if self.model.bot_creation_switch:
+            self.create_ribbons("bot", self.bot_components_type, self.bot_components)
+
+    def create_ribbons(self, side, components_type, selection):
+        if components_type != "face":
+            if components_type == "edge":
+                vertices_from_selection = pmc.polyListComponentConversion(selection, fromEdge=1, toVertex=1)
+                vertices = pmc.ls(vertices_from_selection, flatten=1)
+            else:
+                vertices = selection
+
+            vertices_world_pos = []
+            skn_jnts = []
+            for i, vertex in enumerate(vertices):
+                vertices_world_pos.append(pmc.xform(vertex, q=1, ws=1, translation=1))
+                pmc.select(cl=1)
+                jnt = pmc.joint(p=(0, 0, 0), n="{0}_{1}_{2}_SKN".format(self.model.module_name, side, i))
+                jnt.setAttr("translate", vertices_world_pos[i])
+                jnt.setAttr("radius", 0.1)
+                skn_jnts.append(jnt)
+
+            front_curve = pmc.curve(d=3, p=vertices_world_pos, n="{0}_{1}_nurbsSurface_guide_01".format(self.model.module_name, side))
+            back_curve = pmc.duplicate(front_curve, n="{0}_{1}_nurbsSurface_guide_02".format(self.model.module_name, side))[0]
+            front_curve.setAttr("translateZ", 0.1)
+            back_curve.setAttr("translateZ", -0.1)
+
+            pmc.loft(back_curve, front_curve, ar=1, ch=0, d=1, uniform=0, n="{0}_{1}_ribbons_NURBSSURFACE".format(self.model.module_name, side))
+
+            pmc.delete(front_curve)
+            pmc.delete(back_curve)
+
+            # TODO: pour chaque jnt, creer un follicle, le coller sur la surface cree et grp le jnt dessous
+
 
 class Model(AuriScriptModel):
     def __init__(self):

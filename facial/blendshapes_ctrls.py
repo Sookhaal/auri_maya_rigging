@@ -251,3 +251,4 @@ class Model(AuriScriptModel):
         # self.side = "Left"
         self.how_many_ctrls = 1
         self.mesh_to_follow = None
+# TODO: ajouter un bouton pour selectionner l'objet sur lequel snapper les follicle
