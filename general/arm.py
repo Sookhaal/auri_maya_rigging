@@ -733,6 +733,11 @@ class Controller(RigController):
         fk_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
         self.created_ik_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
 
+        fk_const_switch = pmc.createNode("plusMinusAverage", n="{0}_fk_ik_switch_invert_value_PMA".format(self.model.module_name))
+        fk_const_switch.setAttr("operation", 2)
+        fk_const_switch.setAttr("input1D[0]", 1)
+        self.option_ctrl.fkIk >> fk_const_switch .input1D[1]
+
         for i, space in enumerate(self.model.space_list):
             space_locs[i].setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
             pmc.parent(space_locs[i], space)
@@ -743,7 +748,8 @@ class Controller(RigController):
 
             rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(fk_space_const, space_locs[i], i),
                                                     fk_ctrls[0].space, i,
-                                                    "{0}_{1}Space_COND".format(fk_ctrls[0], spaces_names[i]))
+                                                    "{0}_{1}Space_COND".format(fk_ctrls[0], spaces_names[i]),
+                                                    switch=fk_const_switch)
             rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(ik_space_const, space_locs[i], i),
                                                     self.created_ik_ctrls[0].space, i,
                                                     "{0}_{1}Space_COND".format(self.created_ik_ctrls[0], spaces_names[i]))

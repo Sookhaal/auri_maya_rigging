@@ -1225,14 +1225,20 @@ def create_jnttype_ctrl(name, shape, drawstyle=2, rotateorder=0):
     return ctrl
 
 
-def connect_condition_to_constraint(const_attr_to_connect_entire_name, space_attr, space_number, condition_name):
+def connect_condition_to_constraint(const_attr_to_connect_entire_name, space_attr, space_number, condition_name, switch=None):
     condition = pmc.createNode("condition", n=condition_name)
     condition.setAttr("operation", 0)
     condition.setAttr("firstTerm", space_number)
     space_attr >> condition.secondTerm
     condition.setAttr("colorIfTrueR", 1)
     condition.setAttr("colorIfFalseR", 0)
-    pmc.connectAttr("{0}.outColorR".format(condition), "{0}".format(const_attr_to_connect_entire_name))
+    if not switch:
+        pmc.connectAttr("{0}.outColorR".format(condition), "{0}".format(const_attr_to_connect_entire_name))
+    else:
+        switch_node = pmc.createNode("multDoubleLinear", n="{0}".format(str(condition).replace("_COND", "_fkik_switch_MDL")))
+        condition.outColorR >> switch_node.input1
+        switch.output1D >> switch_node.input2
+        pmc.connectAttr("{0}.output".format(switch_node), "{0}".format(const_attr_to_connect_entire_name))
 
 
 def add_parameter_as_extra_attr(obj, parameter_name, parameter_value):
