@@ -325,12 +325,81 @@ class Controller(RigController):
             front_curve.setAttr("translateZ", 0.1)
             back_curve.setAttr("translateZ", -0.1)
 
-            pmc.loft(back_curve, front_curve, ar=1, ch=0, d=1, uniform=0, n="{0}_{1}_ribbons_NURBSSURFACE".format(self.model.module_name, side))
+            surface = pmc.loft(back_curve, front_curve, ar=1, ch=0, d=1, uniform=0, n="{0}_{1}_ribbons_NURBSSURFACE".format(self.model.module_name, side))[0]
+            surface = pmc.rebuildSurface(surface, ch=0, du=1, dv=3, dir=2, kcp=1, kr=0, rt=0, rpo=1)[0]
 
             pmc.delete(front_curve)
             pmc.delete(back_curve)
 
-            # TODO: pour chaque jnt, creer un follicle, le coller sur la surface cree et grp le jnt dessous
+            follicles = []
+            for i, jnt in enumerate(skn_jnts):
+                follicle_shape = pmc.createNode("follicle", n="{0}_{1}_{2}_FOLShape".format(self.model.module_name, side, i))
+                follicle = follicle_shape.getParent()
+                follicle.rename("{0}_{1}_{2}_FOL".format(self.model.module_name, side, i))
+
+                follicle_shape.outTranslate >> follicle.translate
+                follicle_shape.outRotate >> follicle.rotate
+                surface.getShape().local >> follicle_shape.inputSurface
+                surface.getShape().worldMatrix[0] >> follicle_shape.inputWorldMatrix
+
+                point_on_surface = pmc.createNode("closestPointOnSurface", n=str(jnt) + "CPS")
+                surface.getShape().local >> point_on_surface.inputSurface
+                point_on_surface.setAttr("inPosition", pmc.xform(jnt, q=1, ws=1, translation=1))
+
+                follicle_shape.setAttr("parameterU", point_on_surface.getAttr("parameterU"))
+                follicle_shape.setAttr("parameterV", point_on_surface.getAttr("parameterV"))
+
+                pmc.delete(point_on_surface)
+
+                pmc.parent(jnt, follicle, r=0)
+
+                follicles.append(follicle)
+
+            pmc.select(cl=1)
+            start_jnt = pmc.joint(p=(0, 0, 0), n="{0}_{1}_start_JNT".format(self.model.module_name, side))
+            start_jnt.setAttr("radius", 0.2)
+            pmc.select(cl=1)
+            end_jnt = pmc.joint(p=(0, 0, 0), n="{0}_{1}_end_JNT".format(self.model.module_name, side))
+            end_jnt.setAttr("radius", 0.2)
+            pmc.select(cl=1)
+            mid_jnt = pmc.joint(p=(0, 0, 0), n="{0}_{1}_mid_JNT".format(self.model.module_name, side))
+            mid_jnt.setAttr("radius", 0.2)
+            pmc.select(cl=1)
+            start_mid_jnt = pmc.joint(p=(0, 0, 0), n="{0}_{1}_start_mid_JNT".format(self.model.module_name, side))
+            start_mid_jnt.setAttr("radius", 0.2)
+            pmc.select(cl=1)
+            mid_end_jnt = pmc.joint(p=(0, 0, 0), n="{0}_{1}_mid_end_JNT".format(self.model.module_name, side))
+            mid_end_jnt.setAttr("radius", 0.2)
+
+            ctrl_jnts_pos = pmc.createNode("pointOnSurfaceInfo", n="{0}_{1}_PSI".format(self.model.module_name, side))
+            surface.getShape().local >> ctrl_jnts_pos.inputSurface
+            ctrl_jnts_pos.setAttr("parameterU", 0.5)
+
+            ctrl_jnts_pos.setAttr("parameterV", 0.0)
+            pmc.refresh()
+            start_jnt.setAttr("translate", ctrl_jnts_pos.getAttr("position"))
+
+            ctrl_jnts_pos.setAttr("parameterV", 0.25)
+            pmc.refresh()
+            start_mid_jnt.setAttr("translate", ctrl_jnts_pos.getAttr("position"))
+
+            ctrl_jnts_pos.setAttr("parameterV", 0.5)
+            pmc.refresh()
+            mid_jnt.setAttr("translate", ctrl_jnts_pos.getAttr("position"))
+
+            ctrl_jnts_pos.setAttr("parameterV", 0.75)
+            pmc.refresh()
+            mid_end_jnt.setAttr("translate", ctrl_jnts_pos.getAttr("position"))
+
+            ctrl_jnts_pos.setAttr("parameterV", 1.0)
+            pmc.refresh()
+            end_jnt.setAttr("translate", ctrl_jnts_pos.getAttr("position"))
+
+            pmc.delete(ctrl_jnts_pos)
+
+            pmc.select(cl=1)
+            pmc.skinCluster(start_jnt, start_mid_jnt, mid_jnt, mid_end_jnt, end_jnt, surface, bm=0, dr=4.0, mi=2, nw=1,
+                            sm=0, tsb=1, wd=0)
 
 
 class Model(AuriScriptModel):
