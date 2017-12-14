@@ -177,7 +177,8 @@ class Controller(RigController):
 
             point_on_mesh = pmc.createNode("closestPointOnMesh", n=str(guide)+"CPM")
             self.mesh_to_follow.getShape().outMesh >> point_on_mesh.inMesh
-            point_on_mesh.setAttr("inPosition", pmc.xform(guide, q=1, ws=1, translation=1))
+            self.mesh_to_follow.getShape().worldMatrix[0] >> point_on_mesh.inputMatrix
+            guide.getShape().worldPosition[0] >> point_on_mesh.inPosition
 
             follicle_shape.setAttr("parameterU", point_on_mesh.getAttr("parameterU"))
             follicle_shape.setAttr("parameterV", point_on_mesh.getAttr("parameterV"))
