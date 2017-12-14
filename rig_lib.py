@@ -134,6 +134,10 @@ class RigController(AuriScriptController):
     def on_spaces_cbbox_changed(self, text):
         self.view.selected_space = text
 
+    def set_mesh_to_follow(self):
+        self.model.mesh_to_follow = str(pmc.ls(sl=1)[0])
+        self.view.refresh_view()
+
     def create_temporary_outputs(self, outputs_names, grp_name="temporary_outputs"):
         if not pmc.objExists(grp_name):
             pmc.group(em=1, n=grp_name)
@@ -1245,3 +1249,23 @@ def add_parameter_as_extra_attr(obj, parameter_name, parameter_value):
     obj.addAttr(parameter_name, dataType="string", hidden=0, keyable=0, readable=1, writable=1)
     obj.setAttr(parameter_name, str(parameter_value))
     obj.setAttr(parameter_name, lock=1)
+
+
+def continuous_check_and_reorder_vertex_list(vertices_list, module_name):
+    reordered_list = [vertices_list[0]]
+    for i in range(len(vertices_list)):
+        edges_from_point = pmc.ls(pmc.polyListComponentConversion(reordered_list[i], fromVertex=1, toEdge=1), flatten=1)
+        vertices_from_edges = pmc.ls(pmc.polyListComponentConversion(edges_from_point, toVertex=1, fromEdge=1, border=1), flatten=1)
+        next_vertex = [vertex for vertex in vertices_from_edges if (vertex in vertices_list and vertex not in reordered_list)]
+        if len(next_vertex) == 0:
+            break
+        elif len(next_vertex) == 1:
+            reordered_list.append(next_vertex[0])
+        elif len(next_vertex) > 1:
+            reordered_list.append(next_vertex[0])
+            pmc.warning("for module \"{0}\", Risk that not all selected vertices were used to create the surface. Selection must form a continuous, non-branching path".format(module_name))
+
+    if len(reordered_list) < len(vertices_list):
+        pmc.warning("for module \"{0}\", Not all selected vertices were used to create the surface. Selection must form a continuous, non-branching path".format(module_name))
+
+    return reordered_list

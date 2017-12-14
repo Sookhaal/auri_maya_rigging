@@ -18,6 +18,7 @@ class View(AuriScriptView):
         # self.side_cbbox = QtWidgets.QComboBox()
         self.how_many_ctrls = QtWidgets.QSpinBox()
         self.mesh_to_follow = QtWidgets.QLineEdit()
+        self.set_mesh_btn = QtWidgets.QPushButton("Set Mesh")
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -47,6 +48,8 @@ class View(AuriScriptView):
 
         self.mesh_to_follow.textChanged.connect(self.ctrl.on_mesh_to_follow_changed)
 
+        self.set_mesh_btn.clicked.connect(self.ctrl.set_mesh_to_follow)
+
         # self.refresh_btn.clicked.connect(self.ctrl.look_for_parent)
         self.prebuild_btn.clicked.connect(self.ctrl.prebuild)
 
@@ -75,6 +78,7 @@ class View(AuriScriptView):
         mesh_to_follow_layout = QtWidgets.QVBoxLayout()
         mesh_to_follow_grp = grpbox("Mesh to attach the ctrls to:", mesh_to_follow_layout)
         mesh_to_follow_layout.addWidget(self.mesh_to_follow)
+        mesh_to_follow_layout.addWidget(self.set_mesh_btn)
 
         options_layout.addLayout(ctrls_layout)
 
@@ -112,13 +116,13 @@ class Controller(RigController):
 
         mesh_to_follow_list = pmc.ls(self.model.mesh_to_follow)
         if not mesh_to_follow_list:
-            pmc.error("no mesh given, need one to attach the ctrls")
+            pmc.error("for module \"{0}\", no mesh given, need one to attach the ctrls".format(self.model.module_name))
             return False
         elif len(mesh_to_follow_list) > 1:
-            pmc.error("multiple objects match given name, give the long_name of the object to find the chosen one")
+            pmc.error("for module \"{0}\", multiple objects match given name, give the long_name of the object to find the chosen one".format(self.model.module_name))
             return False
         elif mesh_to_follow_list[0].getShape() is None or pmc.nodeType(mesh_to_follow_list[0].getShape()) != "mesh":
-            pmc.error("given object isn't a mesh")
+            pmc.error("for module \"{0}\", given object isn't a mesh".format(self.model.module_name))
             return False
         else:
             self.mesh_to_follow = mesh_to_follow_list[0]
@@ -147,7 +151,7 @@ class Controller(RigController):
 
         self.guides_grp = self.group_guides(self.guides)
         self.view.refresh_view()
-        pmc.select(d=1)
+        pmc.select(cl=1)
         return True
 
     def execute(self):
@@ -257,4 +261,3 @@ class Model(AuriScriptModel):
         # self.side = "Left"
         self.how_many_ctrls = 1
         self.mesh_to_follow = None
-# TODO: ajouter un bouton pour selectionner l'objet sur lequel snapper les follicle

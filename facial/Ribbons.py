@@ -36,6 +36,9 @@ class View(AuriScriptView):
         self.bot_creation_switch = QtWidgets.QCheckBox()
         self.top_selection_grp = None
         self.bot_selection_grp = None
+        self.how_many_top_ctrls_cbbox = QtWidgets.QComboBox()
+        self.how_many_bot_ctrls_cbbox = QtWidgets.QComboBox()
+        self.set_mesh_btn = QtWidgets.QPushButton("Set Mesh")
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -52,6 +55,8 @@ class View(AuriScriptView):
         self.bot_creation_switch.setChecked(self.model.bot_creation_switch)
         self.top_selection_grp.setVisible(self.model.top_creation_switch)
         self.bot_selection_grp.setVisible(self.model.bot_creation_switch)
+        self.how_many_top_ctrls_cbbox.setCurrentText(self.model.how_many_top_ctrls)
+        self.how_many_bot_ctrls_cbbox.setCurrentText(self.model.how_many_bot_ctrls)
 
     def setup_ui(self):
         self.mesh_to_follow.textChanged.connect(self.ctrl.on_mesh_to_follow_changed)
@@ -75,6 +80,13 @@ class View(AuriScriptView):
         self.top_creation_switch.stateChanged.connect(self.ctrl.on_top_creation_switch_changed)
         self.bot_creation_switch.stateChanged.connect(self.ctrl.on_bot_creation_switch_changed)
 
+        self.how_many_top_ctrls_cbbox.insertItems(0, ["5", "7"])
+        self.how_many_top_ctrls_cbbox.currentTextChanged.connect(self.ctrl.on_how_many_top_ctrls_cbbox_changed)
+        self.how_many_bot_ctrls_cbbox.insertItems(0, ["5", "7"])
+        self.how_many_bot_ctrls_cbbox.currentTextChanged.connect(self.ctrl.on_how_many_bot_ctrls_cbbox_changed)
+
+        self.set_mesh_btn.clicked.connect(self.ctrl.set_mesh_to_follow)
+
         self.prebuild_btn.clicked.connect(self.ctrl.prebuild)
 
         main_layout = QtWidgets.QVBoxLayout()
@@ -82,6 +94,7 @@ class View(AuriScriptView):
         mesh_to_follow_layout = QtWidgets.QVBoxLayout()
         mesh_to_follow_grp = grpbox("Mesh to attach the ctrls to:", mesh_to_follow_layout)
         mesh_to_follow_layout.addWidget(self.mesh_to_follow)
+        mesh_to_follow_layout.addWidget(self.set_mesh_btn)
 
         top_selection_layout = QtWidgets.QVBoxLayout()
         self.top_selection_grp = grpbox("Select top Components :", top_selection_layout)
@@ -111,6 +124,14 @@ class View(AuriScriptView):
         bot_switch_layout.addWidget(bot_switch_text)
         bot_switch_layout.addWidget(self.bot_creation_switch)
 
+        how_many_top_layout = QtWidgets.QVBoxLayout()
+        how_many_top_grp = grpbox("How many ctrls :", how_many_top_layout)
+        how_many_top_layout.addWidget(self.how_many_top_ctrls_cbbox)
+
+        how_many_bot_layout = QtWidgets.QVBoxLayout()
+        how_many_bot_grp = grpbox("How many ctrls :", how_many_bot_layout)
+        how_many_bot_layout.addWidget(self.how_many_bot_ctrls_cbbox)
+
         # options_layout = QtWidgets.QVBoxLayout()
         # options_grp = grpbox("Options", options_layout)
         #
@@ -122,8 +143,10 @@ class View(AuriScriptView):
 
         main_layout.addWidget(mesh_to_follow_grp)
         main_layout.addLayout(top_switch_layout)
+        main_layout.addWidget(how_many_top_grp)
         main_layout.addWidget(self.top_selection_grp)
         main_layout.addLayout(bot_switch_layout)
+        main_layout.addWidget(how_many_bot_grp)
         main_layout.addWidget(self.bot_selection_grp)
         # main_layout.addWidget(options_grp)
         self.setLayout(main_layout)
@@ -219,16 +242,22 @@ class Controller(RigController):
         self.model.bot_creation_switch = is_checked(state)
         self.view.bot_selection_grp.setVisible(is_checked(state))
 
+    def on_how_many_top_ctrls_cbbox_changed(self, text):
+        self.model.how_many_top_ctrls = text
+
+    def on_how_many_bot_ctrls_cbbox_changed(self, text):
+        self.model.how_many_bot_ctrls = text
+
     def prebuild(self):
         mesh_to_follow_list = pmc.ls(self.model.mesh_to_follow)
         if not mesh_to_follow_list:
-            pmc.error("no mesh given, need one to attach the ctrls")
+            pmc.error("for module \"{0}\", no mesh given, need one to attach the ctrls".format(self.model.module_name))
             return False
         elif len(mesh_to_follow_list) > 1:
-            pmc.error("multiple objects match given name, give the long_name of the object to find the chosen one")
+            pmc.error("for module \"{0}\", multiple objects match given name, give the long_name of the object to find the chosen one".format(self.model.module_name))
             return False
         elif mesh_to_follow_list[0].getShape() is None or pmc.nodeType(mesh_to_follow_list[0].getShape()) != "mesh":
-            pmc.error("given object isn't a mesh")
+            pmc.error("for module \"{0}\", given object isn't a mesh".format(self.model.module_name))
             return False
         else:
             self.mesh_to_follow = mesh_to_follow_list[0]
@@ -239,21 +268,21 @@ class Controller(RigController):
             top_components_face_list = pmc.filterExpand(pmc.ls(self.model.top_selection), sm=34)
 
             if not top_components_vertex_list and not top_components_edge_list and not top_components_face_list:
-                pmc.error("no components given in top selection")
+                pmc.error("for module \"{0}\", no components given in top selection".format(self.model.module_name))
                 return False
             elif top_components_vertex_list is not None and (top_components_edge_list is not None or top_components_face_list is not None) or \
                     (top_components_edge_list is not None and top_components_face_list is not None):
-                pmc.error("more than one component's type given in top selection")
+                pmc.error("for module \"{0}\", more than one component's type given in top selection".format(self.model.module_name))
                 return False
             elif (top_components_vertex_list is not None and len(top_components_vertex_list) != len(self.model.top_selection)) or \
                     (top_components_edge_list is not None and len(top_components_edge_list) != len(self.model.top_selection)) or \
                     (top_components_face_list is not None and len(top_components_face_list) != len(self.model.top_selection)):
-                pmc.error("non-component type object given in top selection, need components only")
+                pmc.error("for module \"{0}\", non-component type object given in top selection, need components only".format(self.model.module_name))
                 return False
             elif (top_components_vertex_list is not None and len(top_components_vertex_list) == 1) or \
                     (top_components_edge_list is not None and len(top_components_edge_list) == 1) or \
                     (top_components_face_list is not None and len(top_components_face_list) == 1):
-                pmc.error("only one component given in top selection, need at least 2")
+                pmc.error("for module \"{0}\", only one component given in top selection, need at least 2".format(self.model.module_name))
                 return False
             elif top_components_vertex_list is not None:
                 self.top_components = pmc.ls(self.model.top_selection)
@@ -271,21 +300,21 @@ class Controller(RigController):
             bot_components_face_list = pmc.filterExpand(pmc.ls(self.model.bot_selection), sm=34)
 
             if not bot_components_vertex_list and not bot_components_edge_list and not bot_components_face_list:
-                pmc.error("no components given in bot selection")
+                pmc.error("for module \"{0}\", no components given in bot selection".format(self.model.module_name))
                 return False
             elif bot_components_vertex_list is not None and (bot_components_edge_list is not None or bot_components_face_list is not None) or \
                     (bot_components_edge_list is not None and bot_components_face_list is not None):
-                pmc.error("more than one component's type given in bot selection")
+                pmc.error("for module \"{0}\", more than one component's type given in bot selection".format(self.model.module_name))
                 return False
             elif (bot_components_vertex_list is not None and len(bot_components_vertex_list) != len(self.model.bot_selection)) or \
                     (bot_components_edge_list is not None and len(bot_components_edge_list) != len(self.model.bot_selection)) or \
                     (bot_components_face_list is not None and len(bot_components_face_list) != len(self.model.bot_selection)):
-                pmc.error("non-component type object given in bot selection, need components only")
+                pmc.error("for module \"{0}\", non-component type object given in bot selection, need components only".format(self.model.module_name))
                 return False
             elif (bot_components_vertex_list is not None and len(bot_components_vertex_list) == 1) or \
                     (bot_components_edge_list is not None and len(bot_components_edge_list) == 1) or \
                     (bot_components_face_list is not None and len(bot_components_face_list) == 1):
-                pmc.error("only one component given in bot selection, need at least 2")
+                pmc.error("for module \"{0}\", only one component given in bot selection, need at least 2".format(self.model.module_name))
                 return False
             elif bot_components_vertex_list is not None:
                 self.bot_components = pmc.ls(self.model.bot_selection)
@@ -309,16 +338,8 @@ class Controller(RigController):
         self.delete_existing_objects()
         self.connect_to_parent()
 
-        # if self.model.top_creation_switch:
-        #     print self.top_components
-        #     print self.top_components_type
-        # if self.model.bot_creation_switch:
-        #     print self.bot_components
-        #     print self.bot_components_type
-# TODO: ajouter des check pour verifier la continuite des selections
-
         if self.model.top_creation_switch:
-            needs = self.create_ribbons("top", self.top_components_type, self.top_components)
+            needs = self.create_ribbons("top", self.top_components_type, self.top_components, self.model.how_many_top_ctrls)
             self.top_skn_jnts = needs[0]
             self.top_surface = needs[1]
             self.top_follicles = needs[2]
@@ -327,7 +348,7 @@ class Controller(RigController):
             self.top_ctrls = needs[5]
 
         if self.model.bot_creation_switch:
-            needs = self.create_ribbons("bot", self.bot_components_type, self.bot_components)
+            needs = self.create_ribbons("bot", self.bot_components_type, self.bot_components, self.model.how_many_bot_ctrls)
             self.bot_skn_jnts = needs[0]
             self.bot_surface = needs[1]
             self.bot_follicles = needs[2]
@@ -341,7 +362,7 @@ class Controller(RigController):
         self.clean_rig()
         pmc.select(cl=1)
 
-    def create_ribbons(self, side, components_type, selection):
+    def create_ribbons(self, side, components_type, selection, how_many_ctrls):
         if components_type != "face":
             if components_type == "edge":
                 vertices_from_selection = pmc.polyListComponentConversion(selection, fromEdge=1, toVertex=1)
@@ -349,9 +370,11 @@ class Controller(RigController):
             else:
                 vertices = selection
 
+            ordered_vertices = rig_lib.continuous_check_and_reorder_vertex_list(vertices, self.model.module_name)
+
             vertices_world_pos = []
             skn_jnts = []
-            for i, vertex in enumerate(vertices):
+            for i, vertex in enumerate(ordered_vertices):
                 vertices_world_pos.append(pmc.xform(vertex, q=1, ws=1, translation=1))
                 pmc.select(cl=1)
                 jnt = pmc.joint(p=(0, 0, 0), n="{0}_{1}_{2}_SKN".format(self.model.module_name, side, i))
@@ -415,8 +438,6 @@ class Controller(RigController):
             mid_end_jnt = pmc.joint(p=(0, 0, 0), n="{0}_{1}_mid_end_JNT".format(self.model.module_name, side))
             mid_end_jnt.setAttr("radius", 0.2)
 
-            ctrls_jnt = [start_jnt, start_mid_jnt, mid_jnt, mid_end_jnt, end_jnt]
-
             ctrl_jnts_pos = pmc.createNode("pointOnSurfaceInfo", n="{0}_{1}_PSI".format(self.model.module_name, side))
             surface.getShape().local >> ctrl_jnts_pos.inputSurface
             ctrl_jnts_pos.setAttr("parameterU", 0.5)
@@ -425,7 +446,10 @@ class Controller(RigController):
             pmc.refresh()
             start_jnt.setAttr("translate", ctrl_jnts_pos.getAttr("position"))
 
-            ctrl_jnts_pos.setAttr("parameterV", 0.25)
+            if how_many_ctrls == "7":
+                ctrl_jnts_pos.setAttr("parameterV", 0.3)
+            else:
+                ctrl_jnts_pos.setAttr("parameterV", 0.25)
             pmc.refresh()
             start_mid_jnt.setAttr("translate", ctrl_jnts_pos.getAttr("position"))
 
@@ -433,13 +457,36 @@ class Controller(RigController):
             pmc.refresh()
             mid_jnt.setAttr("translate", ctrl_jnts_pos.getAttr("position"))
 
-            ctrl_jnts_pos.setAttr("parameterV", 0.75)
+            if how_many_ctrls == "7":
+                ctrl_jnts_pos.setAttr("parameterV", 0.7)
+            else:
+                ctrl_jnts_pos.setAttr("parameterV", 0.75)
             pmc.refresh()
             mid_end_jnt.setAttr("translate", ctrl_jnts_pos.getAttr("position"))
 
             ctrl_jnts_pos.setAttr("parameterV", 1.0)
             pmc.refresh()
             end_jnt.setAttr("translate", ctrl_jnts_pos.getAttr("position"))
+
+            if how_many_ctrls == "7":
+                pmc.select(cl=1)
+                start_quarter_jnt = pmc.joint(p=(0, 0, 0), n="{0}_{1}_start_quarter_JNT".format(self.model.module_name, side))
+                start_quarter_jnt.setAttr("radius", 0.2)
+                pmc.select(cl=1)
+                quarter_end_jnt = pmc.joint(p=(0, 0, 0), n="{0}_{1}_quarter_end_JNT".format(self.model.module_name, side))
+                quarter_end_jnt.setAttr("radius", 0.2)
+
+                ctrl_jnts_pos.setAttr("parameterV", 0.15)
+                pmc.refresh()
+                start_quarter_jnt.setAttr("translate", ctrl_jnts_pos.getAttr("position"))
+
+                ctrl_jnts_pos.setAttr("parameterV", 0.85)
+                pmc.refresh()
+                quarter_end_jnt.setAttr("translate", ctrl_jnts_pos.getAttr("position"))
+
+                ctrls_jnt = [start_jnt, start_quarter_jnt, start_mid_jnt, mid_jnt, mid_end_jnt, quarter_end_jnt, end_jnt]
+            else:
+                ctrls_jnt = [start_jnt, start_mid_jnt, mid_jnt, mid_end_jnt, end_jnt]
 
             pmc.delete(ctrl_jnts_pos)
 
@@ -530,10 +577,11 @@ class Controller(RigController):
                 pmc.parent(follicle, self.ctrl_input_grp)
 
             pmc.select(cl=1)
-            pmc.skinCluster(start_jnt, start_mid_jnt, mid_jnt, mid_end_jnt, end_jnt, surface, bm=0, dr=4.0, mi=2, nw=1,
-                            sm=0, tsb=1, wd=0)
+            pmc.skinCluster(ctrls_jnt, surface, bm=0, dr=4.0, mi=2, nw=1, sm=0, tsb=1, wd=0)
 
             return skn_jnts, surface, follicles, ctrls_jnt, ctrls_fol, ctrls
+        else:
+            pmc.error("faces aren't support yet")
 
     def create_corner_ctrls(self):
         distance = pmc.createNode("distanceBetween")
@@ -733,3 +781,5 @@ class Model(AuriScriptModel):
         self.top_creation_switch = True
         self.bot_creation_switch = False
         self.mesh_to_follow = None
+        self.how_many_top_ctrls = "5"
+        self.how_many_bot_ctrls = "5"
