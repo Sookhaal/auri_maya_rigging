@@ -196,26 +196,30 @@ class Controller(RigController):
             ctrl = rig_lib.create_jnttype_ctrl(name=str(fol).replace("_FOL", "_CTRL"), shape=ctrl_shape)
 
             pmc.select(clear=1)
-            ctrl_ofs = pmc.joint(p=(0, 0, 0), n=str(ctrl).replace("_CTRL", "_ctrl_OFS"))
-            ctrl_ofs.setAttr("drawStyle", 2)
+            ctrl_fix_r = pmc.joint(p=(0, 0, 0), n=str(ctrl).replace("_CTRL", "_ctrl_rotate_FIX"))
+            ctrl_fix_r.setAttr("drawStyle", 2)
+            ctrl_fix_r.setAttr("rotateOrder", 5)
 
-            pmc.parent(ctrl, ctrl_ofs)
-            pmc.parent(ctrl_ofs, fol)
+            ctrl_fix_t = pmc.joint(p=(0, 0, 0), n=str(ctrl).replace("_CTRL", "_ctrl_translate_FIX"))
+            ctrl_fix_t.setAttr("drawStyle", 2)
 
-            ctrl_ofs.setAttr("translate", (0, 0, 0))
-            ctrl_ofs.setAttr("rotate", (0, 0, 0))
-            ctrl_ofs.setAttr("jointOrient", (0, 0, 0))
+            pmc.parent(ctrl, ctrl_fix_t)
+            pmc.parent(ctrl_fix_r, fol)
+
+            ctrl_fix_r.setAttr("translate", (0, 0, 0))
+            ctrl_fix_r.setAttr("rotate", (0, 0, 0))
+            ctrl_fix_r.setAttr("jointOrient", (0, 0, 0))
 
             invert_ctrl_translate = pmc.createNode("multiplyDivide", n=str(ctrl)+"invert_translate_MDL")
             invert_ctrl_rotate = pmc.createNode("multiplyDivide", n=str(ctrl)+"invert_rotate_MDL")
 
             ctrl.translate >> invert_ctrl_translate.input1
             invert_ctrl_translate.setAttr("input2", (-1, -1, -1))
-            invert_ctrl_translate.output >> ctrl_ofs.translate
+            invert_ctrl_translate.output >> ctrl_fix_t.translate
 
             ctrl.rotate >> invert_ctrl_rotate.input1
             invert_ctrl_rotate.setAttr("input2", (-1, -1, -1))
-            invert_ctrl_rotate.output >> ctrl_ofs.rotate
+            invert_ctrl_rotate.output >> ctrl_fix_r.rotate
 
             ctrl_cvs = ctrl.cv[:]
             for i, cv in enumerate(ctrl_cvs):
@@ -232,15 +236,16 @@ class Controller(RigController):
         for i, fol in enumerate(self.follicles):
             fol.getShape().setAttr("visibility", 0)
 
-            if fol.getAttr("translateX") > 0.05:
+            if fol.getAttr("translateX") > 0.02:
                 color_value = 6
-            elif fol.getAttr("translateX") < -0.05:
+            elif fol.getAttr("translateX") < -0.02:
                 color_value = 13
             else:
                 color_value = 14
 
-            rig_lib.clean_ctrl(self.ctrls[i], color_value, trs="rs")
+            rig_lib.clean_ctrl(self.ctrls[i], color_value, trs="s")
             rig_lib.clean_ctrl(self.ctrls[i].getParent(), color_value, trs="trs")
+            rig_lib.clean_ctrl(self.ctrls[i].getParent().getParent(), color_value, trs="trs")
 
 
 class Model(AuriScriptModel):
