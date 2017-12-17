@@ -953,6 +953,16 @@ def oval_curve_y(name, side=1):
     return crv
 
 
+def oval_curve_z(name, side=1):
+    crv = pmc.curve(d=3, p=[(0, 0 * side, 1 * side), (-0.0470694, 0.0624626 * side, 1 * side),
+                            (-0.141208, 0.187388 * side, 1 * side), (-0.199698, 1.007808 * side, 1 * side),
+                            (-0.141208, 1.781381 * side, 1 * side), (0, 2 * side, 1 * side),
+                            (0.141208, 1.781381 * side, 1 * side), (0.199698, 1.007808 * side, 1 * side),
+                            (0.141208, 0.187388 * side, 1 * side), (0.0470694, 0.0624626 * side, 1 * side),
+                            (0, 0 * side, 1 * side)], n=name)
+    return crv
+
+
 def matrix_constraint(driver, driven, srt="srt"):
     """ Constraint one node to another using their worldMatrix attributes
         if doesn't work, check if plug-in "matrixNodes" is loaded

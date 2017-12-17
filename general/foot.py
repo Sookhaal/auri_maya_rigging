@@ -163,7 +163,10 @@ class Controller(RigController):
 
     def get_parent_ik_objects(self):
         self.leg_ik_ctrl = pmc.ls("{0}_ankle_ik_CTRL".format(self.model.selected_module))[0]
-        self.leg_ik_handle = pmc.ls("{0}_ik_HDL".format(self.model.selected_module))[0]
+        try:
+            self.leg_ik_handle = pmc.ls("{0}_ik_HDL".format(self.model.selected_module))[0]
+        except:
+            self.leg_ik_handle = pmc.ls("{0}_all_leg_ik_HDL".format(self.model.selected_module))[0]
         if pmc.objExists("{0}_ankle_rotation_ik_HDL".format(self.model.selected_module)):
             self.leg_ankle_rotation_handle = pmc.ls("{0}_ankle_rotation_ik_HDL".format(self.model.selected_module))[0]
         self.leg_option_ctrl = pmc.ls("{0}_option_CTRL".format(self.model.selected_module))[0]
