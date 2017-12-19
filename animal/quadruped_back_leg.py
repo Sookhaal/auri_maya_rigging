@@ -988,30 +988,37 @@ class Controller(RigController):
 
         spaces_names.append("local")
 
-        self.created_ctrtl_jnts[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
-        self.created_ik_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
+        if len(self.model.space_list) > 0:
+            self.created_ctrtl_jnts[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
+            self.created_ik_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
 
-        for i, space in enumerate(self.model.space_list):
-            space_locs[i].setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
-            pmc.parent(space_locs[i], space)
+            fk_const_switch = pmc.createNode("plusMinusAverage", n="{0}_fk_ik_switch_invert_value_PMA".format(self.model.module_name))
+            fk_const_switch.setAttr("operation", 2)
+            fk_const_switch.setAttr("input1D[0]", 1)
+            self.option_ctrl.fkIk >> fk_const_switch.input1D[1]
 
-            fk_space_const = pmc.orientConstraint(space_locs[i], self.created_ctrtl_jnts[0].getParent(), maintainOffset=1)
-            ik_space_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[0].getParent(), maintainOffset=1)
-            jnt_const_grp_const = pmc.orientConstraint(space_locs[i], self.jnt_const_group, maintainOffset=1)
-            # pole_vector_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[1].getParent(), maintainOffset=1)
+            for i, space in enumerate(self.model.space_list):
+                space_locs[i].setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
+                pmc.parent(space_locs[i], space)
 
-            rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(fk_space_const, space_locs[i], i),
-                                                    self.created_ctrtl_jnts[0].space, i,
-                                                    "{0}_{1}_COND".format(self.created_ctrtl_jnts[0], name))
-            rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(ik_space_const, space_locs[i], i),
-                                                    self.created_ik_ctrls[0].space, i,
-                                                    "{0}_{1}_COND".format(self.created_ik_ctrls[0], name))
-            rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(jnt_const_grp_const, space_locs[i], i),
-                                                    self.created_ctrtl_jnts[0].space, i,
-                                                    "{0}_{1}_COND".format(self.jnt_const_group, name))
-            # rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(pole_vector_const, space_locs[i], i),
-            #                                         self.created_ik_ctrls[0].space, i,
-            #                                         "{0}_{1}_COND".format(self.created_ik_ctrls[1], name))
+                fk_space_const = pmc.orientConstraint(space_locs[i], self.created_ctrtl_jnts[0].getParent(), maintainOffset=1)
+                ik_space_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[0].getParent(), maintainOffset=1)
+                # jnt_const_grp_const = pmc.orientConstraint(space_locs[i], self.jnt_const_group, maintainOffset=1)
+                # pole_vector_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[1].getParent(), maintainOffset=1)
+
+                rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(fk_space_const, space_locs[i], i),
+                                                        self.created_ctrtl_jnts[0].space, i,
+                                                        "{0}_{1}_COND".format(self.created_ctrtl_jnts[0], spaces_names[i]),
+                                                        switch=fk_const_switch)
+                rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(ik_space_const, space_locs[i], i),
+                                                        self.created_ik_ctrls[0].space, i,
+                                                        "{0}_{1}_COND".format(self.created_ik_ctrls[0], spaces_names[i]))
+                # rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(jnt_const_grp_const, space_locs[i], i),
+                #                                         self.created_ctrtl_jnts[0].space, i,
+                #                                         "{0}_{1}_COND".format(self.jnt_const_group, spaces_names[i]))
+                # rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(pole_vector_const, space_locs[i], i),
+                #                                         self.created_ik_ctrls[0].space, i,
+                #                                         "{0}_{1}_COND".format(self.created_ik_ctrls[1], spaces_names[i]))
 
         self.created_ik_ctrls[1].addAttr("space", attributeType="enum", enumName=["world", "foot"], hidden=0, keyable=1)
         if pmc.objExists("{0}_world_SPACELOC".format(self.model.module_name)):
@@ -1019,7 +1026,7 @@ class Controller(RigController):
         else:
             world_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_world_SPACELOC".format(self.model.module_name))
             world_loc.setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
-            world_parent = pmc.ls(regex=".*_local_ctrl_OUTPUT$")
+            world_parent = pmc.ls(regex=".*_local_ctrl_OUTPUT$")[0]
             pmc.parent(world_loc, world_parent)
         pole_vector_const = pmc.parentConstraint(world_loc, self.created_ik_ctrls[0],
                                                  self.created_ik_ctrls[1].getParent(),
