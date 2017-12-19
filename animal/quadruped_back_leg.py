@@ -230,6 +230,7 @@ class Controller(RigController):
         self.jnts_to_skin = []
         self.ankle_output = None
         self.bend_ctrls = []
+        self.global_ik_handle = None
         RigController.__init__(self, model, view)
 
     def on_raz_ik_ctrls_changed(self, state):
@@ -417,6 +418,9 @@ class Controller(RigController):
                     rig_lib.raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, self.created_skn_jnts[i])
 
         self.clean_rig()
+        pmc.refresh()
+        pmc.disconnectAttr(self.global_ik_handle.ikSolver)
+        pmc.connectAttr("ikSpringSolver.message", self.global_ik_handle.ikSolver)
         pmc.select(cl=1)
 
     def create_skn_jnts(self):
@@ -716,13 +720,13 @@ class Controller(RigController):
         pmc.parent(hip_ik_setup_jnt, self.clavicle_ik_ctrl)
         hip_ik_setup_jnt.setAttr("visibility", 0)
 
-        global_ik_handle = pmc.ikHandle(n=("{0}_all_leg_ik_HDL".format(self.model.module_name)),
+        self.global_ik_handle = pmc.ikHandle(n=("{0}_all_leg_ik_HDL".format(self.model.module_name)),
                                       startJoint=hip_ik_setup_jnt, endEffector=ankle_ik_setup_jnt,
-                                      # solver="ikRPsolver")[0]
-                                      solver="ikSpringSolver")[0]
+                                      solver="ikRPsolver")[0]
+                                      # solver="ikSpringSolver")[0]
         global_ik_effector = pmc.listRelatives(knee_02_ik_setup_jnt, children=1)[1]
         global_ik_effector.rename("{0}_all_leg_ik_EFF".format(self.model.module_name))
-        global_ik_handle.setAttr("snapEnable", 0)
+        self.global_ik_handle.setAttr("snapEnable", 0)
 
         knee_ik_handle = pmc.ikHandle(n=("{0}_knee_ik_HDL".format(self.model.module_name)),
                                       startJoint=self.created_ctrtl_jnts[0], endEffector=self.created_ctrtl_jnts[2],
@@ -765,12 +769,12 @@ class Controller(RigController):
         # knee_ik_handle.setAttr("translate", pmc.xform(self.guides[2], q=1, ws=1, translation=1))
         # ankle_ik_handle.setAttr("translate", pmc.xform(self.guides[3], q=1, ws=1, translation=1))
         # pmc.parent(ankle_ik_handle, ik_ctrl_ofs, r=0)
-        pmc.parent(global_ik_handle, ik_ctrl_ofs, r=0)
+        pmc.parent(self.global_ik_handle, ik_ctrl_ofs, r=0)
         # ik_ctrl.setAttr("translate", pmc.xform(ankle_ik_handle, q=1, translation=1))
-        ik_ctrl.setAttr("translate", pmc.xform(global_ik_handle, q=1, translation=1))
+        ik_ctrl.setAttr("translate", pmc.xform(self.global_ik_handle, q=1, translation=1))
         # pmc.parent(knee_ik_handle, ik_ctrl, r=0)
         # pmc.parent(ankle_ik_handle, ik_ctrl, r=0)
-        pmc.parent(global_ik_handle, ik_ctrl, r=0)
+        pmc.parent(self.global_ik_handle, ik_ctrl, r=0)
         pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
 
         ik_ctrl.setAttr("translate", (0, 0, 0))
@@ -816,7 +820,7 @@ class Controller(RigController):
 
         ik_ctrl.addAttr("poleVector", attributeType="enum", enumName=["auto", "manual"], hidden=0, keyable=1)
 
-        pole_vector_const = pmc.poleVectorConstraint(manual_pole_vector, auto_pole_vector, global_ik_handle)
+        pole_vector_const = pmc.poleVectorConstraint(manual_pole_vector, auto_pole_vector, self.global_ik_handle)
         rig_lib.connect_condition_to_constraint("{0}.{1}W0".format(pole_vector_const, manual_pole_vector),
                                                 ik_ctrl.poleVector, 1,
                                                 "{0}_manual_poleVector_COND".format(ik_ctrl))
@@ -849,11 +853,11 @@ class Controller(RigController):
         pmc.pointConstraint(self.created_ctrtl_jnts[0].getParent(), auto_pv_ofs, maintainOffset=1)
 
         ik_ctrl.addAttr("legTwist", attributeType="float", defaultValue=0, hidden=0, keyable=1)
-        pmc.aimConstraint(global_ik_handle, auto_pv_ofs,
+        pmc.aimConstraint(self.global_ik_handle, auto_pv_ofs,
                           maintainOffset=1, aimVector=(0.0, -1.0, 0.0),
                           upVector=(1.0, 0.0, 0.0), worldUpType="objectrotation",
                           worldUpVector=(1.0, 0.0, 0.0), worldUpObject=ik_ctrl)
-        ik_ctrl.legTwist >> global_ik_handle.twist
+        ik_ctrl.legTwist >> self.global_ik_handle.twist
 
         start_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_start_LOC".format(self.model.module_name))
         end_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_ik_length_end_LOC".format(self.model.module_name))
@@ -934,7 +938,7 @@ class Controller(RigController):
 
         pmc.xform(manual_pole_vector, ws=1, translation=(pmc.xform(self.created_ctrtl_jnts[1], q=1, ws=1, translation=1)))
 
-        global_ik_handle.setAttr("visibility", 0)
+        self.global_ik_handle.setAttr("visibility", 0)
 
         self.ankle_fk_pos_reader = pmc.spaceLocator(p=(0, 0, 0),
                                                     n="{0}_ankle_fk_pos_reader_LOC".format(self.model.module_name))
