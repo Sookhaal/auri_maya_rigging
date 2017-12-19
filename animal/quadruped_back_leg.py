@@ -8,6 +8,9 @@ from auri.scripts.Maya_Scripts.rig_lib import RigController
 
 reload(rig_lib)
 
+pmc.loadPlugin("ikSpringSolver", qt=1)
+pmc.mel.eval("ikSpringSolver")
+
 
 class View(AuriScriptView):
     def __init__(self, *args, **kwargs):
@@ -414,7 +417,7 @@ class Controller(RigController):
                     rig_lib.raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, self.created_skn_jnts[i])
 
         self.clean_rig()
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
     def create_skn_jnts(self):
         duplicates_guides = []
@@ -715,7 +718,8 @@ class Controller(RigController):
 
         global_ik_handle = pmc.ikHandle(n=("{0}_all_leg_ik_HDL".format(self.model.module_name)),
                                       startJoint=hip_ik_setup_jnt, endEffector=ankle_ik_setup_jnt,
-                                      solver="ikRPsolver")[0]
+                                      # solver="ikRPsolver")[0]
+                                      solver="ikSpringSolver")[0]
         global_ik_effector = pmc.listRelatives(knee_02_ik_setup_jnt, children=1)[1]
         global_ik_effector.rename("{0}_all_leg_ik_EFF".format(self.model.module_name))
         global_ik_handle.setAttr("snapEnable", 0)

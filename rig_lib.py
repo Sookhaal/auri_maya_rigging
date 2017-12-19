@@ -631,26 +631,48 @@ class RigController(AuriScriptController):
                     jnt_length.outputY >> base_length.input1D[i]
 
                 jnt_ik_stretch = pmc.createNode("multiplyDivide",
-                                                n="{0}_jnt_ik_{1}_stretch_MDV".format(name, i - 1))
+                                                n="{0}_jnt_ik_{1}_stretch_MDV".format(name, i))
                 ctrl.stretch >> jnt_ik_stretch.input1Y
                 stretch_condition.outColorR >> jnt_ik_stretch.input2Y
 
                 blend = pmc.createNode("blendColors",
                                        n="{0}_jnt_{1}_fk_ik_stretch_merge_BLENDCOLOR".format(name,
-                                                                                             i - 1))
+                                                                                             i))
 
                 option_ctrl.fkIk >> blend.blender
                 jnt_ik_stretch.outputY >> blend.color1R
                 ctrl.stretch >> blend.color2R
-                blend.outputR >> ctrl.scaleY
-                blend.outputR >> ik_setup_chain[i].scaleY
-                blend.outputR >> skn_jnts[i].scaleY
+                # blend.outputR >> ctrl.scaleY
+                # blend.outputR >> ik_setup_chain[i].scaleY
+                # blend.outputR >> skn_jnts[i].scaleY
 
-        ik_setup_chain[-2].scaleY >> ik_setup_chain[-1].scaleY
+                fk_ctrls[i + 1].addAttr("baseTranslateY", attributeType="float",
+                                      defaultValue=pmc.xform(fk_ctrls[i+1], q=1, translation=1)[1], hidden=0, keyable=0)
+                fk_ctrls[i + 1].setAttr("baseTranslateY", lock=1, channelBox=0)
+
+                mult = pmc.createNode("multDoubleLinear",
+                                      n="{0}_jnt_{1}_translateY_scaled_Value_MDL".format(name, i+1))
+
+                fk_ctrls[i+1].baseTranslateY >> mult.input1
+                blend.outputR >> mult.input2
+                mult.output >> fk_ctrls[i+1].translateY
+                mult.output >> ik_setup_chain[i+1].translateY
+                mult.output >> skn_jnts[i+1].translateY
+
+        ankle_hdl = pmc.listRelatives(ik_setup_chain[-2], children=1, type="ikHandle")[0]
+        knee_hdl = pmc.listRelatives(ik_setup_chain[-1], children=1, type="ikHandle")[0]
+
+        ik_setup_chain[-1].translateY >> ankle_hdl.translateY
+
+        jnt_ty_invert = pmc.createNode("multDoubleLinear", n="{0}_translateY_invert_Value_MDL".format(str(fk_ctrls[-1])))
+        jnt_ty_invert.setAttr("input2", -1)
+        ik_setup_chain[-1].translateY >> jnt_ty_invert.input1
+        jnt_ty_invert.output >> knee_hdl.translateY
+
+        # ik_setup_chain[-2].scaleY >> ik_setup_chain[-1].scaleY
 
         ik_ctrl.setAttr("translate", ik_ctrl_translate)
         ik_ctrl.setAttr("rotate", ik_ctrl_rotate)
-# TODO: find a way to use translates (care to the ik_setup_chain)?
 
     def connect_one_jnt_ik_stretch(self, jnt, start_parent, end_parent):
         # jnt_stretch_mult_list = []
@@ -1057,7 +1079,7 @@ def create_curve_guide(d, number_of_points, name, hauteur_curve=10):
     return crv_rebuilded
 
 
-def create_jnts_from_cv_list_and_return_jnts_list(vertex_list, module_name):
+def create_jnts_from_cv_list_and_return_jnts_list(vertex_list, module_name, forward_axis="y"):
     pmc.select(d=1)
     loc_list = []
     created_jnts_list = []
@@ -1065,9 +1087,14 @@ def create_jnts_from_cv_list_and_return_jnts_list(vertex_list, module_name):
         loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_tempLOC".format(vertex))
         loc.setAttr("translate", pmc.xform(vertex, q=1, ws=1, translation=1))
         if i > 0:
-            const = pmc.aimConstraint(loc, loc_list[i-1], maintainOffset=0,
-                                        aimVector=(0.0, 1.0, 0.0),
-                                        upVector=(0.0, 0.0, 1.0), worldUpType="vector", worldUpVector=(0.0, 0.0, 1.0))
+            if forward_axis == "z":
+                const = pmc.aimConstraint(loc, loc_list[i - 1], maintainOffset=0,
+                                          aimVector=(0.0, 0.0, 1.0),
+                                          upVector=(0.0, 1.0, 0.0), worldUpType="vector", worldUpVector=(0.0, 1.0, 0.0))
+            else:
+                const = pmc.aimConstraint(loc, loc_list[i-1], maintainOffset=0,
+                                          aimVector=(0.0, 1.0, 0.0),
+                                          upVector=(0.0, 0.0, 1.0), worldUpType="vector", worldUpVector=(0.0, 0.0, 1.0))
             pmc.delete(const)
             pmc.parent(loc, loc_list[i-1], r=0)
         loc_list.append(loc)
