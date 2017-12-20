@@ -239,7 +239,7 @@ class Controller(RigController):
                 planes_loc_02 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_mid_LOC".format(guide[1]))
                 planes_loc_03 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_end_LOC".format(guide[1]))
 
-                if self.model.thumb_creation_switch and i == 0:
+                if self.model.thumb_creation_switch and i == 0 or self.model.how_many_phalanges == 2:
                     loc_01_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_01))
                     guide[1].getShape().worldSpace[0] >> loc_01_pos.geometryPath
                     loc_01_pos.setAttr("uValue", 0)
@@ -396,23 +396,42 @@ class Controller(RigController):
                 planes_loc_02 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_mid_LOC".format(finger[1]))
                 planes_loc_03 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_end_LOC".format(finger[1]))
 
-                loc_01_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_01))
-                finger[1].getShape().worldSpace[0] >> loc_01_pos.geometryPath
-                loc_01_pos.setAttr("uValue", 0)
-                loc_01_pos.allCoordinates >> planes_loc_01.translate
-                planes_loc_01.setAttr("visibility", 0)
+                if self.model.how_many_phalanges == 2:
+                    loc_01_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_01))
+                    finger[1].getShape().worldSpace[0] >> loc_01_pos.geometryPath
+                    loc_01_pos.setAttr("uValue", 0)
+                    loc_01_pos.allCoordinates >> planes_loc_01.translate
+                    planes_loc_01.setAttr("visibility", 0)
 
-                loc_02_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_02))
-                finger[1].getShape().worldSpace[0] >> loc_02_pos.geometryPath
-                loc_02_pos.setAttr("uValue", 0.5)
-                loc_02_pos.allCoordinates >> planes_loc_02.translate
-                planes_loc_02.setAttr("visibility", 0)
+                    loc_02_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_02))
+                    finger[1].getShape().worldSpace[0] >> loc_02_pos.geometryPath
+                    loc_02_pos.setAttr("uValue", 1)
+                    loc_02_pos.allCoordinates >> planes_loc_02.translate
+                    planes_loc_02.setAttr("visibility", 0)
 
-                loc_03_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_03))
-                finger[1].getShape().worldSpace[0] >> loc_03_pos.geometryPath
-                loc_03_pos.setAttr("uValue", 1)
-                loc_03_pos.allCoordinates >> planes_loc_03.translate
-                planes_loc_03.setAttr("visibility", 0)
+                    loc_03_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_03))
+                    finger[1].getShape().worldSpace[0] >> loc_03_pos.geometryPath
+                    loc_03_pos.setAttr("uValue", 2)
+                    loc_03_pos.allCoordinates >> planes_loc_03.translate
+                    planes_loc_03.setAttr("visibility", 0)
+                else:
+                    loc_01_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_01))
+                    finger[1].getShape().worldSpace[0] >> loc_01_pos.geometryPath
+                    loc_01_pos.setAttr("uValue", 0)
+                    loc_01_pos.allCoordinates >> planes_loc_01.translate
+                    planes_loc_01.setAttr("visibility", 0)
+
+                    loc_02_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_02))
+                    finger[1].getShape().worldSpace[0] >> loc_02_pos.geometryPath
+                    loc_02_pos.setAttr("uValue", 0.5)
+                    loc_02_pos.allCoordinates >> planes_loc_02.translate
+                    planes_loc_02.setAttr("visibility", 0)
+
+                    loc_03_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_03))
+                    finger[1].getShape().worldSpace[0] >> loc_03_pos.geometryPath
+                    loc_03_pos.setAttr("uValue", 1)
+                    loc_03_pos.allCoordinates >> planes_loc_03.translate
+                    planes_loc_03.setAttr("visibility", 0)
 
                 plane = pmc.ls(pmc.polyCreateFacet(p=[(0, 0, 0), (0, 0, 0), (0, 0, 0)],
                                                    n="{0}_plane".format(finger[1]), ch=0))[0]
