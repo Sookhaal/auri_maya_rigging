@@ -1063,8 +1063,14 @@ def cbbox_set_selected(selected, cbbox):
     return selected
 
 
-def create_curve_guide(d, number_of_points, name, hauteur_curve=10):
-    crv = pmc.curve(d=1, p=[(0, 0, 0), (0, hauteur_curve/2, 0), (0, hauteur_curve, 0)], k=[0, 1, 2])
+def create_curve_guide(d, number_of_points, name, hauteur_curve=10, front_axe="y"):
+    if front_axe == "x":
+        crv = pmc.curve(d=1, p=[(0, 0, 0), (hauteur_curve/2, 0, 0), (hauteur_curve, 0, 0)], k=[0, 1, 2])
+    elif front_axe == "z":
+        crv = pmc.curve(d=1, p=[(0, 0, 0), (0, 0, hauteur_curve / 2), (0, 0, hauteur_curve)], k=[0, 1, 2])
+    else:
+        crv = pmc.curve(d=1, p=[(0, 0, 0), (0, hauteur_curve / 2, 0), (0, hauteur_curve, 0)], k=[0, 1, 2])
+
     if d == 1 and number_of_points == 3:
         crv_rebuilded = crv
     elif d == 2:
@@ -1256,7 +1262,7 @@ def raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, skn_jnt=None, raz_ctrl_shape_axe="y"
 
 
 def create_jnttype_ctrl(name, shape, drawstyle=2, rotateorder=0):
-    pmc.select(d=1)
+    pmc.select(cl=1)
     ctrl = pmc.joint(p=(0, 0, 0), n=name)
     pmc.parent(shape.getShape(), ctrl, r=1, s=1)
     ctrl.getShape().rename("{0}Shape".format(ctrl))

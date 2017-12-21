@@ -247,7 +247,7 @@ class Controller(RigController):
         pmc.select(d=1)
         self.created_pelvis_jnt = pmc.joint(p=(pmc.xform(self.guides[0], q=1, ws=1, translation=1)),
                                             n="{0}_pelvis_SKN".format(self.model.module_name))
-        self.created_pelvis_jnt.setAttr("rotateOrder", 2)
+        self.created_pelvis_jnt.setAttr("rotateOrder", 1)
         pmc.parent(self.created_pelvis_jnt, self.jnt_input_grp)
 
         self.jnts_to_skin = self.created_spine_jnts[:]
@@ -326,7 +326,7 @@ class Controller(RigController):
         pelvis_ctrl_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=2.5, d=3, s=8,
                                        n="{0}_pelvis_CTRL_shape".format(self.model.module_name), ch=0)[0]
         self.created_pelvis_ctrl = rig_lib.create_jnttype_ctrl(name="{0}_pelvis_CTRL".format(self.model.module_name),
-                                                               shape=pelvis_ctrl_shape, drawstyle=2, rotateorder=2)
+                                                               shape=pelvis_ctrl_shape, drawstyle=2, rotateorder=1)
         self.created_pelvis_ctrl.setAttr("translate", pmc.xform(self.created_pelvis_jnt, q=1, ws=1, translation=1))
         pmc.parent(self.created_pelvis_ctrl, self.ctrl_input_grp)
         # pmc.pointConstraint(self.created_pelvis_ctrl, self.created_pelvis_jnt, maintainOffset=1)
@@ -337,6 +337,7 @@ class Controller(RigController):
     def create_locators(self, i, cv, ik_spline_controlpoints):
         cv_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_{1}_pos".format(self.model.module_name, (i + 1)))
         cv_loc.setAttr("translate", pmc.xform(cv, q=1, ws=1, translation=1))
+        cv_loc.setAttr("rotateOrder", 1)
         cv_loc_shape = cv_loc.getShape()
         cv_loc_shape.worldPosition >> ik_spline_controlpoints[i]
         return cv_loc
@@ -346,7 +347,7 @@ class Controller(RigController):
         ctrl_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=3, d=3, s=8,
                                 n="{0}_{1}_fk_CTRL_shape".format(self.model.module_name, (i + 1)), ch=0)[0]
         ctrl = rig_lib.create_jnttype_ctrl(name="{0}_{1}_fk_CTRL".format(self.model.module_name, (i + 1)), shape=ctrl_shape,
-                                           drawstyle=2, rotateorder=2)
+                                           drawstyle=2, rotateorder=1)
 
         nearest_point_on_curve = pmc.createNode("nearestPointOnCurve", n="temp_NPOC")
         self.guides[1].worldSpace >> nearest_point_on_curve.inputCurve

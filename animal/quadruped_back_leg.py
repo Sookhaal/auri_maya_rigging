@@ -8,8 +8,8 @@ from auri.scripts.Maya_Scripts.rig_lib import RigController
 
 reload(rig_lib)
 
-pmc.loadPlugin("ikSpringSolver", qt=1)
-pmc.mel.eval("ikSpringSolver")
+# pmc.loadPlugin("ikSpringSolver", qt=1)
+# pmc.mel.eval("ikSpringSolver")
 
 
 class View(AuriScriptView):
@@ -418,9 +418,9 @@ class Controller(RigController):
                     rig_lib.raz_one_chain_ikfk_fk_ctrl_rotate(ctrl, self.created_skn_jnts[i])
 
         self.clean_rig()
-        pmc.refresh()
-        pmc.disconnectAttr(self.global_ik_handle.ikSolver)
-        pmc.connectAttr("ikSpringSolver.message", self.global_ik_handle.ikSolver)
+        # pmc.refresh()
+        # pmc.disconnectAttr(self.global_ik_handle.ikSolver)
+        # pmc.connectAttr("ikSpringSolver.message", self.global_ik_handle.ikSolver)
         pmc.select(cl=1)
 
     def create_skn_jnts(self):
