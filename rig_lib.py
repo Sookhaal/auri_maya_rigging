@@ -344,6 +344,98 @@ class RigController(AuriScriptController):
             pmc.delete(nearest_point)
             pmc.delete(pos_loc)
 
+    def connect_z_ik_spline_stretch(self, ik_spline, created_jnts, measure_type="average"):
+        if measure_type == "average":
+            crv_info = pmc.createNode("curveInfo", n="{0}_CURVEINFO".format(self.model.module_name))
+            global_stretch = pmc.createNode("multDoubleLinear",
+                                            n="{0}_global_stretch_MDL".format(self.model.module_name))
+            neck_stretch_div = pmc.createNode("multiplyDivide", n="{0}_stretch_MDIV".format(self.model.module_name))
+            neck_stretch_mult = pmc.createNode("multDoubleLinear", n="{0}_stretch_MDL".format(self.model.module_name))
+            self.jnt_input_grp.addAttr("baseArcLength", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+            self.jnt_input_grp.addAttr("baseTranslateZ", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+            crv_shape = ik_spline.getShape()
+            global_scale = pmc.ls(regex=".*_global_mult_local_scale_MDL$")[0]
+
+            crv_shape.worldSpace[0] >> crv_info.inputCurve
+            base_arc_length = crv_info.getAttr("arcLength")
+            self.jnt_input_grp.setAttr("baseArcLength", base_arc_length)
+            base_translate_Z = created_jnts[1].getAttr("translateZ")
+            self.jnt_input_grp.setAttr("baseTranslateZ", base_translate_Z)
+            global_scale.output >> global_stretch.input1
+            self.jnt_input_grp.baseArcLength >> global_stretch.input2
+            crv_info.arcLength >> neck_stretch_div.input1X
+            global_stretch.output >> neck_stretch_div.input2X
+            neck_stretch_div.setAttr("operation", 2)
+            neck_stretch_div.outputX >> neck_stretch_mult.input1
+            self.jnt_input_grp.baseTranslateZ >> neck_stretch_mult.input2
+
+            for jnt in created_jnts:
+                if not jnt == created_jnts[0]:
+                    neck_stretch_mult.output >> jnt.translateZ
+        else:
+            nearest_point = pmc.createNode("nearestPointOnCurve", n="temp_nearest_point_on_curve")
+            pos_loc = pmc.spaceLocator(p=(0, 0, 0), n="temp_loc_for_ik_stretch")
+            ik_spline.getShape().worldSpace[0] >> nearest_point.inputCurve
+            pos_loc.getShape().worldPosition[0] >> nearest_point.inPosition
+
+            jnt_locs = []
+            loc_group = pmc.group(em=1, n="{0}_stretch_locs_GRP".format(ik_spline))
+
+            for i, jnt in enumerate(created_jnts):
+                pmc.xform(pos_loc, ws=1, matrix=(pmc.xform(jnt, q=1, ws=1, matrix=1)))
+
+                jnt_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_jnt_{1}_LOC".format(ik_spline, i))
+                # point_on_curve = pmc.createNode("pointOnCurveInfo", n="{0}_pos_POCI".format(jnt_loc))
+                point_on_curve = pmc.createNode("motionPath", n="{0}_pos_POCI".format(jnt_loc))
+                point_on_curve.setAttr("fractionMode", 1)
+                # ik_spline.getShape().worldSpace[0] >> point_on_curve.inputCurve
+                ik_spline.getShape().worldSpace[0] >> point_on_curve.geometryPath
+                pmc.refresh()
+
+                # point_on_curve.setAttr("parameter", nearest_point.getAttr("parameter"))
+                point_on_curve.setAttr("uValue", nearest_point.getAttr("parameter"))
+                # point_on_curve.position >> jnt_loc.translate
+                point_on_curve.allCoordinates >> jnt_loc.translate
+
+                jnt_locs.append(jnt_loc)
+                pmc.parent(jnt_loc, loc_group)
+
+                pmc.refresh()
+
+                if i > 0:
+                    distance = pmc.createNode("distanceBetween",
+                                              n="{0}_jnt{1}_to_jnt{2}_distance_DSTBTN".format(self.model.module_name,
+                                                                                              i - 1, i))
+                    jnt_locs[i - 1].getShape().worldPosition >> distance.point1
+                    jnt_locs[i].getShape().worldPosition >> distance.point2
+                    jnt.addAttr("baseDistance", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+                    jnt.addAttr("baseTranslateZ", attributeType="float", defaultValue=0, hidden=0, keyable=1)
+
+                    global_stretch = pmc.createNode("multDoubleLinear",
+                                                    n="{0}_global_stretch_MDL".format(self.model.module_name))
+                    jnt_stretch_div = pmc.createNode("multiplyDivide",
+                                                     n="{0}_stretch_MDIV".format(self.model.module_name))
+                    jnt_stretch_mult = pmc.createNode("multDoubleLinear",
+                                                      n="{0}_stretch_MDL".format(self.model.module_name))
+                    global_scale = pmc.ls(regex=".*_global_mult_local_scale_MDL$")[0]
+
+                    jnt.setAttr("baseDistance", distance.getAttr("distance"))
+                    jnt.setAttr("baseTranslateZ", jnt.getAttr("translateZ"))
+                    global_scale.output >> global_stretch.input1
+                    jnt.baseDistance >> global_stretch.input2
+                    distance.distance >> jnt_stretch_div.input1X
+                    global_stretch.output >> jnt_stretch_div.input2X
+                    jnt_stretch_div.setAttr("operation", 2)
+                    jnt_stretch_div.outputX >> jnt_stretch_mult.input1
+                    jnt.baseTranslateZ >> jnt_stretch_mult.input2
+                    jnt_stretch_mult.output >> jnt.translateZ
+
+            pmc.parent(loc_group, self.parts_grp)
+            loc_group.setAttr("visibility", 0)
+
+            pmc.delete(nearest_point)
+            pmc.delete(pos_loc)
+
     def connect_fk_stretch(self, created_fk_jnts, created_fk_ctrls):
         for i, jnt in enumerate(created_fk_jnts):
             if i != 0:
@@ -845,6 +937,13 @@ def box_curve(name):
     return crv
 
 
+def z_box_curve(name):
+    crv = pmc.curve(d=1, p=[(-3, 3, 1), (-3, 3, -1), (-3, -3, -1), (-3, -3, 1), (-3, 3, 1), (3, 3, 1), (3, -3, 1),
+                            (-3, -3, 1), (-3, -3, -1), (3, -3, -1), (3, 3, -1), (-3, 3, -1), (-3, -3, -1), (3, -3, -1),
+                            (3, -3, 1), (3, 3, 1), (3, 3, -1)], n=name)
+    return crv
+
+
 def large_box_curve(name):
     crv = pmc.curve(d=1, p=[(-4, 1.5, 4), (-4, 1.5, -4), (-4, -1.5, -4), (-4, -1.5, 4), (-4, 1.5, 4), (4, 1.5, 4),
                             (4, -1.5, 4), (-4, -1.5, 4), (-4, -1.5, -4), (4, -1.5, -4), (4, 1.5, -4), (-4, 1.5, -4),
@@ -871,6 +970,13 @@ def medium_cube(name):
                             (0.75, 0.75, -0.75), (-0.75, 0.75, -0.75), (-0.75, -0.75, -0.75), (0.75, -0.75, -0.75),
                             (0.75, -0.75, 0.75),
                             (0.75, 0.75, 0.75), (0.75, 0.75, -0.75)], n=name)
+    return crv
+
+
+def large_cube(name):
+    crv = pmc.curve(d=1, p=[(-3, 3, 3), (-3, 3, -3), (-3, -3, -3), (-3, -3, 3), (-3, 3, 3), (3, 3, 3), (3, -3, 3),
+                            (-3, -3, 3), (-3, -3, -3), (3, -3, -3), (3, 3, -3), (-3, 3, -3), (-3, -3, -3), (3, -3, -3),
+                            (3, -3, 3), (3, 3, 3), (3, 3, -3)], n=name)
     return crv
 
 
