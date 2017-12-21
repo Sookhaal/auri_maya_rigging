@@ -1667,17 +1667,33 @@ class Controller(RigController):
         bank_out_ofs = pmc.createNode("plusMinusAverage", n="{0}_bank_out_ofs_PMA".format(self.model.module_name))
         bank_out_ofs.setAttr("input1D[0]", outhand_loc.getAttr("rotateZ"))
 
-        bank_in_limit.setAttr("minR", 0)
-        bank_in_limit.setAttr("maxR", 90)
-        self.parent_ankle_ik_ctrl.bank >> bank_in_limit.inputR
-        bank_in_limit.outputR >> bank_in_ofs.input1D[1]
-        bank_in_ofs.output1D >> inhand_loc.rotateZ
-        # bank_in_limit.outputR >> inhand_loc.rotateX
-        bank_out_limit.setAttr("minR", -90)
-        bank_out_limit.setAttr("maxR", 0)
-        self.parent_ankle_ik_ctrl.bank >> bank_out_limit.inputR
-        bank_out_limit.outputR >> bank_out_ofs.input1D[1]
-        bank_out_ofs.output1D >> outhand_loc.rotateZ
+        if self.model.side == "Right":
+            bank_in_limit.setAttr("minR", -90)
+            bank_in_limit.setAttr("maxR", 0)
+            self.parent_ankle_ik_ctrl.bank >> bank_in_limit.inputR
+            bank_in_limit.outputR >> bank_in_ofs.input1D[1]
+            bank_in_ofs.output1D >> inhand_loc.rotateZ
+            # bank_in_limit.outputR >> inhand_loc.rotateX
+            bank_out_limit.setAttr("minR", 0)
+            bank_out_limit.setAttr("maxR", 90)
+            self.parent_ankle_ik_ctrl.bank >> bank_out_limit.inputR
+            bank_out_limit.outputR >> bank_out_ofs.input1D[1]
+            bank_out_ofs.output1D >> outhand_loc.rotateZ
+        else:
+            bank_invert = pmc.createNode("multiplyDivide", n="{0}_bank_invert_value_MDV".format(self.model.module_name))
+            bank_invert.setAttr("input2X", -1)
+            self.parent_ankle_ik_ctrl.bank >> bank_invert.input1X
+            bank_in_limit.setAttr("minR", 0)
+            bank_in_limit.setAttr("maxR", 90)
+            bank_invert.outputX >> bank_in_limit.inputR
+            bank_in_limit.outputR >> bank_in_ofs.input1D[1]
+            bank_in_ofs.output1D >> inhand_loc.rotateZ
+            # bank_in_limit.outputR >> inhand_loc.rotateX
+            bank_out_limit.setAttr("minR", -90)
+            bank_out_limit.setAttr("maxR", 0)
+            bank_invert.outputX >> bank_out_limit.inputR
+            bank_out_limit.outputR >> bank_out_ofs.input1D[1]
+            bank_out_ofs.output1D >> outhand_loc.rotateZ
         # bank_out_limit.outputR >> outhand_loc.rotateX
 
         # if self.model.thumb_creation_switch:
