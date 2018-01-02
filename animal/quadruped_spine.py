@@ -495,12 +495,13 @@ class Controller(RigController):
             rig_lib.clean_ctrl(ctrl, 4, trs="rs")
             rig_lib.clean_ctrl(ctrl.getParent(), 4, trs="trs")
 
-        if self.model.ik_creation_switch == 0:
-            self.created_fk_ctrls[-1].setAttr("space", len(self.model.space_list))
-            self.created_inv_fk_ctrls[0].setAttr("space", len(self.model.space_list))
-        else:
-            self.created_ik_ctrls[-1].setAttr("space", len(self.model.space_list))
-            self.created_ik_ctrls[0].setAttr("space", len(self.model.space_list))
+        if len(self.model.space_list) > 0:
+            if self.model.ik_creation_switch == 0:
+                self.created_fk_ctrls[-1].setAttr("space", len(self.model.space_list))
+                self.created_inv_fk_ctrls[0].setAttr("space", len(self.model.space_list))
+            else:
+                self.created_ik_ctrls[-1].setAttr("space", len(self.model.space_list))
+                self.created_ik_ctrls[0].setAttr("space", len(self.model.space_list))
 
         info_crv = rig_lib.signature_shape_curve("{0}_INFO".format(self.model.module_name))
         info_crv.getShape().setAttr("visibility", 0)
@@ -571,56 +572,57 @@ class Controller(RigController):
 
         spaces_names.append("local")
 
-        if self.model.ik_creation_switch == 0:
-            self.created_fk_ctrls[-1].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
-            pmc.group(self.created_fk_ctrls[-1], p=self.created_fk_ctrls[-2],
-                      n="{0}_CONSTGRP".format(self.created_fk_ctrls[-1]))
-            self.created_inv_fk_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
-            pmc.group(self.created_inv_fk_ctrls[0], p=self.created_inv_fk_ctrls[1],
-                      n="{0}_CONSTGRP".format(self.created_inv_fk_ctrls[0]))
-
-        else:
-            self.created_ik_ctrls[-1].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
-            self.created_ik_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
-
-        for i, space in enumerate(self.model.space_list):
-            end_space_locs[i].setAttr("translate", pmc.xform(self.created_spine_jnts[-1], q=1, ws=1, translation=1))
-            pmc.parent(end_space_locs[i], space)
-            start_space_locs[i].setAttr("translate", pmc.xform(self.created_spine_jnts[0], q=1, ws=1, translation=1))
-            pmc.parent(start_space_locs[i], space)
-
+        if len(self.model.space_list) > 0:
             if self.model.ik_creation_switch == 0:
-                end_fk_space_const = pmc.orientConstraint(end_space_locs[i], self.created_fk_ctrls[-1].getParent(),
-                                                          maintainOffset=1)
+                self.created_fk_ctrls[-1].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
+                pmc.group(self.created_fk_ctrls[-1], p=self.created_fk_ctrls[-2],
+                          n="{0}_CONSTGRP".format(self.created_fk_ctrls[-1]))
+                self.created_inv_fk_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
+                pmc.group(self.created_inv_fk_ctrls[0], p=self.created_inv_fk_ctrls[1],
+                          n="{0}_CONSTGRP".format(self.created_inv_fk_ctrls[0]))
 
-                rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(end_fk_space_const, end_space_locs[i], i),
-                                                        self.created_fk_ctrls[-1].space, i,
-                                                        "{0}_{1}Space_COND".format(self.created_fk_ctrls[-1],
-                                                                                   spaces_names[i]))
-
-                start_fk_space_const = pmc.orientConstraint(start_space_locs[i], self.created_inv_fk_ctrls[0].getParent(),
-                                                            maintainOffset=1)
-
-                rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(start_fk_space_const, start_space_locs[i], i),
-                                                        self.created_inv_fk_ctrls[0].space, i,
-                                                        "{0}_{1}Space_COND".format(self.created_inv_fk_ctrls[0],
-                                                                                   spaces_names[i]))
             else:
-                end_ik_space_const = pmc.orientConstraint(end_space_locs[i], self.created_ik_ctrls[-1].getParent(),
-                                                          maintainOffset=1)
+                self.created_ik_ctrls[-1].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
+                self.created_ik_ctrls[0].addAttr("space", attributeType="enum", enumName=spaces_names, hidden=0, keyable=1)
 
-                rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(end_ik_space_const, end_space_locs[i], i),
-                                                        self.created_ik_ctrls[-1].space, i,
-                                                        "{0}_{1}Space_COND".format(self.created_ik_ctrls[-1],
-                                                                                   spaces_names[i]))
+            for i, space in enumerate(self.model.space_list):
+                end_space_locs[i].setAttr("translate", pmc.xform(self.created_spine_jnts[-1], q=1, ws=1, translation=1))
+                pmc.parent(end_space_locs[i], space)
+                start_space_locs[i].setAttr("translate", pmc.xform(self.created_spine_jnts[0], q=1, ws=1, translation=1))
+                pmc.parent(start_space_locs[i], space)
 
-                start_ik_space_const = pmc.orientConstraint(start_space_locs[i], self.created_ik_ctrls[0].getParent(),
-                                                            maintainOffset=1)
+                if self.model.ik_creation_switch == 0:
+                    end_fk_space_const = pmc.orientConstraint(end_space_locs[i], self.created_fk_ctrls[-1].getParent(),
+                                                              maintainOffset=1)
 
-                rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(start_ik_space_const, start_space_locs[i], i),
-                                                        self.created_ik_ctrls[0].space, i,
-                                                        "{0}_{1}Space_COND".format(self.created_ik_ctrls[0],
-                                                                                   spaces_names[i]))
+                    rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(end_fk_space_const, end_space_locs[i], i),
+                                                            self.created_fk_ctrls[-1].space, i,
+                                                            "{0}_{1}Space_COND".format(self.created_fk_ctrls[-1],
+                                                                                       spaces_names[i]))
+
+                    start_fk_space_const = pmc.orientConstraint(start_space_locs[i], self.created_inv_fk_ctrls[0].getParent(),
+                                                                maintainOffset=1)
+
+                    rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(start_fk_space_const, start_space_locs[i], i),
+                                                            self.created_inv_fk_ctrls[0].space, i,
+                                                            "{0}_{1}Space_COND".format(self.created_inv_fk_ctrls[0],
+                                                                                       spaces_names[i]))
+                else:
+                    end_ik_space_const = pmc.orientConstraint(end_space_locs[i], self.created_ik_ctrls[-1].getParent(),
+                                                              maintainOffset=1)
+
+                    rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(end_ik_space_const, end_space_locs[i], i),
+                                                            self.created_ik_ctrls[-1].space, i,
+                                                            "{0}_{1}Space_COND".format(self.created_ik_ctrls[-1],
+                                                                                       spaces_names[i]))
+
+                    start_ik_space_const = pmc.orientConstraint(start_space_locs[i], self.created_ik_ctrls[0].getParent(),
+                                                                maintainOffset=1)
+
+                    rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(start_ik_space_const, start_space_locs[i], i),
+                                                            self.created_ik_ctrls[0].space, i,
+                                                            "{0}_{1}Space_COND".format(self.created_ik_ctrls[0],
+                                                                                       spaces_names[i]))
 
 
 class Model(AuriScriptModel):

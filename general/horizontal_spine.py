@@ -199,10 +199,11 @@ class Controller(RigController):
             pmc.select(d=1)
             return
         pelvis_guides = pmc.spaceLocator(p=(0, 0, 0), n=self.guide_names[0])
-        spine_guide = rig_lib.create_curve_guide(d=d, number_of_points=nb_points, name=self.guide_names[1], hauteur_curve=8)
+        spine_guide = rig_lib.create_curve_guide(d=d, number_of_points=nb_points, name=self.guide_names[1],
+                                                 hauteur_curve=8, front_axe="z")
         self.guides = [pelvis_guides, spine_guide]
         self.guides_grp = self.group_guides(self.guides)
-        self.guides[0].setAttr("translate", (0, 6.5, 0))
+        self.guides[0].setAttr("translate", (0, 7, -1))
         self.guides[1].setAttr("translate", (0, 8, 0))
         self.view.refresh_view()
         pmc.select(d=1)
@@ -214,20 +215,26 @@ class Controller(RigController):
 
         self.delete_existing_objects()
         self.connect_to_parent()
+
         self.create_jnts()
         self.create_ikspline()
         self.create_fk()
+
         self.activate_twist()
+
         if self.model.stretch_creation_switch == 1 and self.model.how_many_ctrls > 2:
-            self.connect_ik_spline_stretch(self.ik_spline, self.created_spine_jnts, measure_type="accurate")
+            self.connect_z_ik_spline_stretch(self.ik_spline, self.created_spine_jnts, measure_type="accurate")
         elif self.model.stretch_creation_switch == 1:
-            self.connect_ik_spline_stretch(self.ik_spline, self.created_spine_jnts, measure_type="average")
+            self.connect_z_ik_spline_stretch(self.ik_spline, self.created_spine_jnts, measure_type="average")
+
         if self.model.ik_creation_switch == 1:
             self.create_ik()
+
         self.create_outputs()
         self.create_local_spaces()
+
         self.clean_rig()
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
     def create_jnts(self):
         guide_rebuilded = pmc.rebuildCurve(self.guides[1], rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
@@ -237,7 +244,9 @@ class Controller(RigController):
             pmc.delete(guide_rebuilded.cv[1])
         guide_rebuilded.rename("{0}_temp_rebuilded_GUIDE".format(self.model.module_name))
         vertex_list = guide_rebuilded.cv[:]
-        self.created_spine_jnts = rig_lib.create_jnts_from_cv_list_and_return_jnts_list(vertex_list, self.model.module_name)
+        self.created_spine_jnts = rig_lib.create_jnts_from_cv_list_and_return_jnts_list(vertex_list,
+                                                                                        self.model.module_name,
+                                                                                        forward_axis="z")
         pmc.parent(self.created_spine_jnts[0], self.jnt_input_grp, r=0)
 
         rig_lib.change_jnt_chain_suffix(self.created_spine_jnts, new_suffix="SKN")
@@ -247,7 +256,7 @@ class Controller(RigController):
         pmc.select(d=1)
         self.created_pelvis_jnt = pmc.joint(p=(pmc.xform(self.guides[0], q=1, ws=1, translation=1)),
                                             n="{0}_pelvis_SKN".format(self.model.module_name))
-        self.created_pelvis_jnt.setAttr("rotateOrder", 1)
+        self.created_pelvis_jnt.setAttr("rotateOrder", 2)
         pmc.parent(self.created_pelvis_jnt, self.jnt_input_grp)
 
         self.jnts_to_skin = self.created_spine_jnts[:]
@@ -284,9 +293,8 @@ class Controller(RigController):
             ik_spline_controlpoints_list.append(cp)
 
         for i, cv in enumerate(ik_spline_cv_list):
-            cv_loc = self.create_locators(i, cv, ik_spline_controlpoints_list)
-            self.create_ctrls(i, cv_loc)
-            self.created_locs.append(cv_loc)
+            self.created_locs.append(self.create_locators(i, cv, ik_spline_controlpoints_list))
+            self.create_ctrls(i, self.created_locs[i])
 
         # for i, cv in enumerate(self.ik_spline.cv):
         #     ik_spline_cv_list.append(cv)
@@ -326,7 +334,7 @@ class Controller(RigController):
         pelvis_ctrl_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=2.5, d=3, s=8,
                                        n="{0}_pelvis_CTRL_shape".format(self.model.module_name), ch=0)[0]
         self.created_pelvis_ctrl = rig_lib.create_jnttype_ctrl(name="{0}_pelvis_CTRL".format(self.model.module_name),
-                                                               shape=pelvis_ctrl_shape, drawstyle=2, rotateorder=1)
+                                                               shape=pelvis_ctrl_shape, drawstyle=2, rotateorder=2)
         self.created_pelvis_ctrl.setAttr("translate", pmc.xform(self.created_pelvis_jnt, q=1, ws=1, translation=1))
         pmc.parent(self.created_pelvis_ctrl, self.ctrl_input_grp)
         # pmc.pointConstraint(self.created_pelvis_ctrl, self.created_pelvis_jnt, maintainOffset=1)
@@ -337,17 +345,16 @@ class Controller(RigController):
     def create_locators(self, i, cv, ik_spline_controlpoints):
         cv_loc = pmc.spaceLocator(p=(0, 0, 0), n="{0}_{1}_pos".format(self.model.module_name, (i + 1)))
         cv_loc.setAttr("translate", pmc.xform(cv, q=1, ws=1, translation=1))
-        cv_loc.setAttr("rotateOrder", 1)
         cv_loc_shape = cv_loc.getShape()
         cv_loc_shape.worldPosition >> ik_spline_controlpoints[i]
         return cv_loc
 
     def create_ctrls(self, i, cv_loc):
         pmc.select(d=1)
-        ctrl_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=3, d=3, s=8,
+        ctrl_shape = pmc.circle(c=(0, 0, 0), nr=(0, 0, 1), sw=360, r=3, d=3, s=8,
                                 n="{0}_{1}_fk_CTRL_shape".format(self.model.module_name, (i + 1)), ch=0)[0]
         ctrl = rig_lib.create_jnttype_ctrl(name="{0}_{1}_fk_CTRL".format(self.model.module_name, (i + 1)), shape=ctrl_shape,
-                                           drawstyle=2, rotateorder=1)
+                                           drawstyle=2, rotateorder=2)
 
         nearest_point_on_curve = pmc.createNode("nearestPointOnCurve", n="temp_NPOC")
         self.guides[1].worldSpace >> nearest_point_on_curve.inputCurve
@@ -366,18 +373,18 @@ class Controller(RigController):
         self.created_fk_ctrls.append(ctrl)
 
     def create_ik(self):
-        start_shape = rig_lib.box_curve("{0}_start_ik_CTRL_shape".format(self.model.module_name))
+        start_shape = rig_lib.z_box_curve("{0}_start_ik_CTRL_shape".format(self.model.module_name))
         start_ctrl = rig_lib.create_jnttype_ctrl(name="{0}_start_ik_CTRL".format(self.model.module_name), shape=start_shape,
-                                                 drawstyle=2, rotateorder=3)
+                                                 drawstyle=2, rotateorder=2)
 
-        end_shape = rig_lib.box_curve("{0}_end_ik_CTRL_shape".format(self.model.module_name))
+        end_shape = rig_lib.z_box_curve("{0}_end_ik_CTRL_shape".format(self.model.module_name))
         end_ctrl = rig_lib.create_jnttype_ctrl(name="{0}_end_ik_CTRL".format(self.model.module_name), shape=end_shape,
-                                               drawstyle=2, rotateorder=1)
+                                               drawstyle=2, rotateorder=2)
 
         start_ofs = pmc.group(start_ctrl, n="{0}_start_ik_ctrl_OFS".format(self.model.module_name))
-        start_ofs.setAttr("rotateOrder", 3)
+        start_ofs.setAttr("rotateOrder", 2)
         end_ofs = pmc.group(end_ctrl, n="{0}_end_ik_ctrl_OFS".format(self.model.module_name))
-        end_ofs.setAttr("rotateOrder", 1)
+        end_ofs.setAttr("rotateOrder", 2)
 
         start_ofs.setAttr("translate", pmc.xform(self.created_fk_ctrls[0], q=1, ws=1, translation=1))
         start_ofs.setAttr("rotate", pmc.xform(self.created_fk_ctrls[0], q=1, ws=1, rotation=1))
@@ -422,14 +429,14 @@ class Controller(RigController):
         ik_handle = pmc.ls("{0}_ik_HDL".format(self.model.module_name))[0]
         ik_handle.setAttr("dTwistControlEnable", 1)
         ik_handle.setAttr("dWorldUpType", 4)
-        ik_handle.setAttr("dForwardAxis", 2)
-        ik_handle.setAttr("dWorldUpAxis", 4)
+        ik_handle.setAttr("dForwardAxis", 4)
+        ik_handle.setAttr("dWorldUpAxis", 0)
         ik_handle.setAttr("dWorldUpVectorX", 0)
-        ik_handle.setAttr("dWorldUpVectorY", 0)
-        ik_handle.setAttr("dWorldUpVectorZ", -1)
+        ik_handle.setAttr("dWorldUpVectorY", 1)
+        ik_handle.setAttr("dWorldUpVectorZ", 0)
         ik_handle.setAttr("dWorldUpVectorEndX", 0)
-        ik_handle.setAttr("dWorldUpVectorEndY", 0)
-        ik_handle.setAttr("dWorldUpVectorEndZ", -1)
+        ik_handle.setAttr("dWorldUpVectorEndY", 1)
+        ik_handle.setAttr("dWorldUpVectorEndZ", 0)
         self.created_locs[0].worldMatrix[0] >> ik_handle.dWorldUpMatrix
         self.created_locs[-1].worldMatrix[0] >> ik_handle.dWorldUpMatrixEnd
 
