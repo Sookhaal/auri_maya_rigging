@@ -1402,6 +1402,7 @@ def add_parameter_as_extra_attr(obj, parameter_name, parameter_value):
 
 def continuous_check_and_reorder_vertex_list(vertices_list, module_name):
     reordered_list = [vertices_list[0]]
+
     for i in range(len(vertices_list)):
         edges_from_point = pmc.ls(pmc.polyListComponentConversion(reordered_list[i], fromVertex=1, toEdge=1), flatten=1)
         vertices_from_edges = pmc.ls(pmc.polyListComponentConversion(edges_from_point, toVertex=1, fromEdge=1, border=1), flatten=1)

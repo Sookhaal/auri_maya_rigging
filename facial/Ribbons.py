@@ -367,6 +367,20 @@ class Controller(RigController):
             if components_type == "edge":
                 vertices_from_selection = pmc.polyListComponentConversion(selection, fromEdge=1, toVertex=1)
                 vertices = pmc.ls(vertices_from_selection, flatten=1)
+
+                vertices_from_first_edge = pmc.ls(pmc.polyListComponentConversion(selection[0], fromEdge=1, toVertex=1), flatten=1)
+
+                edges_from_point = pmc.ls(pmc.polyListComponentConversion(vertices_from_first_edge[0], fromVertex=1, toEdge=1), flatten=1)
+                vertices_from_edges = pmc.ls(pmc.polyListComponentConversion(edges_from_point, toVertex=1, fromEdge=1, border=1), flatten=1)
+                next_vertex = [vertex for vertex in vertices_from_edges if vertex in vertices]
+                if len(next_vertex) == 1:
+                    first_vertex = pmc.ls(vertices_from_first_edge[0])[0]
+                else:
+                    first_vertex = pmc.ls(vertices_from_first_edge[1])[0]
+
+                vertices.remove(first_vertex)
+                vertices.insert(0, first_vertex)
+
             else:
                 vertices = selection
 
