@@ -1179,6 +1179,17 @@ class Controller(RigController):
                                    pmc.xform(finger[2], q=1, ws=1, translation=1)[1],
                                    pmc.xform(finger[2], q=1, ws=1, translation=1)[2]))
 
+            pmc.xform(fk_rotation_hdl, ws=1, translation=pmc.xform(fk_rotation_jnt, q=1, ws=1, translation=1))
+            pmc.xform(fk_rotation_hdl, ws=1, rotation=pmc.xform(fk_rotation_jnt, q=1, ws=1, rotation=1))
+
+            pmc.move(ik_ctrl, [0.1, 0, 0], relative=1)
+            pmc.refresh()
+            pmc.move(ik_ctrl, [-0.1, 0, 0], relative=1)
+            pmc.refresh()
+
+            start_ik_handle.setAttr("rotate", (0, 0, 0))
+            end_ik_handle.setAttr("rotate", (0, 0, 0))
+
             finger[0].fkIk >> start_ik_handle.ikBlend
             finger[0].fkIk >> end_ik_handle.ikBlend
 
@@ -1307,6 +1318,9 @@ class Controller(RigController):
                                                       pmc.xform(finger[2], q=1, ws=1, translation=1)[1],
                                                       pmc.xform(finger[2], q=1, ws=1, translation=1)[2]))
 
+            pmc.xform(fk_rotation_hdl, ws=1, translation=pmc.xform(fk_rotation_jnt, q=1, ws=1, translation=1))
+            pmc.xform(fk_rotation_hdl, ws=1, rotation=pmc.xform(fk_rotation_jnt, q=1, ws=1, rotation=1))
+
             finger[0].fkIk >> ik_handle.ikBlend
 
             finger[0].setAttr("fkIk", 1)
@@ -1430,6 +1444,9 @@ class Controller(RigController):
             pmc.xform(pole_vector, ws=1, translation=(pmc.xform(finger[len(finger) / 2], q=1, ws=1, translation=1)[0],
                                                       pmc.xform(finger[len(finger) / 2], q=1, ws=1, translation=1)[1],
                                                       pmc.xform(finger[len(finger) / 2], q=1, ws=1, translation=1)[2]))
+
+            pmc.xform(fk_rotation_hdl, ws=1, translation=pmc.xform(fk_rotation_jnt, q=1, ws=1, translation=1))
+            pmc.xform(fk_rotation_hdl, ws=1, rotation=pmc.xform(fk_rotation_jnt, q=1, ws=1, rotation=1))
 
             finger[0].fkIk >> ik_handle.ikBlend
 
