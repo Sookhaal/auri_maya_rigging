@@ -201,6 +201,9 @@ class Controller(RigController):
             ctrl = rig_lib.create_jnttype_ctrl(name=str(fol).replace("_FOL", "_CTRL"), shape=ctrl_shape)
 
             pmc.select(clear=1)
+            ctrl_ofs = pmc.joint(p=(0, 0, 0), n=str(ctrl).replace("_CTRL", "_ctrl_OFS"))
+            ctrl_ofs.setAttr("drawStyle", 2)
+
             ctrl_fix_r = pmc.joint(p=(0, 0, 0), n=str(ctrl).replace("_CTRL", "_ctrl_rotate_FIX"))
             ctrl_fix_r.setAttr("drawStyle", 2)
             ctrl_fix_r.setAttr("rotateOrder", 5)
@@ -209,11 +212,11 @@ class Controller(RigController):
             ctrl_fix_t.setAttr("drawStyle", 2)
 
             pmc.parent(ctrl, ctrl_fix_t)
-            pmc.parent(ctrl_fix_r, fol)
+            pmc.parent(ctrl_ofs, fol)
 
-            ctrl_fix_r.setAttr("translate", (0, 0, 0))
-            ctrl_fix_r.setAttr("rotate", (0, 0, 0))
-            ctrl_fix_r.setAttr("jointOrient", (0, 0, 0))
+            ctrl_ofs.setAttr("translate", (0, 0, 0))
+            ctrl_ofs.setAttr("rotate", (0, 0, 0))
+            ctrl_ofs.setAttr("jointOrient", (0, 0, 0))
 
             invert_ctrl_translate = pmc.createNode("multiplyDivide", n=str(ctrl)+"invert_translate_MDL")
             invert_ctrl_rotate = pmc.createNode("multiplyDivide", n=str(ctrl)+"invert_rotate_MDL")

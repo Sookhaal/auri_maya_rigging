@@ -1284,6 +1284,8 @@ class Controller(RigController):
 
         thigh_blend.outputR >> self.created_ctrtl_jnts[1].translateY
         calf_blend.outputR >> self.created_ctrtl_jnts[2].translateY
+        thigh_blend.outputR >> self.created_skn_jnts[1].translateY
+        calf_blend.outputR >> self.created_skn_jnts[2].translateY
 
         self.created_ik_ctrls[0].addAttr("snapKnee", attributeType="float", defaultValue=0, hidden=0, keyable=1,
                                          hasMaxValue=1, hasMinValue=1, maxValue=1, minValue=0)

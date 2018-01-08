@@ -1210,6 +1210,8 @@ class Controller(RigController):
 
         arm_blend.outputR >> self.created_ctrtl_jnts[1].translateY
         forearm_blend.outputR >> self.created_ctrtl_jnts[2].translateY
+        arm_blend.outputR >> self.created_skn_jnts[1].translateY
+        forearm_blend.outputR >> self.created_skn_jnts[2].translateY
 
         self.created_ik_ctrls[0].addAttr("snapElbow", attributeType="float", defaultValue=0, hidden=0, keyable=1,
                                          hasMaxValue=1, hasMinValue=1, maxValue=1, minValue=0)
