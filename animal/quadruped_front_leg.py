@@ -748,7 +748,10 @@ class Controller(RigController):
         # pmc.parent(knee_ik_handle, ik_ctrl, r=0)
         # pmc.parent(ankle_ik_handle, ik_ctrl, r=0)
         pmc.parent(global_ik_handle, ik_ctrl, r=0)
-        pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
+        if self.model.clavicle_creation_switch:
+            pmc.parent(ik_ctrl_ofs, self.clavicle_ik_ctrl)
+        else:
+            pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
 
         ik_ctrl.setAttr("translate", (0, 0, 0))
 

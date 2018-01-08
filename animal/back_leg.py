@@ -680,7 +680,10 @@ class Controller(RigController):
         pmc.parent(ik_handle, ik_ctrl_ofs, r=0)
         ik_ctrl.setAttr("translate", pmc.xform(ik_handle, q=1, translation=1))
         pmc.parent(ik_handle, ik_ctrl, r=0)
-        pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
+        if self.model.clavicle_creation_switch:
+            pmc.parent(ik_ctrl_ofs, self.clavicle_ik_ctrl)
+        else:
+            pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
 
         ik_ctrl.setAttr("translate", (0, 0, 0))
 
@@ -1026,7 +1029,10 @@ class Controller(RigController):
         pmc.parent(ik_handle, ik_ctrl_ofs, r=0)
         ik_ctrl.setAttr("translate", pmc.xform(ik_handle, q=1, translation=1))
         pmc.parent(ik_handle, ik_ctrl, r=0)
-        pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
+        if self.model.clavicle_creation_switch:
+            pmc.parent(ik_ctrl_ofs, self.clavicle_ik_ctrl)
+        else:
+            pmc.parent(ik_ctrl_ofs, self.ctrl_input_grp)
 
         ik_ctrl.setAttr("translate", (0, 0, 0))
 
