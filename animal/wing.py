@@ -916,11 +916,14 @@ class Controller(RigController):
         rig_lib.add_parameter_as_extra_attr(info_crv, "ik_creation", self.model.ik_creation_switch)
         rig_lib.add_parameter_as_extra_attr(info_crv, "stretch_creation", self.model.stretch_creation_switch)
         rig_lib.add_parameter_as_extra_attr(info_crv, "clavicle_creation", self.model.clavicle_creation_switch)
-        rig_lib.add_parameter_as_extra_attr(info_crv, "fk_ik_type", self.model.fk_ik_type)
+        # rig_lib.add_parameter_as_extra_attr(info_crv, "fk_ik_type", self.model.fk_ik_type)
         rig_lib.add_parameter_as_extra_attr(info_crv, "local_spaces", self.model.space_list)
         rig_lib.add_parameter_as_extra_attr(info_crv, "deform_chain_creation", self.model.deform_chain_creation_switch)
         rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_arm_jnts", self.model.how_many_arm_jnts)
         rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_forearm_jnts", self.model.how_many_forearm_jnts)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_end_jnts", self.model.how_many_end_jnts)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "raz_ik_ctrls", self.model.raz_ik_ctrls)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "raz_fk_ctrls", self.model.raz_fk_ctrls)
 
         if not pmc.objExists("jnts_to_SKN_SET"):
             skn_set = pmc.createNode("objectSet", n="jnts_to_SKN_SET")
