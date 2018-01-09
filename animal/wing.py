@@ -874,18 +874,18 @@ class Controller(RigController):
             rig_lib.clean_ctrl(self.created_ik_ctrls[2].getParent(), color_value, trs="trs")
             rig_lib.clean_ctrl(self.created_ik_ctrls[2], color_value, trs="trs")
 
-        if self.model.fk_ik_type == "one_chain":
-            blend_scale = pmc.createNode("blendColors", n="{0}_scale_blendColor".format(self.wrist_output))
-            self.option_ctrl.fkIk >> blend_scale.blender
-            self.created_ik_ctrls[0].scaleY >> blend_scale.color1R
-            self.created_ik_ctrls[0].scaleX >> blend_scale.color1G
-            self.created_ik_ctrls[0].scaleZ >> blend_scale.color1B
-            self.created_ctrl_jnts[-1].scaleX >> blend_scale.color2R
-            self.created_ctrl_jnts[-1].scaleY >> blend_scale.color2G
-            self.created_ctrl_jnts[-1].scaleZ >> blend_scale.color2B
-            blend_scale.outputR >> self.wrist_output.scaleX
-            blend_scale.outputG >> self.wrist_output.scaleY
-            blend_scale.outputB >> self.wrist_output.scaleZ
+        # if self.model.fk_ik_type == "one_chain":
+        blend_scale = pmc.createNode("blendColors", n="{0}_scale_blendColor".format(self.wrist_output))
+        self.option_ctrl.fkIk >> blend_scale.blender
+        self.created_ik_ctrls[0].scaleY >> blend_scale.color1R
+        self.created_ik_ctrls[0].scaleX >> blend_scale.color1G
+        self.created_ik_ctrls[0].scaleZ >> blend_scale.color1B
+        self.created_ctrl_jnts[-1].scaleX >> blend_scale.color2R
+        self.created_ctrl_jnts[-1].scaleY >> blend_scale.color2G
+        self.created_ctrl_jnts[-1].scaleZ >> blend_scale.color2B
+        blend_scale.outputR >> self.wrist_output.scaleX
+        blend_scale.outputG >> self.wrist_output.scaleY
+        blend_scale.outputB >> self.wrist_output.scaleZ
 
         if self.model.deform_chain_creation_switch:
             rig_lib.clean_ctrl(self.elbow_bend_ctrl, color_value, trs="s",
@@ -1381,6 +1381,8 @@ class Controller(RigController):
         #                n="{0}_fk_ik_link_scale_SN".format(self.model.module_name), sourceType="python")
         pass
 # TODO: mettre le choix pour le scale de wing_end_CTRL pour scaler automatiquement lorsque l'aile stretch ou non
+# TODO: trouver comment lier les scales du fk et de l'ik ctrl (voir instanced attributes)
+# TODO: ajouter le rig des plumes
 
 
 class Model(AuriScriptModel):
