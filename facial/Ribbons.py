@@ -36,9 +36,12 @@ class View(AuriScriptView):
         self.bot_creation_switch = QtWidgets.QCheckBox()
         self.top_selection_grp = None
         self.bot_selection_grp = None
+        self.how_many_top_grp = None
+        self.how_many_bot_grp = None
         self.how_many_top_ctrls_cbbox = QtWidgets.QComboBox()
         self.how_many_bot_ctrls_cbbox = QtWidgets.QComboBox()
         self.set_mesh_btn = QtWidgets.QPushButton("Set Mesh")
+        self.loft_axis_cbbox = QtWidgets.QComboBox()
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -55,8 +58,11 @@ class View(AuriScriptView):
         self.bot_creation_switch.setChecked(self.model.bot_creation_switch)
         self.top_selection_grp.setVisible(self.model.top_creation_switch)
         self.bot_selection_grp.setVisible(self.model.bot_creation_switch)
+        self.how_many_top_grp.setVisible(self.model.top_creation_switch)
+        self.how_many_bot_grp.setVisible(self.model.bot_creation_switch)
         self.how_many_top_ctrls_cbbox.setCurrentText(self.model.how_many_top_ctrls)
         self.how_many_bot_ctrls_cbbox.setCurrentText(self.model.how_many_bot_ctrls)
+        self.loft_axis_cbbox.setCurrentText(self.model.loft_axis)
 
     def setup_ui(self):
         self.mesh_to_follow.textChanged.connect(self.ctrl.on_mesh_to_follow_changed)
@@ -84,6 +90,9 @@ class View(AuriScriptView):
         self.how_many_top_ctrls_cbbox.currentTextChanged.connect(self.ctrl.on_how_many_top_ctrls_cbbox_changed)
         self.how_many_bot_ctrls_cbbox.insertItems(0, ["5", "7"])
         self.how_many_bot_ctrls_cbbox.currentTextChanged.connect(self.ctrl.on_how_many_bot_ctrls_cbbox_changed)
+
+        self.loft_axis_cbbox.insertItems(0, ["X", "Y", "Z"])
+        self.loft_axis_cbbox.currentTextChanged.connect(self.ctrl.on_loft_axis_cbbox_changed)
 
         self.set_mesh_btn.clicked.connect(self.ctrl.set_mesh_to_follow)
 
@@ -125,12 +134,16 @@ class View(AuriScriptView):
         bot_switch_layout.addWidget(self.bot_creation_switch)
 
         how_many_top_layout = QtWidgets.QVBoxLayout()
-        how_many_top_grp = grpbox("How many ctrls :", how_many_top_layout)
+        self.how_many_top_grp = grpbox("How many ctrls :", how_many_top_layout)
         how_many_top_layout.addWidget(self.how_many_top_ctrls_cbbox)
 
         how_many_bot_layout = QtWidgets.QVBoxLayout()
-        how_many_bot_grp = grpbox("How many ctrls :", how_many_bot_layout)
+        self.how_many_bot_grp = grpbox("How many ctrls :", how_many_bot_layout)
         how_many_bot_layout.addWidget(self.how_many_bot_ctrls_cbbox)
+
+        loft_axis_layout = QtWidgets.QHBoxLayout()
+        loft_axis_grp = grpbox("Ribbons surface's main Axis:", loft_axis_layout)
+        loft_axis_layout.addWidget(self.loft_axis_cbbox)
 
         # options_layout = QtWidgets.QVBoxLayout()
         # options_grp = grpbox("Options", options_layout)
@@ -142,11 +155,12 @@ class View(AuriScriptView):
         # options_layout.addLayout(ctrls_layout)
 
         main_layout.addWidget(mesh_to_follow_grp)
+        main_layout.addWidget(loft_axis_grp)
         main_layout.addLayout(top_switch_layout)
-        main_layout.addWidget(how_many_top_grp)
+        main_layout.addWidget(self.how_many_top_grp)
         main_layout.addWidget(self.top_selection_grp)
         main_layout.addLayout(bot_switch_layout)
-        main_layout.addWidget(how_many_bot_grp)
+        main_layout.addWidget(self.how_many_bot_grp)
         main_layout.addWidget(self.bot_selection_grp)
         # main_layout.addWidget(options_grp)
         self.setLayout(main_layout)
@@ -237,16 +251,21 @@ class Controller(RigController):
     def on_top_creation_switch_changed(self, state):
         self.model.top_creation_switch = is_checked(state)
         self.view.top_selection_grp.setVisible(is_checked(state))
+        self.view.how_many_top_grp.setVisible(is_checked(state))
 
     def on_bot_creation_switch_changed(self, state):
         self.model.bot_creation_switch = is_checked(state)
         self.view.bot_selection_grp.setVisible(is_checked(state))
+        self.view.how_many_bot_grp.setVisible(is_checked(state))
 
     def on_how_many_top_ctrls_cbbox_changed(self, text):
         self.model.how_many_top_ctrls = text
 
     def on_how_many_bot_ctrls_cbbox_changed(self, text):
         self.model.how_many_bot_ctrls = text
+
+    def on_loft_axis_cbbox_changed(self, text):
+        self.model.loft_axis = text
 
     def prebuild(self):
         mesh_to_follow_list = pmc.ls(self.model.mesh_to_follow)
@@ -398,8 +417,16 @@ class Controller(RigController):
 
             front_curve = pmc.curve(d=3, p=vertices_world_pos, n="{0}_{1}_nurbsSurface_guide_01".format(self.model.module_name, side))
             back_curve = pmc.duplicate(front_curve, n="{0}_{1}_nurbsSurface_guide_02".format(self.model.module_name, side))[0]
-            front_curve.setAttr("translateZ", 0.1)
-            back_curve.setAttr("translateZ", -0.1)
+
+            if self.model.loft_axis == "X":
+                front_curve.setAttr("translateX", 0.1)
+                back_curve.setAttr("translateX", -0.1)
+            elif self.model.loft_axis == "Y":
+                front_curve.setAttr("translateY", 0.1)
+                back_curve.setAttr("translateY", -0.1)
+            else:
+                front_curve.setAttr("translateZ", 0.1)
+                back_curve.setAttr("translateZ", -0.1)
 
             surface = pmc.loft(back_curve, front_curve, ar=1, ch=0, d=1, uniform=0, n="{0}_{1}_ribbons_NURBSSURFACE".format(self.model.module_name, side))[0]
             surface = pmc.rebuildSurface(surface, ch=0, du=1, dv=3, dir=2, kcp=1, kr=0, rt=0, rpo=1)[0]
@@ -797,3 +824,4 @@ class Model(AuriScriptModel):
         self.mesh_to_follow = None
         self.how_many_top_ctrls = "5"
         self.how_many_bot_ctrls = "5"
+        self.loft_axis = "Z"
