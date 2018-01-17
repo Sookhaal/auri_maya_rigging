@@ -24,6 +24,7 @@ class View(AuriScriptView):
         self.raz_ik_ctrls = QtWidgets.QCheckBox()
         self.raz_fk_ctrls = QtWidgets.QCheckBox()
         self.roll_creation_switch = QtWidgets.QCheckBox()
+        self.how_many_thumbs = QtWidgets.QSpinBox()
         super(View, self).__init__(*args, **kwargs)
 
     def set_controller(self):
@@ -43,6 +44,7 @@ class View(AuriScriptView):
         self.raz_ik_ctrls.setChecked(self.model.raz_ik_ctrls)
         self.raz_fk_ctrls.setChecked(self.model.raz_fk_ctrls)
         self.roll_creation_switch.setChecked(self.model.roll_creation_switch)
+        self.how_many_thumbs.setValue(self.model.how_many_thumbs)
 
     def setup_ui(self):
         self.modules_cbbox.setModel(self.ctrl.modules_with_output)
@@ -52,6 +54,9 @@ class View(AuriScriptView):
         self.outputs_cbbox.currentTextChanged.connect(self.ctrl.on_outputs_cbbox_changed)
 
         self.thumb_creation_switch.stateChanged.connect(self.ctrl.on_thumb_creation_switch_changed)
+
+        self.how_many_thumbs.setMinimum(1)
+        self.how_many_thumbs.valueChanged.connect(self.ctrl.on_how_many_thumbs_changed)
 
         self.side_cbbox.insertItems(0, ["Left", "Right"])
         self.side_cbbox.currentTextChanged.connect(self.ctrl.on_side_cbbox_changed)
@@ -97,8 +102,11 @@ class View(AuriScriptView):
 
         thumb_layout = QtWidgets.QHBoxLayout()
         thumb_text = QtWidgets.QLabel("thumb :")
+        thumb_text_02 = QtWidgets.QLabel("how many thumbs :")
         thumb_layout.addWidget(thumb_text)
         thumb_layout.addWidget(self.thumb_creation_switch)
+        thumb_layout.addWidget(thumb_text_02)
+        thumb_layout.addWidget(self.how_many_thumbs)
 
         fingers_layout = QtWidgets.QVBoxLayout()
         fingers_text = QtWidgets.QLabel("How many fingers :")
@@ -178,11 +186,18 @@ class Controller(RigController):
     def on_how_many_fingers_changed(self, value):
         self.model.how_many_fingers = value
 
+    def on_how_many_thumbs_changed(self, value):
+        self.model.how_many_thumbs = value
+
     def on_how_many_phalanges_changed(self, value):
         self.model.how_many_phalanges = value
 
     def on_thumb_creation_switch_changed(self, state):
         self.model.thumb_creation_switch = is_checked(state)
+        if state == 0:
+            self.view.how_many_thumbs.setEnabled(False)
+        else:
+            self.view.how_many_thumbs.setEnabled(True)
 
     def on_roll_creation_switch_changed(self, state):
         self.model.roll_creation_switch = is_checked(state)
@@ -192,10 +207,11 @@ class Controller(RigController):
         self.guides = []
 
         if self.model.thumb_creation_switch:
-            thumb_first_jnt = "{0}_thumb_metacarpus_GUIDE".format(self.model.module_name)
-            thumb_curve = "{0}_thumb_phalanges_GUIDE".format(self.model.module_name)
-            thumb = [thumb_first_jnt, thumb_curve]
-            self.guides_names.append(thumb)
+            for i in range(0, self.model.how_many_thumbs):
+                thumb_first_jnt = "{0}_thumb{1}_metacarpus_GUIDE".format(self.model.module_name, i + 1)
+                thumb_curve = "{0}_thumb{1}_phalanges_GUIDE".format(self.model.module_name, i + 1)
+                thumb = [thumb_first_jnt, thumb_curve]
+                self.guides_names.append(thumb)
 
         for i in range(0, self.model.how_many_fingers):
             first_jnt = "{0}_finger{1}_metacarpus_GUIDE".format(self.model.module_name, i + 1)
@@ -224,7 +240,7 @@ class Controller(RigController):
             planes_group.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
 
             for i, guide in enumerate(self.guides):
-                if ((self.model.thumb_creation_switch and i != 0) or not self.model.thumb_creation_switch) and \
+                if ((self.model.thumb_creation_switch and i >= self.model.how_many_thumbs) or not self.model.thumb_creation_switch) and \
                                 guide[1].getShape().getAttr("spans") != self.model.how_many_phalanges:
                     if self.model.how_many_phalanges > 2:
                         guide[1] = pmc.rebuildCurve(guide[1], rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
@@ -239,7 +255,7 @@ class Controller(RigController):
                 planes_loc_02 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_mid_LOC".format(guide[1]))
                 planes_loc_03 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_end_LOC".format(guide[1]))
 
-                if self.model.thumb_creation_switch and i == 0 or self.model.how_many_phalanges == 2:
+                if self.model.thumb_creation_switch and i < self.model.how_many_thumbs or self.model.how_many_phalanges == 2:
                     loc_01_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_01))
                     guide[1].getShape().worldSpace[0] >> loc_01_pos.geometryPath
                     loc_01_pos.setAttr("uValue", 0)
@@ -323,71 +339,13 @@ class Controller(RigController):
         planes_group.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
         planes_group.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
 
-        if self.model.thumb_creation_switch:
-            thumb_ankle_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[0][0])
-            thumb_ankle_guide.setAttr("translate", (2 * self.side_coef, 0.5, -1.5))
-            thumb_guide = rig_lib.create_curve_guide(d=1, number_of_points=3, name=self.guides_names[0][1],
-                                                     hauteur_curve=2)
-            thumb_guide.setAttr("translate", (2 * self.side_coef, 0, -2))
-            thumb_guide.setAttr("rotate", (-90, 0, 0))
-            thumb = [thumb_ankle_guide, thumb_guide]
-            self.guides.append(thumb)
-
-            planes_loc_01 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_start_LOC".format(thumb[1]))
-            planes_loc_02 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_mid_LOC".format(thumb[1]))
-            planes_loc_03 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_end_LOC".format(thumb[1]))
-
-            loc_01_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_01))
-            thumb[1].getShape().worldSpace[0] >> loc_01_pos.geometryPath
-            loc_01_pos.setAttr("uValue", 0)
-            loc_01_pos.allCoordinates >> planes_loc_01.translate
-            planes_loc_01.setAttr("visibility", 0)
-
-            loc_02_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_02))
-            thumb[1].getShape().worldSpace[0] >> loc_02_pos.geometryPath
-            loc_02_pos.setAttr("uValue", 1)
-            loc_02_pos.allCoordinates >> planes_loc_02.translate
-            planes_loc_02.setAttr("visibility", 0)
-
-            loc_03_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_03))
-            thumb[1].getShape().worldSpace[0] >> loc_03_pos.geometryPath
-            loc_03_pos.setAttr("uValue", 2)
-            loc_03_pos.allCoordinates >> planes_loc_03.translate
-            planes_loc_03.setAttr("visibility", 0)
-
-            plane = pmc.ls(pmc.polyCreateFacet(p=[(0, 0, 0), (0, 0, 0), (0, 0, 0)],
-                                               n="{0}_plane".format(thumb[1]), ch=0))[0]
-
-            planes_loc_01.getShape().worldPosition[0] >> plane.getShape().pnts[0]
-            planes_loc_02.getShape().worldPosition[0] >> plane.getShape().pnts[1]
-            planes_loc_03.getShape().worldPosition[0] >> plane.getShape().pnts[2]
-
-            plane.setAttr("translateX", lock=True, keyable=False, channelBox=False)
-            plane.setAttr("translateY", lock=True, keyable=False, channelBox=False)
-            plane.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
-            plane.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
-            plane.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
-            plane.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
-            plane.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
-            plane.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
-            plane.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
-            plane.setAttr("overrideEnabled", 1)
-            plane.setAttr("overrideDisplayType", 2)
-
-            finger_group = pmc.group(em=1, n="{0}_plane_GRP".format(thumb[1]))
-            pmc.parent(planes_loc_01, finger_group)
-            pmc.parent(planes_loc_02, finger_group)
-            pmc.parent(planes_loc_03, finger_group)
-            pmc.parent(plane, finger_group)
-            pmc.parent(finger_group, planes_group)
-
         for i, finger in enumerate(self.guides_names):
-            if (self.model.thumb_creation_switch and i != 0) or not self.model.thumb_creation_switch:
+            if (self.model.thumb_creation_switch and i >= self.model.how_many_thumbs) or not self.model.thumb_creation_switch:
                 ankle_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[i][0])
-                ankle_guide.setAttr("translate", (1.5 * self.side_coef + (0.5 * (i - int(self.model.thumb_creation_switch)) * self.side_coef), 0.5, -0.5))
+                ankle_guide.setAttr("translate", (1.5 * self.side_coef + (0.5 * (i - int(self.model.thumb_creation_switch) * int(self.model.how_many_thumbs)) * self.side_coef), 0.5, -0.5))
                 finger_guide = rig_lib.create_curve_guide(d=1, number_of_points=(self.model.how_many_phalanges + 1),
                                                           name=finger[1], hauteur_curve=3)
-                finger_guide.setAttr("translate", (1.5 * self.side_coef + (0.5 * (i - int(self.model.thumb_creation_switch)) * self.side_coef), 0, 0))
+                finger_guide.setAttr("translate", (1.5 * self.side_coef + (0.5 * (i - int(self.model.thumb_creation_switch) * int(self.model.how_many_thumbs)) * self.side_coef), 0, 0))
                 finger_guide.setAttr("rotate", (90, 0, 0))
                 finger = [ankle_guide, finger_guide]
                 self.guides.append(finger)
@@ -459,6 +417,64 @@ class Controller(RigController):
                 pmc.parent(plane, finger_group)
                 pmc.parent(finger_group, planes_group)
 
+            else:
+                thumb_ankle_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[i][0])
+                thumb_ankle_guide.setAttr("translate", (1.75 * self.side_coef + 0.5 * i, 0.5, -1.5))
+                thumb_guide = rig_lib.create_curve_guide(d=1, number_of_points=3, name=self.guides_names[i][1],
+                                                         hauteur_curve=2)
+                thumb_guide.setAttr("translate", (1.75 * self.side_coef + 0.5 * i, 0, -2))
+                thumb_guide.setAttr("rotate", (-90, 0, 0))
+                thumb = [thumb_ankle_guide, thumb_guide]
+                self.guides.append(thumb)
+
+                planes_loc_01 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_start_LOC".format(thumb[1]))
+                planes_loc_02 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_mid_LOC".format(thumb[1]))
+                planes_loc_03 = pmc.spaceLocator(p=(0, 0, 0), n="{0}_end_LOC".format(thumb[1]))
+
+                loc_01_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_01))
+                thumb[1].getShape().worldSpace[0] >> loc_01_pos.geometryPath
+                loc_01_pos.setAttr("uValue", 0)
+                loc_01_pos.allCoordinates >> planes_loc_01.translate
+                planes_loc_01.setAttr("visibility", 0)
+
+                loc_02_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_02))
+                thumb[1].getShape().worldSpace[0] >> loc_02_pos.geometryPath
+                loc_02_pos.setAttr("uValue", 1)
+                loc_02_pos.allCoordinates >> planes_loc_02.translate
+                planes_loc_02.setAttr("visibility", 0)
+
+                loc_03_pos = pmc.createNode("motionPath", n="{0}_position_MP".format(planes_loc_03))
+                thumb[1].getShape().worldSpace[0] >> loc_03_pos.geometryPath
+                loc_03_pos.setAttr("uValue", 2)
+                loc_03_pos.allCoordinates >> planes_loc_03.translate
+                planes_loc_03.setAttr("visibility", 0)
+
+                plane = pmc.ls(pmc.polyCreateFacet(p=[(0, 0, 0), (0, 0, 0), (0, 0, 0)],
+                                                   n="{0}_plane".format(thumb[1]), ch=0))[0]
+
+                planes_loc_01.getShape().worldPosition[0] >> plane.getShape().pnts[0]
+                planes_loc_02.getShape().worldPosition[0] >> plane.getShape().pnts[1]
+                planes_loc_03.getShape().worldPosition[0] >> plane.getShape().pnts[2]
+
+                plane.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+                plane.setAttr("overrideEnabled", 1)
+                plane.setAttr("overrideDisplayType", 2)
+
+                finger_group = pmc.group(em=1, n="{0}_plane_GRP".format(thumb[1]))
+                pmc.parent(planes_loc_01, finger_group)
+                pmc.parent(planes_loc_02, finger_group)
+                pmc.parent(planes_loc_03, finger_group)
+                pmc.parent(plane, finger_group)
+                pmc.parent(finger_group, planes_group)
+
         self.guides_grp = self.group_guides(self.guides)
         pmc.parent(planes_group, self.guides_grp)
 
@@ -524,15 +540,15 @@ class Controller(RigController):
                 self.create_2phalanges_ik(self.created_fk_ctrls)
 
             elif self.model.how_many_phalanges == 3 and self.model.thumb_creation_switch:
-                self.create_2phalanges_ik(self.created_fk_ctrls[:1])
-                self.create_3phalanges_ik(self.created_fk_ctrls[1:], 2)
+                self.create_2phalanges_ik(self.created_fk_ctrls[:(int(self.model.how_many_thumbs))])
+                self.create_3phalanges_ik(self.created_fk_ctrls[(int(self.model.how_many_thumbs)):], (self.model.how_many_thumbs + 1))
 
             elif self.model.how_many_phalanges == 3:
                 self.create_3phalanges_ik(self.created_fk_ctrls[:], 1)
 
             elif self.model.thumb_creation_switch:
-                self.create_2phalanges_ik(self.created_fk_ctrls[:1])
-                self.create_x_phalanges_ik(self.created_fk_ctrls[1:], 2)
+                self.create_2phalanges_ik(self.created_fk_ctrls[:(int(self.model.how_many_thumbs))])
+                self.create_x_phalanges_ik(self.created_fk_ctrls[(int(self.model.how_many_thumbs)):], (self.model.how_many_thumbs + 1))
 
             else:
                 self.create_x_phalanges_ik(self.created_fk_ctrls[:], 1)
@@ -798,7 +814,7 @@ class Controller(RigController):
             self.created_fk_ctrls.append(created_finger_ctrls)
 
     def create_options_attributes(self):
-        if self.model.how_many_fingers > 1:
+        if self.model.how_many_fingers > 1 or self.model.how_many_thumbs > 1:
             if "spread" in pmc.listAttr(self.parent_option_ctrl, keyable=1):
                 self.parent_option_ctrl.deleteAttr("spread")
             self.parent_option_ctrl.addAttr("spread", attributeType="float", defaultValue=0, hidden=0, keyable=1)
@@ -814,9 +830,9 @@ class Controller(RigController):
                 center_finger = int((float(self.model.how_many_fingers - 2) / 2) + 0.5)
 
             if self.model.thumb_creation_switch:
-                center_finger += 1
+                center_finger += self.model.how_many_thumbs
 
-            if self.model.how_many_fingers > 1 and ((self.model.thumb_creation_switch and n != 0)
+            if self.model.how_many_fingers > 1 and ((self.model.thumb_creation_switch and n >= self.model.how_many_thumbs)
                                                     or not self.model.thumb_creation_switch) \
                     and n != center_finger:
                 spread_mult = pmc.createNode("multiplyDivide", n="{0}_spread_mult_MDV".format(self.created_fk_ctrls[n][1]))
@@ -834,6 +850,20 @@ class Controller(RigController):
                 if i != 0:
                     self.parent_option_ctrl.connectAttr("finger{0}Curl".format(n + 1), ctrl.rotateAxisX)
                     ctrl.rotateAxisX >> self.created_skn_jnts[n][i].rotateAxisX
+
+            if self.model.how_many_thumbs == 2:
+                center_thumb = 0.5
+            else:
+                center_thumb = int((float(self.model.how_many_thumbs - 2) / 2) + 0.5)
+
+            if self.model.how_many_thumbs > 1 and  self.model.thumb_creation_switch and n < self.model.how_many_thumbs and n != center_thumb:
+                spread_mult = pmc.createNode("multiplyDivide",
+                                             n="{0}_spread_mult_MDV".format(self.created_fk_ctrls[n][1]))
+                spread_mult.setAttr("operation", 1)
+                spread_mult.setAttr("input2X", (-center_thumb + n))
+                self.parent_option_ctrl.spread >> spread_mult.input1X
+                spread_mult.outputX >> finger[1].rotateAxisZ
+                finger[1].rotateAxisZ >> self.created_skn_jnts[n][1].rotateAxisZ
 
     def clean_rig(self):
         self.jnt_input_grp.setAttr("visibility", 0)
@@ -896,6 +926,7 @@ class Controller(RigController):
         rig_lib.add_parameter_as_extra_attr(info_crv, "raz_ik_ctrls", self.model.raz_ik_ctrls)
         rig_lib.add_parameter_as_extra_attr(info_crv, "raz_fk_ctrls", self.model.raz_fk_ctrls)
         rig_lib.add_parameter_as_extra_attr(info_crv, "roll_creation", self.model.roll_creation_switch)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_thumbs", self.model.how_many_thumbs)
 
         if not pmc.objExists("jnts_to_SKN_SET"):
             skn_set = pmc.createNode("objectSet", n="jnts_to_SKN_SET")
@@ -920,8 +951,7 @@ class Controller(RigController):
                 self.model.module_name, (n + x)))[0]
             first_phalanx_ik_setup_jnt = pmc.ls("{0}_finger{1}_0_ik_setup_JNT|{0}_finger{1}_1_fk_CTRL".format(
                 self.model.module_name, (n + x)))[0]
-            second_phalanx_ik_setup_jnt = \
-            pmc.ls("{0}_finger{1}_0_ik_setup_JNT|{0}_finger{1}_1_fk_CTRL|{0}_finger{1}_2_fk_CTRL".format(
+            second_phalanx_ik_setup_jnt = pmc.ls("{0}_finger{1}_0_ik_setup_JNT|{0}_finger{1}_1_fk_CTRL|{0}_finger{1}_2_fk_CTRL".format(
                 self.model.module_name, (n + x)))[0]
             third_phalanx_ik_setup_jnt = pmc.ls(
                 "{0}_finger{1}_0_ik_setup_JNT|{0}_finger{1}_1_fk_CTRL|{0}_finger{1}_2_fk_CTRL|{0}_finger{1}_3_fk_CTRL".format(
@@ -1775,6 +1805,7 @@ class Model(AuriScriptModel):
         self.side = "Left"
         self.how_many_fingers = 3
         self.thumb_creation_switch = True
+        self.how_many_thumbs = 1
         self.how_many_phalanges = 3
         self.ik_creation_switch = False
         self.stretch_creation_switch = False
