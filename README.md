@@ -1,5 +1,5 @@
 # Auri Maya Rigging
-*Auri Maya Rigging* is a rigging library for Auri.
+*Auri Maya Rigging* is a rigging library for [Auri](https://github.com/Sookhaal/auri).
 
 The goal is to have a **fully** modular rigging tool, from humans to the weirdest creature you may imagine.
 
