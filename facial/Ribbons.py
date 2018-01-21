@@ -1,3 +1,7 @@
+"""
+:created: 2017-12
+:author: Alex BROSSARD <abrossard@artfx.fr>
+"""
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from pymel import core as pmc
@@ -346,7 +350,7 @@ class Controller(RigController):
                 self.bot_components_type = "face"
 
         self.view.refresh_view()
-        pmc.select(d=1)
+        pmc.select(cl=1)
         return True
 
     def execute(self):
@@ -785,6 +789,33 @@ class Controller(RigController):
             rig_lib.clean_ctrl(ctrl.getParent().getParent(), color_value, trs="trs")
             rig_lib.clean_ctrl(ctrl.getParent().getParent().getParent(), color_value, trs="trs")
 
+        info_crv = rig_lib.signature_shape_curve("{0}_INFO".format(self.model.module_name))
+        info_crv.getShape().setAttr("visibility", 0)
+        info_crv.setAttr("hiddenInOutliner", 1)
+        info_crv.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("visibility", lock=True, keyable=False, channelBox=False)
+        info_crv.setAttr("overrideEnabled", 1)
+        info_crv.setAttr("overrideDisplayType", 2)
+        pmc.parent(info_crv, self.parts_grp)
+
+        rig_lib.add_parameter_as_extra_attr(info_crv, "Module", "ribbons")
+        rig_lib.add_parameter_as_extra_attr(info_crv, "mesh_to_follow", self.model.mesh_to_follow)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "top_creation_switch", self.model.top_creation_switch)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "top_selection", self.model.top_selection)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "bot_creation_switch", self.model.bot_creation_switch)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "bot_selection", self.model.bot_selection)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_top_ctrls", self.model.how_many_top_ctrls)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_bot_ctrls", self.model.how_many_bot_ctrls)
+        rig_lib.add_parameter_as_extra_attr(info_crv, "loft_axis", self.model.loft_axis)
+
         if not pmc.objExists("facial_jnts_to_SKN_SET"):
             skn_set = pmc.createNode("objectSet", n="facial_jnts_to_SKN_SET")
         else:
@@ -817,10 +848,10 @@ class Model(AuriScriptModel):
         # self.selected_module = None
         # self.selected_output = None
         # self.side = "Center"
-        self.top_selection = []
-        self.bot_selection = []
         self.top_creation_switch = True
+        self.top_selection = []
         self.bot_creation_switch = False
+        self.bot_selection = []
         self.mesh_to_follow = None
         self.how_many_top_ctrls = "5"
         self.how_many_bot_ctrls = "5"

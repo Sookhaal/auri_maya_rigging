@@ -1,3 +1,7 @@
+"""
+:created: 2017-12
+:author: Alex BROSSARD <abrossard@artfx.fr>
+"""
 from PySide2 import QtWidgets, QtCore
 
 from pymel import core as pmc
@@ -142,7 +146,7 @@ class Controller(RigController):
 
             self.guides_grp.setAttr("visibility", 1)
             self.view.refresh_view()
-            pmc.select(d=1)
+            pmc.select(cl=1)
             return True
 
         self.guides = []
@@ -254,6 +258,27 @@ class Controller(RigController):
             rig_lib.clean_ctrl(self.ctrls[i], color_value, trs="s")
             rig_lib.clean_ctrl(self.ctrls[i].getParent(), color_value, trs="trs")
             rig_lib.clean_ctrl(self.ctrls[i].getParent().getParent(), color_value, trs="trs")
+
+            info_crv = rig_lib.signature_shape_curve("{0}_INFO".format(self.model.module_name))
+            info_crv.getShape().setAttr("visibility", 0)
+            info_crv.setAttr("hiddenInOutliner", 1)
+            info_crv.setAttr("translateX", lock=True, keyable=False, channelBox=False)
+            info_crv.setAttr("translateY", lock=True, keyable=False, channelBox=False)
+            info_crv.setAttr("translateZ", lock=True, keyable=False, channelBox=False)
+            info_crv.setAttr("rotateX", lock=True, keyable=False, channelBox=False)
+            info_crv.setAttr("rotateY", lock=True, keyable=False, channelBox=False)
+            info_crv.setAttr("rotateZ", lock=True, keyable=False, channelBox=False)
+            info_crv.setAttr("scaleX", lock=True, keyable=False, channelBox=False)
+            info_crv.setAttr("scaleY", lock=True, keyable=False, channelBox=False)
+            info_crv.setAttr("scaleZ", lock=True, keyable=False, channelBox=False)
+            info_crv.setAttr("visibility", lock=True, keyable=False, channelBox=False)
+            info_crv.setAttr("overrideEnabled", 1)
+            info_crv.setAttr("overrideDisplayType", 2)
+            pmc.parent(info_crv, self.parts_grp)
+
+            rig_lib.add_parameter_as_extra_attr(info_crv, "Module", "blendshapes_ctrls")
+            rig_lib.add_parameter_as_extra_attr(info_crv, "mesh_to_follow", self.model.mesh_to_follow)
+            rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_ctrls", self.model.how_many_ctrls)
 
 
 class Model(AuriScriptModel):

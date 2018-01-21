@@ -875,7 +875,7 @@ class RigController(AuriScriptController):
             start_loc.getShape().worldPosition >> distance.point1
             end_loc.getShape().worldPosition >> distance.point2
             if i == 0:
-                pmc.select(d=1)
+                pmc.select(cl=1)
             else:
                 pmc.select(chain_jnts[i-1])
             jnt = pmc.joint(p=(0, (distance.getAttr("distance") / how_many_jnts * i)*side_coef, 0),
@@ -1192,7 +1192,7 @@ def create_curve_guide(d, number_of_points, name, hauteur_curve=10, front_axe="y
 
 
 def create_jnts_from_cv_list_and_return_jnts_list(vertex_list, module_name, forward_axis="y"):
-    pmc.select(d=1)
+    pmc.select(cl=1)
     loc_list = []
     created_jnts_list = []
     for i, vertex in enumerate(vertex_list):
@@ -1211,7 +1211,7 @@ def create_jnts_from_cv_list_and_return_jnts_list(vertex_list, module_name, forw
             pmc.parent(loc, loc_list[i-1], r=0)
         loc_list.append(loc)
 
-    pmc.select(d=1)
+    pmc.select(cl=1)
     for i, loc in enumerate(loc_list):
         jnt = pmc.joint(p=(pmc.xform(loc, q=1, ws=1, translation=1)),
                         o=(pmc.xform(loc, q=1, rotation=1)),
@@ -1267,7 +1267,7 @@ def create_output(name, parent):
 
 
 def raz_fk_ctrl_rotate(ctrl, jnt, stretch=False):
-    pmc.select(d=1)
+    pmc.select(cl=1)
     jnt_ofs = pmc.joint(p=(0, 0, 0), n="{0}_RAZ".format(ctrl))
     jnt_ofs.setAttr("rotateOrder", 4)
     jnt_ofs.setAttr("drawStyle", 2)

@@ -1,3 +1,7 @@
+"""
+:created: 2017-11
+:author: Alex BROSSARD <abrossard@artfx.fr>
+"""
 from PySide2 import QtWidgets, QtCore
 
 from pymel import core as pmc
@@ -97,14 +101,14 @@ class Controller(RigController):
             if pmc.objExists("{0}_ctrl_OFS".format(obj)):
                 pmc.delete("{0}_ctrl_OFS".format(obj))
 
-            pmc.select(d=1)
+            pmc.select(cl=1)
 
             ctrl_shape = pmc.circle(c=(0, 0, 0), nr=self.orientation, sw=360, r=self.model.size, d=3, s=8,
                                     n="{0}_CTRLShape".format(obj), ch=0)[0]
             ctrl = rig_lib.create_jnttype_ctrl("{0}_CTRL".format(obj), ctrl_shape, drawstyle=2,
                                                rotateorder=self.rotate_order)
 
-            pmc.select(d=1)
+            pmc.select(cl=1)
 
             ctrl_ofs = pmc.joint(p=(0, 0, 0), n="{0}_ctrl_OFS".format(obj))
             ctrl_ofs.setAttr("rotateOrder", self.rotate_order)

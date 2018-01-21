@@ -1,3 +1,7 @@
+"""
+:created: 2017-09
+:author: Alex BROSSARD <abrossard@artfx.fr>
+"""
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from pymel import core as pmc
@@ -83,7 +87,7 @@ class Controller(RigController):
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
             self.guides_grp.setAttr("visibility", 1)
             self.view.refresh_view()
-            pmc.select(d=1)
+            pmc.select(cl=1)
             return
 
         head_base_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[0])
@@ -103,7 +107,7 @@ class Controller(RigController):
         self.guides = [head_base_guide, head_top_guide, jaw_rotation_guide, jaw_end_guide, left_eye_guide, right_eye_guide]
         self.guides_grp = self.group_guides(self.guides)
         self.view.refresh_view()
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
     def execute(self):
         self.prebuild()
@@ -117,7 +121,7 @@ class Controller(RigController):
         self.create_outputs()
 
         self.clean_rig()
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
     def create_skn_jnts(self):
         duplicates_guides = []
@@ -134,14 +138,14 @@ class Controller(RigController):
         pmc.delete(jaw_const)
         pmc.parent(duplicates_guides[1], duplicates_guides[0])
         pmc.parent(duplicates_guides[3], duplicates_guides[2])
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
         head_base_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1)),
                                   n="{0}_head_SKN".format(self.model.module_name))
         head_base_jnt.setAttr("jointOrient", pmc.xform(duplicates_guides[0], q=1, rotation=1))
         head_end_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[1], q=1, ws=1, translation=1)),
                                  n="{0}_head_end_JNT".format(self.model.module_name))
-        pmc.select(d=1)
+        pmc.select(cl=1)
         jaw_base_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[2], q=1, ws=1, translation=1)),
                                  n="{0}_jaw_SKN".format(self.model.module_name))
         jaw_base_ofs = pmc.duplicate(jaw_base_jnt, n="{0}_jaw_skn_OFS".format(self.model.module_name))[0]
@@ -149,10 +153,10 @@ class Controller(RigController):
         jaw_base_ofs.setAttr("jointOrient", pmc.xform(duplicates_guides[2], q=1, rotation=1))
         jaw_end_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[3], q=1, ws=1, translation=1)),
                                 n="{0}_jaw_end_JNT".format(self.model.module_name))
-        pmc.select(d=1)
+        pmc.select(cl=1)
         left_eye_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[4], q=1, ws=1, translation=1)),
                                  n="{0}_left_eye_SKN".format(self.model.module_name))
-        pmc.select(d=1)
+        pmc.select(cl=1)
         right_eye_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[5], q=1, ws=1, translation=1)),
                                   n="{0}_right_eye_SKN".format(self.model.module_name))
 
@@ -179,7 +183,7 @@ class Controller(RigController):
                                              pmc.xform(cv, q=1, ws=1, translation=1)[1],
                                              pmc.xform(cv, q=1, ws=1, translation=1)[2] + 2))
 
-        pmc.select(d=1)
+        pmc.select(cl=1)
         jaw_ofs = pmc.joint(p=(0, 0, 0), n="{0}__jaw_ctrl_OFS".format(self.model.module_name))
         jaw_ofs.setAttr("drawStyle", 2)
         pmc.parent(jaw_ctrl, jaw_ofs)
@@ -246,6 +250,7 @@ class Controller(RigController):
         info_crv.setAttr("overrideDisplayType", 2)
         pmc.parent(info_crv, self.parts_grp)
 
+        rig_lib.add_parameter_as_extra_attr(info_crv, "Module", "head")
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_Module", self.model.selected_module)
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_output", self.model.selected_output)
 

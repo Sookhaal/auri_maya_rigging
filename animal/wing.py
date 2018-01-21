@@ -1,3 +1,7 @@
+"""
+:created: 2018-01
+:author: Alex BROSSARD <abrossard@artfx.fr>
+"""
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from pymel import core as pmc
@@ -790,7 +794,7 @@ class Controller(RigController):
                 space_locs[i].setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
                 pmc.parent(space_locs[i], space)
 
-                fk_space_const = pmc.orientConstraint(space_locs[i], fk_ctrls[0].getParent(), maintainOffset=1)
+                fk_space_const = pmc.orientConstraint(space_locs[i], fk_ctrls[0].getParent(), maintainOffset=0)
                 ik_space_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[0].getParent(), maintainOffset=1)
                 # pole_vector_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[1].getParent(), maintainOffset=1)
 
@@ -806,11 +810,12 @@ class Controller(RigController):
                 #                                         "{0}_{1}Space_COND".format(self.created_ik_ctrls[1], spaces_names[i]))
 
                 if not self.model.deform_chain_creation_switch:
-                    jnt_const_grp_const = pmc.orientConstraint(space_locs[i], self.jnt_const_group, maintainOffset=1)
-
+                    pmc.parent(self.jnt_const_group, pmc.listRelatives(self.clavicle_jnt, children=1, type="joint")[0])
+                    jnt_const_grp_const = pmc.orientConstraint(space_locs[i], self.jnt_const_group, maintainOffset=0)
                     rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(jnt_const_grp_const, space_locs[i], i),
                                                             fk_ctrls[0].space, i,
-                                                            "{0}_{1}Space_COND".format(self.jnt_const_group, spaces_names[i]))
+                                                            "{0}_{1}_COND".format(self.jnt_const_group, spaces_names[i]),
+                                                            switch=fk_const_switch)
 
         self.created_ik_ctrls[1].addAttr("space", attributeType="enum", enumName=["world", "hand"], hidden=0, keyable=1)
         if pmc.objExists("{0}_world_SPACELOC".format(self.model.module_name)):
@@ -910,6 +915,7 @@ class Controller(RigController):
         info_crv.setAttr("overrideDisplayType", 2)
         pmc.parent(info_crv, self.parts_grp)
 
+        rig_lib.add_parameter_as_extra_attr(info_crv, "Module", "wing")
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_Module", self.model.selected_module)
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_output", self.model.selected_output)
         rig_lib.add_parameter_as_extra_attr(info_crv, "side", self.model.side)

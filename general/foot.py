@@ -1,3 +1,7 @@
+"""
+:created: 2017-09
+:author: Alex BROSSARD <abrossard@artfx.fr>
+"""
 from PySide2 import QtWidgets, QtCore, QtGui
 from functools import partial
 
@@ -116,7 +120,7 @@ class Controller(RigController):
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
             self.guides_grp.setAttr("visibility", 1)
             self.view.refresh_view()
-            pmc.select(d=1)
+            pmc.select(cl=1)
             return
 
         ankle_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[0])
@@ -136,7 +140,7 @@ class Controller(RigController):
         self.guides = [ankle_guide, ball_guide, toe_guide, heel_guide, infoot_guide, outfoot_guide]
         self.guides_grp = self.group_guides(self.guides)
         self.view.refresh_view()
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
     def execute(self):
         self.prebuild()
@@ -159,7 +163,7 @@ class Controller(RigController):
             self.create_one_chain_ik_and_roll()
 
         self.clean_rig()
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
     def get_parent_ik_objects(self):
         self.leg_ik_ctrl = pmc.ls("{0}_ankle_ik_CTRL".format(self.model.selected_module))[0]
@@ -199,7 +203,7 @@ class Controller(RigController):
         temp_guide_orient.setAttr("rotateOrder", 4)
         temp_guide_orient.setAttr("rotate", 0, 90 * (1 - self.side_coef), 90 * (1 + self.side_coef))
         pmc.parent(duplicates_guides[0], temp_guide_orient, r=0)
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
         ankle_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1)),
                               n="{0}_foot_SKN".format(self.model.module_name))
@@ -495,6 +499,7 @@ class Controller(RigController):
         info_crv.setAttr("overrideDisplayType", 2)
         pmc.parent(info_crv, self.parts_grp)
 
+        rig_lib.add_parameter_as_extra_attr(info_crv, "Module", "foot")
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_Module", self.model.selected_module)
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_output", self.model.selected_output)
         rig_lib.add_parameter_as_extra_attr(info_crv, "side", self.model.side)

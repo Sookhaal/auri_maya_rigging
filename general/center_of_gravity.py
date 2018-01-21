@@ -1,3 +1,7 @@
+"""
+:created: 2017-09
+:author: Alex BROSSARD <abrossard@artfx.fr>
+"""
 from PySide2 import QtWidgets, QtCore
 
 from pymel import core as pmc
@@ -73,14 +77,14 @@ class Controller(RigController):
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
             self.guides_grp.setAttr("visibility", 1)
             self.view.refresh_view()
-            pmc.select(d=1)
+            pmc.select(cl=1)
             return
 
         self.guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guide_name)
         self.guide.setAttr("translate", (0, 7.5, 0))
         self.guides_grp = self.group_guides(self.guide)
         self.view.refresh_view()
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
     def execute(self):
         self.prebuild()
@@ -120,10 +124,11 @@ class Controller(RigController):
         info_crv.setAttr("overrideDisplayType", 2)
         pmc.parent(info_crv, self.parts_grp)
 
+        rig_lib.add_parameter_as_extra_attr(info_crv, "Module", "cog")
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_Module", self.model.selected_module)
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_output", self.model.selected_output)
 
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
 
 class Model(AuriScriptModel):

@@ -1,3 +1,7 @@
+"""
+:created: 2017-11
+:author: Alex BROSSARD <abrossard@artfx.fr>
+"""
 from PySide2 import QtWidgets, QtCore
 
 from pymel import core as pmc
@@ -90,7 +94,7 @@ class Controller(RigController):
             for ctrl in self.created_ctrls:
                 rig_lib.clean_ctrl(ctrl, 18, trs="ts")
 
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
     def rig_curve(self, selection=None):
         if selection is None:

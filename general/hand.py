@@ -1,3 +1,7 @@
+"""
+:created: 2017-09
+:author: Alex BROSSARD <abrossard@artfx.fr>
+"""
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from pymel import core as pmc
@@ -309,7 +313,7 @@ class Controller(RigController):
             self.roll_prebuild()
 
             self.view.refresh_view()
-            pmc.select(d=1)
+            pmc.select(cl=1)
             return
 
         planes_group = pmc.group(em=1, n="{0}_fingers_planes_GRP".format(self.model.module_name))
@@ -465,7 +469,7 @@ class Controller(RigController):
         self.roll_prebuild()
 
         self.view.refresh_view()
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
     def roll_prebuild(self):
         self.roll_guides_names = ["{0}_ball_GUIDE".format(self.model.module_name),
@@ -647,7 +651,7 @@ class Controller(RigController):
                                                      upVector=(0.0, 1.0 * self.side_coef, 0.0), worldUpType="object",
                                                      worldUpObject=finger_new_guides[i + 1])
                     pmc.delete(const)
-                    pmc.select(d=1)
+                    pmc.select(cl=1)
                 if i != 0:
                     pmc.parent(guide, finger_new_guides[i - 1])
                     pmc.select(created_finger_jnts[i - 1])
@@ -766,7 +770,7 @@ class Controller(RigController):
                     created_finger_ctrls.append(ctrl)
 
                 elif i == len(finger) - 1:
-                    pmc.select(d=1)
+                    pmc.select(cl=1)
                     ctrl = pmc.joint(p=(0, 0, 0), n="{0}_finger{1}_{2}_fk_JNT".format(self.model.module_name, (n + 1), i))
                     ctrl.setAttr("drawStyle", 2)
                     ctrl.setAttr("rotateOrder", 1)
@@ -873,6 +877,7 @@ class Controller(RigController):
         info_crv.setAttr("overrideDisplayType", 2)
         pmc.parent(info_crv, self.parts_grp)
 
+        rig_lib.add_parameter_as_extra_attr(info_crv, "Module", "hand")
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_Module", self.model.selected_module)
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_output", self.model.selected_output)
         rig_lib.add_parameter_as_extra_attr(info_crv, "side", self.model.side)
@@ -962,7 +967,7 @@ class Controller(RigController):
             ik_shape = rig_lib.medium_cube("{0}__finger{1}_ik_CTRL_shape".format(self.model.module_name, (n + x)))
             ik_ctrl = rig_lib.create_jnttype_ctrl("{0}_finger{1}_ik_CTRL".format(self.model.module_name, (n + x)),
                                                   ik_shape, drawstyle=2, rotateorder=3)
-            pmc.select(d=1)
+            pmc.select(cl=1)
             ik_ctrl_ofs = pmc.joint(p=(0, 0, 0), n="{0}_finger{1}_ik_ctrl_OFS".format(self.model.module_name, (n + x)))
             ik_ctrl_ofs.setAttr("rotateOrder", 3)
             ik_ctrl_ofs.setAttr("drawStyle", 2)
@@ -1209,7 +1214,7 @@ class Controller(RigController):
             ik_shape = rig_lib.medium_cube("{0}_finger{1}_ik_CTRL_shape".format(self.model.module_name, n+1))
             ik_ctrl = rig_lib.create_jnttype_ctrl("{0}_finger{1}_ik_CTRL".format(self.model.module_name, n+1), ik_shape,
                                                   drawstyle=2, rotateorder=3)
-            pmc.select(d=1)
+            pmc.select(cl=1)
             ik_ctrl_ofs = pmc.joint(p=(0, 0, 0), n="{0}_finger{1}_ik_ctrl_OFS".format(self.model.module_name, n+1))
             ik_ctrl_ofs.setAttr("rotateOrder", 3)
             ik_ctrl_ofs.setAttr("drawStyle", 2)
@@ -1336,7 +1341,7 @@ class Controller(RigController):
             ik_ctrl = rig_lib.create_jnttype_ctrl("{0}_finger{1}_ik_CTRL".format(self.model.module_name, n + x),
                                                   ik_shape,
                                                   drawstyle=2, rotateorder=3)
-            pmc.select(d=1)
+            pmc.select(cl=1)
             ik_ctrl_ofs = pmc.joint(p=(0, 0, 0), n="{0}_finger{1}_ik_ctrl_OFS".format(self.model.module_name, n + x))
             ik_ctrl_ofs.setAttr("rotateOrder", 3)
             ik_ctrl_ofs.setAttr("drawStyle", 2)

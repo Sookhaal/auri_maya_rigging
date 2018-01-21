@@ -1,3 +1,7 @@
+"""
+:created: 2017-09
+:author: Alex BROSSARD <abrossard@artfx.fr>
+"""
 from PySide2 import QtWidgets, QtCore
 
 from pymel import core as pmc
@@ -59,7 +63,7 @@ class Controller(RigController):
     def prebuild(self):
         self.create_temporary_outputs(["local_ctrl_OUTPUT"])
         self.view.refresh_view()
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
     def execute(self):
         self.prebuild()
@@ -69,7 +73,7 @@ class Controller(RigController):
                       "{0}_local_CTRL".format(self.model.module_name), "{0}_local_ctrl_OUTPUT".format(self.model.module_name),
                       "{0}_global_scale_MDL".format(self.model.module_name)]
         if rig_lib.exists_check(check_list):
-            pmc.select(d=1)
+            pmc.select(cl=1)
             return
 
         if rig_lib.exists_check("{0}_RIG".format(self.model.character_name)):
@@ -139,9 +143,10 @@ class Controller(RigController):
         info_crv.setAttr("overrideDisplayType", 2)
         pmc.parent(info_crv, parts_grp)
 
+        rig_lib.add_parameter_as_extra_attr(info_crv, "Module", "mandatory_base")
         rig_lib.add_parameter_as_extra_attr(info_crv, "character_name", self.model.character_name)
 
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
 
 class Model(AuriScriptModel):

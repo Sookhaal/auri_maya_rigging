@@ -1,3 +1,7 @@
+"""
+:created: 2017-09
+:author: Alex BROSSARD <abrossard@artfx.fr>
+"""
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from pymel import core as pmc
@@ -192,14 +196,14 @@ class Controller(RigController):
             self.guides_grp = pmc.ls("{0}_guides".format(self.model.module_name))[0]
             self.guides_grp.setAttr("visibility", 1)
             self.view.refresh_view()
-            pmc.select(d=1)
+            pmc.select(cl=1)
             return
 
         self.guide = rig_lib.create_curve_guide(d=d, number_of_points=nb_points, name=self.guide_name, hauteur_curve=3)
         self.guides_grp = self.group_guides(self.guide)
         self.guide.setAttr("translate", (0, 20, 0))
         self.view.refresh_view()
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
     def execute(self):
         self.created_locs = []
@@ -223,7 +227,7 @@ class Controller(RigController):
         self.create_outputs()
         self.create_local_spaces()
         self.clean_rig()
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
     def create_jnts(self):
         guide_rebuilded = pmc.rebuildCurve(self.guide, rpo=0, rt=0, end=1, kr=0, kep=1, kt=0,
@@ -280,7 +284,7 @@ class Controller(RigController):
         return cv_loc
 
     def create_ctrls(self, i, cv_loc):
-        pmc.select(d=1)
+        pmc.select(cl=1)
         ctrl_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=3, d=3, s=8,
                                 n="{0}_{1}_fk_CTRL_shape".format(self.model.module_name, (i + 1)), ch=0)[0]
         ctrl = rig_lib.create_jnttype_ctrl(name="{0}_{1}_fk_CTRL".format(self.model.module_name, (i + 1)), shape=ctrl_shape,
@@ -464,6 +468,7 @@ class Controller(RigController):
         info_crv.setAttr("overrideDisplayType", 2)
         pmc.parent(info_crv, self.parts_grp)
 
+        rig_lib.add_parameter_as_extra_attr(info_crv, "Module", "neck")
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_Module", self.model.selected_module)
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_output", self.model.selected_output)
         rig_lib.add_parameter_as_extra_attr(info_crv, "how_many_jnts", self.model.how_many_jnts)

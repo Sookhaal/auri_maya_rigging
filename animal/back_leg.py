@@ -1,3 +1,7 @@
+"""
+:created: 2018-01
+:author: Alex BROSSARD <abrossard@artfx.fr>
+"""
 from PySide2 import QtWidgets, QtCore, QtGui
 
 from pymel import core as pmc
@@ -298,7 +302,7 @@ class Controller(RigController):
             pmc.parent(self.plane, self.guides_grp)
             self.guides_grp.setAttr("visibility", 1)
             self.view.refresh_view()
-            pmc.select(d=1)
+            pmc.select(cl=1)
             return
 
         hip_guide = pmc.spaceLocator(p=(0, 0, 0), n=self.guides_names[0])
@@ -338,7 +342,7 @@ class Controller(RigController):
         self.guides_grp = self.group_guides(self.guides)
         pmc.parent(self.plane, self.guides_grp)
         self.view.refresh_view()
-        pmc.select(d=1)
+        pmc.select(cl=1)
 
     def execute(self):
         self.prebuild()
@@ -460,7 +464,7 @@ class Controller(RigController):
         pmc.parent(duplicates_guides[0], temp_guide_orient, r=0)
 
         if self.model.clavicle_creation_switch:
-            pmc.select(d=1)
+            pmc.select(cl=1)
             self.clavicle_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[3], q=1, ws=1, translation=1)),
                                           n="{0}_hip_clavicle_SKN".format(self.model.module_name))
             self.clavicle_jnt.setAttr("rotateOrder", 4)
@@ -474,7 +478,7 @@ class Controller(RigController):
 
             pmc.parent(self.clavicle_jnt, self.jnt_input_grp, r=0)
 
-        pmc.select(d=1)
+        pmc.select(cl=1)
         hip_jnt = pmc.joint(p=(pmc.xform(duplicates_guides[0], q=1, ws=1, translation=1)),
                             n="{0}_hip_SKN".format(self.model.module_name))
         hip_jnt.setAttr("rotateOrder", 4)
@@ -540,7 +544,7 @@ class Controller(RigController):
 
         self.clavicle_ctrl = rig_lib.create_jnttype_ctrl("{0}_hip_clavicle_CTRL".format(self.model.module_name), clav_shape,
                                                          drawstyle=2, rotateorder=4)
-        pmc.select(d=1)
+        pmc.select(cl=1)
         clav_ofs = pmc.joint(p=(0, 0, 0), n="{0}_hip_clavicle_ctrl_OFS".format(self.model.module_name))
         clav_ofs.setAttr("rotateOrder", 4)
         clav_ofs.setAttr("drawStyle", 2)
@@ -555,7 +559,7 @@ class Controller(RigController):
         clav_ik_shape = rig_lib.medium_cube("{0}_hip_clavicle_ik_CTRL_shape".format(self.model.module_name))
         self.clavicle_ik_ctrl = rig_lib.create_jnttype_ctrl("{0}_hip_clavicle_ik_CTRL".format(self.model.module_name),
                                                             clav_ik_shape, drawstyle=2, rotateorder=4)
-        pmc.select(d=1)
+        pmc.select(cl=1)
         clav_ik_ofs = pmc.joint(p=(0, 0, 0), n="{0}_hip_clavicle_ik_ctrl_OFS".format(self.model.module_name))
         clav_ik_ofs.setAttr("rotateOrder", 4)
         clav_ik_ofs.setAttr("drawStyle", 2)
@@ -608,7 +612,7 @@ class Controller(RigController):
         hip_ctrl = rig_lib.create_jnttype_ctrl("{0}_hip_fk_CTRL".format(self.model.module_name), hip_shape,
                                                drawstyle=0, rotateorder=4)
         hip_ctrl.setAttr("radius", 0)
-        pmc.select(d=1)
+        pmc.select(cl=1)
         hip_ofs = pmc.joint(p=(0, 0, 0), n="{0}_hip_fk_ctrl_OFS".format(self.model.module_name))
         hip_ofs.setAttr("rotateOrder", 4)
         hip_ofs.setAttr("drawStyle", 2)
@@ -667,7 +671,7 @@ class Controller(RigController):
         ik_shape = rig_lib.medium_cube("{0}_ankle_ik_CTRL_shape".format(self.model.module_name))
         ik_ctrl = rig_lib.create_jnttype_ctrl("{0}_ankle_ik_CTRL".format(self.model.module_name), ik_shape, drawstyle=2,
                                               rotateorder=4)
-        pmc.select(d=1)
+        pmc.select(cl=1)
         ik_ctrl_ofs = pmc.joint(p=(0, 0, 0), n="{0}_ankle_ik_ctrl_OFS".format(self.model.module_name))
         ik_ctrl_ofs.setAttr("rotateOrder", 4)
         ik_ctrl_ofs.setAttr("drawStyle", 2)
@@ -791,7 +795,7 @@ class Controller(RigController):
                 space_locs[i].setAttr("translate", pmc.xform(self.created_skn_jnts[0], q=1, ws=1, translation=1))
                 pmc.parent(space_locs[i], space)
 
-                fk_space_const = pmc.orientConstraint(space_locs[i], fk_ctrls[0].getParent(), maintainOffset=1)
+                fk_space_const = pmc.orientConstraint(space_locs[i], fk_ctrls[0].getParent(), maintainOffset=0)
                 ik_space_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[0].getParent(), maintainOffset=1)
                 # pole_vector_const = pmc.parentConstraint(space_locs[i], self.created_ik_ctrls[1].getParent(), maintainOffset=1)
 
@@ -807,10 +811,12 @@ class Controller(RigController):
                 #                                         "{0}_{1}Space_COND".format(self.created_ik_ctrls[1], spaces_names[i]))
 
                 if not self.model.deform_chain_creation_switch:
-                    jnt_const_grp_const = pmc.orientConstraint(space_locs[i], self.jnt_const_group, maintainOffset=1)
+                    pmc.parent(self.jnt_const_group, pmc.listRelatives(self.clavicle_jnt, children=1, type="joint")[0])
+                    jnt_const_grp_const = pmc.orientConstraint(space_locs[i], self.jnt_const_group, maintainOffset=0)
                     rig_lib.connect_condition_to_constraint("{0}.{1}W{2}".format(jnt_const_grp_const, space_locs[i], i),
-                                                            fk_ctrls[0].space, i,
-                                                            "{0}_{1}Space_COND".format(self.jnt_const_group, spaces_names[i]))
+                                                            self.created_ctrtl_jnts[0].space, i,
+                                                            "{0}_{1}_COND".format(self.jnt_const_group, spaces_names[i]),
+                                                            switch=fk_const_switch)
 
         self.created_ik_ctrls[1].addAttr("space", attributeType="enum", enumName=["world", "foot"], hidden=0, keyable=1)
         if pmc.objExists("{0}_world_SPACELOC".format(self.model.module_name)):
@@ -906,6 +912,7 @@ class Controller(RigController):
         info_crv.setAttr("overrideDisplayType", 2)
         pmc.parent(info_crv, self.parts_grp)
 
+        rig_lib.add_parameter_as_extra_attr(info_crv, "Module", "back_leg")
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_Module", self.model.selected_module)
         rig_lib.add_parameter_as_extra_attr(info_crv, "parent_output", self.model.selected_output)
         rig_lib.add_parameter_as_extra_attr(info_crv, "side", self.model.side)
@@ -970,7 +977,7 @@ class Controller(RigController):
         self.created_ctrtl_jnts[0].setAttr("radius", 0)
         pmc.delete(hip_shape)
 
-        pmc.select(d=1)
+        pmc.select(cl=1)
         hip_ofs = pmc.joint(p=(0, 0, 0), n="{0}_ctrl_jnts_OFS".format(self.model.module_name))
         hip_ofs.setAttr("rotateOrder", 4)
         hip_ofs.setAttr("drawStyle", 2)
@@ -1016,7 +1023,7 @@ class Controller(RigController):
         ik_shape = rig_lib.medium_cube("{0}_ankle_ik_CTRL_shape".format(self.model.module_name))
         ik_ctrl = rig_lib.create_jnttype_ctrl("{0}_ankle_ik_CTRL".format(self.model.module_name), ik_shape, drawstyle=2,
                                               rotateorder=4)
-        pmc.select(d=1)
+        pmc.select(cl=1)
         ik_ctrl_ofs = pmc.joint(p=(0, 0, 0), n="{0}_ankle_ik_ctrl_OFS".format(self.model.module_name))
         ik_ctrl_ofs.setAttr("rotateOrder", 4)
         ik_ctrl_ofs.setAttr("drawStyle", 2)
@@ -1199,7 +1206,7 @@ class Controller(RigController):
         self.knee_bend_ctrl = rig_lib.create_jnttype_ctrl("{0}_knee_bend_CTRL".format(self.model.module_name),
                                                           knee_bend_ctrl_shape, drawstyle=2, rotateorder=4)
 
-        pmc.select(d=1)
+        pmc.select(cl=1)
         knee_bend_ctrl_ofs = pmc.joint(p=(0, 0, 0), n="{0}_knee_bend_ctrl_OFS".format(self.model.module_name))
         knee_bend_ctrl_ofs.setAttr("drawStyle", 2)
         knee_bend_ctrl_ofs.setAttr("rotateOrder", 4)
