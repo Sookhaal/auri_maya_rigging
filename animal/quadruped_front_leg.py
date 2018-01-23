@@ -635,7 +635,7 @@ class Controller(RigController):
         # knee_ctrl = rig_lib.create_jnttype_ctrl("{0}_knee_fk_CTRL".format(self.model.module_name), knee_shape,
         #                                         drawstyle=0, rotateorder=4)
         pmc.parent(knee_shape.getShape(), self.created_ctrtl_jnts[1], r=1, s=1)
-        self.created_ctrtl_jnts[1].getShape().rename("{0}Shape".format(self.created_ctrtl_jnts[0]))
+        self.created_ctrtl_jnts[1].getShape().rename("{0}Shape".format(self.created_ctrtl_jnts[1]))
         self.created_ctrtl_jnts[1].setAttr("radius", 0)
         pmc.delete(knee_shape)
 
@@ -648,7 +648,7 @@ class Controller(RigController):
         knee_02_shape = pmc.circle(c=(0, 0, 0), nr=(0, 1, 0), sw=360, r=2, d=3, s=8,
                                    n="{0}_knee_02_fk_CTRL_shape".format(self.model.module_name), ch=0)[0]
         pmc.parent(knee_02_shape.getShape(), self.created_ctrtl_jnts[2], r=1, s=1)
-        self.created_ctrtl_jnts[2].getShape().rename("{0}Shape".format(self.created_ctrtl_jnts[0]))
+        self.created_ctrtl_jnts[2].getShape().rename("{0}Shape".format(self.created_ctrtl_jnts[2]))
         self.created_ctrtl_jnts[2].setAttr("radius", 0)
         pmc.delete(knee_02_shape)
 
@@ -657,7 +657,7 @@ class Controller(RigController):
         # ankle_ctrl = rig_lib.create_jnttype_ctrl("{0}_ankle_fk_CTRL".format(self.model.module_name), ankle_shape,
         #                                          drawstyle=0, rotateorder=4)
         pmc.parent(ankle_shape.getShape(), self.created_ctrtl_jnts[3], r=1, s=1)
-        self.created_ctrtl_jnts[3].getShape().rename("{0}Shape".format(self.created_ctrtl_jnts[0]))
+        self.created_ctrtl_jnts[3].getShape().rename("{0}Shape".format(self.created_ctrtl_jnts[3]))
         self.created_ctrtl_jnts[3].setAttr("radius", 0)
         pmc.delete(ankle_shape)
 
