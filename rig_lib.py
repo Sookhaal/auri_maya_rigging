@@ -103,6 +103,9 @@ class RigController(AuriScriptController):
     def on_how_many_ctrls_changed(self, value):
         self.model.how_many_ctrls = value
 
+    def on_how_many_levels_changed(self, value):
+        self.model.how_many_ctrls = value
+
     def on_side_cbbox_changed(self, text):
         self.model.side = text
 
