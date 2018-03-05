@@ -104,10 +104,13 @@ class RigController(AuriScriptController):
         self.model.how_many_ctrls = value
 
     def on_how_many_levels_changed(self, value):
-        self.model.how_many_ctrls = value
+        self.model.how_many_levels = value
 
     def on_side_cbbox_changed(self, text):
         self.model.side = text
+
+    def on_swimrotation_cbbox_changed(self, text):
+        self.model.swimrotation = text
 
     def on_raz_ik_ctrls_changed(self, state):
         self.model.raz_ik_ctrls = is_checked(state)
