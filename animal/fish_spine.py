@@ -164,6 +164,14 @@ class Controller(RigController):
         self.view.how_many_levels.setMaximum(self.model.how_many_jnts)
 
     def prebuild(self):
+
+        temp_outputs = []
+        for i in xrange(self.model.how_many_jnts):
+            temp_output = "jnt_{0}_OUTPUT".format(i)
+            temp_outputs.append(temp_output)
+        self.create_temporary_outputs(temp_outputs)
+
+
         self.guide_names = ["{0}_spine_start_GUIDE".format(self.model.module_name),
                             "{0}_spine_end_GUIDE".format(self.model.module_name),
                             "{0}_caudalfin_end_GUIDE".format(self.model.module_name)]
