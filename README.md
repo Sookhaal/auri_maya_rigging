@@ -4,7 +4,10 @@
 The goal is to have a **fully** modular rigging tool, from humans to the weirdest creature you may imagine.
 
 The library covers the whole skeleton & controllers creation, as well as the **features** an animator expects from a production rig.
+# Installation
+[You can find installation instructions on the wiki.](https://github.com/Sookhaal/auri/wiki/Install)
 
+The folder where that repository should be cloned **NEEDS** to be named **```Maya_Scripts```**
 # How it works
 Modules are properly categorized in order to make them easy to find.
 
