@@ -1,4 +1,4 @@
-from PySide2 import QtGui
+from auri.vendor.Qt import QtCore
 
 from pymel import core as pmc
 
@@ -11,10 +11,10 @@ class RigController(AuriScriptController):
     def __init__(self, model, view):
         self.model = model
         self.view = view
-        self.modules_with_output = QtGui.QStringListModel()
-        self.outputs_model = QtGui.QStringListModel()
-        self.modules_with_spaces = QtGui.QStringListModel()
-        self.spaces_model = QtGui.QStringListModel()
+        self.modules_with_output = QtCore.QStringListModel()
+        self.outputs_model = QtCore.QStringListModel()
+        self.modules_with_spaces = QtCore.QStringListModel()
+        self.spaces_model = QtCore.QStringListModel()
         self.has_updated_modules = False
         # self.current_module = None
         self.jnt_input_grp = None
